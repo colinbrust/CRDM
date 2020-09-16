@@ -1,9 +1,5 @@
 import os
-
-# VARIABLES = ['aswi', 'ET', 'fw', 'gpp', 'pr', 'rmax', 'rmin', 'sm-rootzone', 'sm-surface', 'srad', 'tmmn', 'tmmx',
-#              'vapor', 'vod', 'vpd', 'vs']
-
-VARIABLES = ['ET', 'gpp', 'pr', 'rmax', 'rmin', 'sm-rootzone', 'sm-surface', 'srad', 'tmmn', 'tmmx', 'vpd', 'vs']
+from crdm.utils.ImportantVars import VARIABLES
 
 def assert_complete(dates, features):
 

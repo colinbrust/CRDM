@@ -1,55 +1,65 @@
 import torch
 from torch import nn
 from torch.utils.data import Dataset, DataLoader
+from torch.utils.data.sampler import SubsetRandomSampler
 import numpy as np
 from sklearn.model_selection import train_test_split
+import pickle
+import argparse
 
-
+ 
 class LSTM(nn.Module):
-    def __init__(self, input_size=1, hidden_size=64, constant_size=18, output_size=1, batch_size=64):
+    def __init__(self, input_size=1, hidden_size=64, output_size=1, batch_size=64, seq_len=13, const_size=18):
         super().__init__()
 
         self.hidden_size = hidden_size
+        self.batch_size = batch_size
 
-        self.lstm = nn.LSTM(input_size, hidden_size)
+        self.lstm = nn.LSTM(input_size, hidden_size, dropout=0.25)
 
-        self.upscale = nn.Sequential(
-          nn.Linear(constant_size, 32),
-          nn.ReLU(),
-          nn.Linear(32, 64),
-          nn.ReLU()
-        )
-
+        # Downscale to output size
         self.classifier = nn.Sequential(
-          nn.Linear(hidden_size, 128),
+          nn.Linear(hidden_size+const_size, 128),
+          nn.BatchNorm1d(128),
           nn.ReLU(),
+          nn.Dropout(0.25),
           nn.Linear(128, 256),
+          nn.BatchNorm1d(256),
           nn.ReLU(),
+          nn.Dropout(0.25),
           nn.Linear(256, 128),
+          nn.BatchNorm1d(128),
           nn.ReLU(),
+          nn.Dropout(0.25),
           nn.Linear(128, 64),
+          nn.BatchNorm1d(64),
           nn.ReLU(),
+          nn.Dropout(0.25),
           nn.Linear(64, 32),
+          nn.BatchNorm1d(32),
           nn.ReLU(),
-          nn.Linear(32, output_size)
+          nn.Dropout(0.25),
+          nn.Linear(32, 16),
+          nn.BatchNorm1d(16),
+          nn.ReLU(),
+          nn.Dropout(0.25),
+          nn.Linear(16, output_size), 
+          nn.ReLU()
         )
 
         self.hidden_cell = (torch.zeros(1,batch_size,self.hidden_size),
                             torch.zeros(1,batch_size,self.hidden_size))
 
     def forward(self, input_seq, constants):
-        print('made it nowhere')
-        lstm_out, self.hidden_cell = self.lstm(input_seq, self.hidden_cell)
-        print('made it here')
-        constants = torch.unsqueeze(constants, 0).expand(lstm_out.shape[0], -1, -1)
 
-        constants = self.upscale(constants)
-        print(constants.shape)
-        print(lstm_out.shape)
-        lstm_and_const = torch.cat((lstm_out, constants))
-        print('made it here2')
+        # Run the LSTM forward
+        lstm_out, _ = self.lstm(input_seq, self.hidden_cell)
+
+        # Concatenate the last output of the LSTM timeseries with the constant inputs
+        lstm_and_const = torch.cat((lstm_out[-1], constants), dim=1)
+
+        # Make predictions
         preds = self.classifier(lstm_and_const)
-        print('asdf')
         return preds
 
 
@@ -61,7 +71,7 @@ class PixelLoader(Dataset):
         self.monthly = np.memmap(monthly, dtype='float32', mode='c', shape=(461000, 13, 12))
         self.monthly = np.nan_to_num(self.monthly, nan=-0.5)
         self.target = np.memmap(target, dtype='int8', mode='c')
-
+    
     def __len__(self):
         return len(self.target)
     
@@ -70,49 +80,115 @@ class PixelLoader(Dataset):
                 'mon': torch.tensor(self.monthly[idx]),
                 'target': self.target[idx]}
 
+ 
 
-def train_lstm(const_f, mon_f, target_f, epochs=1000, batch_size=64):
+def train_lstm(const_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=64, lead_time=2):
 
-    # const_f ='/Users/colinbrust/projects/CRDM/data/drought/premade/constant_pixelPremade_nMonths-13_leadTime-2_size-1000.dat'
-    # mon_f = '/Users/colinbrust/projects/CRDM/data/drought/premade/monthly_pixelPremade_nMonths-13_leadTime-2_size-1000.dat'
-    # target_f = '/Users/colinbrust/projects/CRDM/data/drought/premade/target_pixelPremade_nMonths-13_leadTime-2_size-1000.dat'
-    # epochs = 1000
-    # batch_size = 64
-     
+# const_f ='/Users/colinbrust/projects/CRDM/data/drought/premade/constant_pixelPremade_nMonths-13_leadTime-2_size-1000.dat'
+# mon_f = '/Users/colinbrust/projects/CRDM/data/drought/premade/monthly_pixelPremade_nMonths-13_leadTime-2_size-1000.dat'
+# target_f = '/Users/colinbrust/projects/CRDM/data/drought/premade/target_pixelPremade_nMonths-13_leadTime-2_size-1000.dat'
+# epochs = 10
+# batch_size = 64
+# hidden_size = 64
+# lead_time = 2
+
+    # Make data loader
     loader = PixelLoader(const_f, mon_f, target_f)
+
+    # Split into training and test sets
     train, test = train_test_split([x for x in range(len(loader))], test_size=0.25)
-    
-    train_loader = DataLoader(dataset=loader, batch_size=batch_size, shuffle=True)
+    train_sampler = SubsetRandomSampler(train)
+    test_sampler = SubsetRandomSampler(test)
 
-    model = LSTM(input_size=13, hidden_size=64, constant_size=loader.constant.shape[1], output_size=6)
+    train_loader = DataLoader(dataset=loader, batch_size=batch_size, sampler=train_sampler)
+    test_loader = DataLoader(dataset=loader, batch_size=batch_size, sampler=test_sampler)
+
+    # Define model, loss and optimizer.
+    seq_len, input_size = loader[0]['mon'].shape
+    model = LSTM(input_size=input_size, hidden_size=hidden_size, output_size=6, batch_size=batch_size, seq_len=seq_len)
+
     device = torch.device('cuda:0' if torch.cuda.is_available() else "cpu")
-
     model.to(device)
 
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
+    prev_best_loss = 1e6
+    err_out = {}
+
+    out_name_mod = 'LSTM_epochs-{}_batch-{}_nMonths-{}_hiddenSize-{}_leadTime-{}_model.p'.format(epochs, batch_size, seq_len, hidden_size, lead_time)
+    out_name_err = 'LSTM_epochs-{}_batch-{}_nMonths-{}_hiddenSize-{}_leadTime-{}_err.p'.format(epochs, batch_size, seq_len, hidden_size, lead_time)
+
     for epoch in range(epochs):
-
+        total_loss = 0
+        train_loss = []
+        test_loss = []
         model.train()
-        # Loop over each subset of data
-        for item in train_loader:
 
-            mon = item['mon'].permute(2, 0, 1)
+        # Loop over each subset of data
+        for i, item in enumerate(train_loader, 1):
+
+            mon = item['mon'].permute(1, 0, 2)
             const = item['const'].permute(0, 1)
 
-            print(mon.shape)
             # Zero out the optimizer's gradient buffer
             optimizer.zero_grad()
-            # Make a prediction based on the model
+
+            # Make prediction with model
             outputs = model(mon, const)
-            # Compute the loss
-            print(outputs.shape)
-            print(item['target'].shape)
-            loss = criterion(outputs.permute(1, 0, 2), item['target'])
-            # Use backpropagation to compute the derivative of the loss with respect to the parameters
-            loss.backward()
-            # Use the derivative information to update the parameters
+
+            # Compute the loss and step the optimizer
+            loss = criterion(outputs.type(torch.FloatTensor), item['target'].type(torch.LongTensor))
+            loss.backward(retain_graph=True)
             optimizer.step()
-            # Print the epoch, the training loss, and the test set accuracy.
-            print('Epoch: {}, Train Loss: {}\n'.format(epoch, loss.item()))
+
+            if i % 500 == 0:
+                print('Epoch: {}, Train Loss: {}'.format(epoch, loss.item()))
+        
+            # Store loss
+            total_loss += loss.item()
+            train_loss.append(loss.item())
+        
+        # Switch to evaluation mode
+        model.eval()
+        for i, item in enumerate(test_loader, 1):
+
+            mon = item['mon'].permute(1, 0, 2)
+            const = item['const'].permute(0, 1)
+
+            # Run model on test set
+            outputs = model(mon, const)
+            loss = criterion(outputs.type(torch.FloatTensor), item['target'].type(torch.LongTensor))
+
+            if i % 500 == 0:
+                print('Epoch: {}, Test Loss: {}\n'.format(epoch, loss.item()))
+            
+            # Save loss info
+            test_loss.append(loss.item())
+        
+        # If our new loss is better than old loss, save the model
+        if prev_best_loss > total_loss:
+            torch.save(model.state_dict(), out_name_mod)
+            prev_best_loss = total_loss
+
+        # Save out train and test set loss. 
+        err_out[epoch] = {'train': train_loss,
+                            'test': test_loss}
+
+        with open(out_name_err, 'wb') as f:
+            pickle.dump(err_out, f)
+
+if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser(description='Train Drought Prediction Model')
+    parser.add_argument('-c', '--const_f', type=str, help='File of memmap of constants.')
+    parser.add_argument('-m', '--mon_f', type=str, help='File of memmap of monthlys.')
+    parser.add_argument('-t', '--target_f', type=str, help='File of memmap of targets.')
+    parser.add_argument('-e', '--epochs', type=int, default=25, help='Number of epochs.')
+
+    args = parser.parse_args()
+
+    for hidden in [32, 64, 128, 256]:
+        for batch in [32, 64, 128, 256]:
+            train_lstm(const_f=args.const_f, mon_f=args.mon_f, target_f=args.target_f,
+                       epochs=args.epochs, batch_size=batch, hidden_size=hidden, lead_time=2)

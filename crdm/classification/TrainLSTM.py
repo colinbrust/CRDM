@@ -128,43 +128,55 @@ def train_lstm(const_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=6
         # Loop over each subset of data
         for i, item in enumerate(train_loader, 1):
 
-            mon = item['mon'].permute(1, 0, 2)
-            const = item['const'].permute(0, 1)
+            try:
 
-            # Zero out the optimizer's gradient buffer
-            optimizer.zero_grad()
+                mon = item['mon'].permute(1, 0, 2)
+                const = item['const'].permute(0, 1)
 
-            # Make prediction with model
-            outputs = model(mon, const)
+                # Zero out the optimizer's gradient buffer
+                optimizer.zero_grad()
 
-            # Compute the loss and step the optimizer
-            loss = criterion(outputs.type(torch.FloatTensor), item['target'].type(torch.LongTensor))
-            loss.backward(retain_graph=True)
-            optimizer.step()
+                # Make prediction with model
+                outputs = model(mon, const)
 
-            if i % 500 == 0:
-                print('Epoch: {}, Train Loss: {}'.format(epoch, loss.item()))
-        
-            # Store loss
-            total_loss += loss.item()
-            train_loss.append(loss.item())
-        
+                # Compute the loss and step the optimizer
+                loss = criterion(outputs.type(torch.FloatTensor), item['target'].type(torch.LongTensor))
+                loss.backward(retain_graph=True)
+                optimizer.step() 
+
+                if i % 500 == 0:
+                    print('Epoch: {}, Train Loss: {}'.format(epoch, loss.item()))
+            
+                # Store loss
+                total_loss += loss.item()
+                train_loss.append(loss.item())
+
+            except RuntimeError as e:
+                # For some reason the SubsetRandomSampler makes uneven batch sizes at the end of the batch, so this is done as a workaound.
+                print(e, '\nSkipping this mini-batch.')
+
         # Switch to evaluation mode
         model.eval()
         for i, item in enumerate(test_loader, 1):
 
-            mon = item['mon'].permute(1, 0, 2)
-            const = item['const'].permute(0, 1)
+            try:
 
-            # Run model on test set
-            outputs = model(mon, const)
-            loss = criterion(outputs.type(torch.FloatTensor), item['target'].type(torch.LongTensor))
+                mon = item['mon'].permute(1, 0, 2)
+                const = item['const'].permute(0, 1)
 
-            if i % 500 == 0:
-                print('Epoch: {}, Test Loss: {}\n'.format(epoch, loss.item()))
-            
-            # Save loss info
-            test_loss.append(loss.item())
+                # Run model on test set
+                outputs = model(mon, const)
+                loss = criterion(outputs.type(torch.FloatTensor), item['target'].type(torch.LongTensor))
+
+                if i % 500 == 0:
+                    print('Epoch: {}, Test Loss: {}\n'.format(epoch, loss.item()))
+                
+                # Save loss info
+                test_loss.append(loss.item())
+
+            except RuntimeError as e:
+                # For some reason the SubsetRandomSampler makes uneven batch sizes at the end of the batch, so this is done as a workaound.
+                print(e, '\nSkipping this mini-batch.')
         
         # If our new loss is better than old loss, save the model
         if prev_best_loss > total_loss:
@@ -189,6 +201,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     for hidden in [32, 64, 128, 256]:
-        for batch in [32, 64, 128, 256]:
+        for batch in [64, 128, 256]:
             train_lstm(const_f=args.const_f, mon_f=args.mon_f, target_f=args.target_f,
                        epochs=args.epochs, batch_size=batch, hidden_size=hidden, lead_time=2)

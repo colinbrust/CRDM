@@ -1,6 +1,8 @@
 import torch
 import os
+from pathlib import Path
 import matplotlib.pyplot as plt
+import numpy as np
 from crdm.classification.TrainLSTM import LSTM
 from crdm.loaders.AggregateAllPixels import AggregateAllPixles
 from crdm.utils.ImportantVars import DIMS, LENGTH
@@ -8,7 +10,7 @@ from crdm.utils.ImportantVars import DIMS, LENGTH
 
 def make_model(mod_f):
 
-    epochs, batch, nMonths, hiddenSize, leadTime = [int(x.split('-')[-1]) for x in os.path.basename(f).split('_')[1:-1]]
+    epochs, batch, nMonths, hiddenSize, leadTime = [int(x.split('-')[-1]) for x in os.path.basename(mod_f).split('_')[1:-1]]
     # make model from hyperparams and load trained parameters.
     model = LSTM(input_size=12, hidden_size=hiddenSize, output_size=6, 
                 batch_size=batch, seq_len=nMonths, const_size=18)
@@ -23,7 +25,7 @@ def get_pred_true_arrays(model, mod_f, target, in_features):
     # TODO: Add const_size and input_size as additional filename descriptors.
     # TODO: Make helper to extract epochs, batch, etc from data.
     # Get hyperparameters from filename
-    epochs, batch, nMonths, hiddenSize, leadTime = [int(x.split('-')[-1]) for x in os.path.basename(f).split('_')[1:-1]]
+    epochs, batch, nMonths, hiddenSize, leadTime = [int(x.split('-')[-1]) for x in os.path.basename(mod_f).split('_')[1:-1]]
 
     data = AggregateAllPixles(target=target, in_features=in_features, 
                             lead_time=leadTime, n_months=nMonths)
@@ -71,7 +73,21 @@ def save_arrays(out_dir, out_dict, target):
     np.savetxt(os.path.join(out_dir, '{}_real.csv'.format(base)), out_dict['valid'], delimiter=',')
 
 
-mod_f = '/Users/colinbrust/projects/CRDM/data/drought/model_results/LSTM_epochs-20_batch-32_nMonths-13_hiddenSize-32_leadTime-2_model.p'
-target = '/Users/colinbrust/projects/CRDM/data/drought/out_classes/out_memmap/20130702_USDM.dat'
-in_features = '/Users/colinbrust/projects/CRDM/data/drought/in_features'
+def save_all_preds(target_dir, in_features, mod_f, out_dir):
 
+    model = make_model(mod_f)
+    f_list = [str(x) for x in Path(target_dir).glob('*_USDM.dat')]
+
+    for f in f_list:
+        print(f)
+        try:
+            out_dict = get_pred_true_arrays(model, mod_f, f, in_features)
+            save_arrays(out_dir, out_dict, f)
+        except AssertionError as e:
+            print(e, '\nSkipping this target')
+
+
+mod_f = '/Users/colinbrust/projects/CRDM/data/drought/model_results/LSTM_epochs-20_batch-16_nMonths-13_hiddenSize-64_leadTime-2_model.p'
+target_dir = '/Users/colinbrust/projects/CRDM/data/drought/out_classes/out_memmap'
+in_features = '/Users/colinbrust/projects/CRDM/data/drought/in_features'
+out_dir = '/Users/colinbrust/projects/CRDM/data/drought/model_results/pred_maps'

@@ -15,7 +15,7 @@ class LSTM(nn.Module):
         self.hidden_size = hidden_size
         self.batch_size = batch_size
 
-        self.lstm = nn.LSTM(input_size, hidden_size, dropout=0.25)
+        self.lstm = nn.LSTM(input_size, hidden_size)
 
         # Downscale to output size
         self.classifier = nn.Sequential(

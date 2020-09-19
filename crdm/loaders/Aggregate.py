@@ -74,21 +74,3 @@ class Aggregate(ABC):
     def _get_constants(self) -> List[str]:
         p = os.path.join(self.in_features, 'constant_memmap')
         return sorted([str(img) for img in pathlib.Path(p).iterdir()])
-
-
-    @abstractmethod
-    def make_feature_stack(self) -> np.array:
-        pass
-
-    @abstractmethod
-    def get_features(self):
-        pass
-    
-    @abstractmethod
-    def get_target(self):
-        pass
-
-
-    def get_features_and_target(self):
-
-        return self.get_features(), self.get_target()

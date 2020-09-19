@@ -9,7 +9,7 @@ from crdm.utils.ImportantVars import VARIABLES
 # make list of tuples where elem[0] is the sequence of features and elem[1] is the output class
 # make nxm array for input to LSTM where n is a variable and m is the sequence length (12 months)
 # Have a dense layer after the end of the LSTM that incorporates the constant information that doesn't change with time
-class PremakePixels(Aggregate):
+class PremakeTrainingPixels(Aggregate):
 
     def premake_features(self) -> np.array:
         # Make sure you have pixel indices to slice by.
@@ -25,12 +25,12 @@ class PremakePixels(Aggregate):
             tmp = np.array([np.memmap(x, 'float32', 'c') for x in filt])
             arrs.append(tmp)
 
-        # dim = variable x timestep x value
+        # dim = variable x timestep x location
         arrs = np.array(arrs)
         # Slice out only training indices
         arrs = np.take(arrs, indices, axis=2)
 
-        # dim = variable x value
+        # dim = variable x location
         constants = [np.memmap(x, 'float32', 'c') for x in [*self.constants, *self.annuals]]
         constants = np.array(constants)
         constants = np.take(constants, indices, axis=1)
@@ -48,16 +48,6 @@ class PremakePixels(Aggregate):
         constants = np.concatenate((constants, day_diff[np.newaxis]))
 
         return arrs, constants
-    
-    def get_features(self): 
-        pass
-
-    def get_target(self):
-        pass
-
-    def make_feature_stack(self):
-        pass
-
 
 # If it turns out we need more training data, rerun this with a size > 1000
 def make_pixel_ts(target_dir, in_features, lead_time, size, n_months, out_dir):
@@ -73,7 +63,7 @@ def make_pixel_ts(target_dir, in_features, lead_time, size, n_months, out_dir):
         try:
             # For each image, get new random indices so we don't overfit to certain locations
             indices = np.random.choice(161040, size=size, replace=False)
-            agg = PremakePixels(target=target, in_features=in_features, lead_time=lead_time, n_months=n_months, indices=indices)
+            agg = PremakeTrainingPixels(target=target, in_features=in_features, lead_time=lead_time, n_months=n_months, indices=indices)
             print(target)
 
             # Make monthly, constant, and target arrays

@@ -1,6 +1,6 @@
 library(ggplot2)
 library(magrittr)
-source()
+source('https://raw.githubusercontent.com/colinbrust/CRDM/develop/crdm/R/PlotTheme.R')
 
 map_to_tidy <- function(f) {
   
@@ -58,15 +58,8 @@ plot_single_date <- function(pattern, f_list, out_dir) {
                                 'USDM Drought')) %>%
     ggplot(aes(x=col, y=rowid, fill=val)) + 
     geom_raster() +
-    theme_minimal() + 
     theme(aspect.ratio = 264/610) + 
     labs(x='', y='', fill='Drought\nCategory', title = pattern) +
-    theme(axis.title.x=element_blank(),
-          axis.text.x=element_blank(),
-          axis.ticks.x=element_blank(),
-          axis.title.y=element_blank(),
-          axis.text.y=element_blank(),
-          axis.ticks.y=element_blank()) +
     scale_fill_manual(values = c('No Drought' = '#d3d3d3',
                                  'D0' = '#FFFF00',
                                  'D1' = '#FCD37F',
@@ -74,8 +67,15 @@ plot_single_date <- function(pattern, f_list, out_dir) {
                                  'D3' = '#E60000',
                                  'D4' = '#730000')) + 
     facet_wrap(~type, nrow=2) + 
-    labs(title=caption)
-  
+    labs(title=caption) + 
+    plot_theme() +
+    theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),
+          axis.ticks.x=element_blank(),
+          axis.title.y=element_blank(),
+          axis.text.y=element_blank(),
+          axis.ticks.y=element_blank()) 
+
   ggsave(out_name, fig, width = 7, height = 5, units = 'in',
          dpi = 300)
 }

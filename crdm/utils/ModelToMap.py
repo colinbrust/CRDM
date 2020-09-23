@@ -66,11 +66,12 @@ def get_pred_true_arrays(model, mod_f, target, in_features):
             'valid': actual}
 
 
-def save_arrays(out_dir, out_dict, target):
+def save_arrays(out_dir, out_dict, target, mod_f):
 
     base = os.path.basename(target).replace('.dat', '')
-    np.savetxt(os.path.join(out_dir, '{}_pred.csv'.format(base)), out_dict['preds'], delimiter=',')
-    np.savetxt(os.path.join(out_dir, '{}_real.csv'.format(base)), out_dict['valid'], delimiter=',')
+    mod_name = os.path.basename(mod_f).replace('.p', '')
+    np.savetxt(os.path.join(out_dir, '{}_{}_pred.csv'.format(base, mod_name)), out_dict['preds'], delimiter=',')
+    np.savetxt(os.path.join(out_dir, '{}_{}_real.csv'.format(base, mod_name)), out_dict['valid'], delimiter=',')
 
 
 def save_all_preds(target_dir, in_features, mod_f, out_dir):
@@ -82,12 +83,14 @@ def save_all_preds(target_dir, in_features, mod_f, out_dir):
         print(f)
         try:
             out_dict = get_pred_true_arrays(model, mod_f, f, in_features)
-            save_arrays(out_dir, out_dict, f)
+            save_arrays(out_dir, out_dict, f, mod_f)
         except AssertionError as e:
             print(e, '\nSkipping this target')
 
 
-mod_f = '/Users/colinbrust/projects/CRDM/data/drought/model_results/LSTM_epochs-20_batch-16_nMonths-13_hiddenSize-64_leadTime-2_model.p'
+mod_f = '/Users/colinbrust/projects/CRDM/data/drought/model_results/LSTM_epochs-20_batch-128_nMonths-13_hiddenSize-256_leadTime-2_model.p'
 target_dir = '/Users/colinbrust/projects/CRDM/data/drought/out_classes/out_memmap'
 in_features = '/Users/colinbrust/projects/CRDM/data/drought/in_features'
 out_dir = '/Users/colinbrust/projects/CRDM/data/drought/model_results/pred_maps'
+
+save_all_preds(target_dir, in_features, mod_f, out_dir)

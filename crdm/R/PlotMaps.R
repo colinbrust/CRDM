@@ -1,5 +1,6 @@
 library(ggplot2)
 library(magrittr)
+source()
 
 map_to_tidy <- function(f) {
   
@@ -38,6 +39,16 @@ plot_single_date <- function(pattern, f_list, out_dir) {
   print(pattern)
   out_name <- file.path(out_dir, paste0(pattern, '_map.png'))
   
+  parts <- out_name %>% 
+    basename() %>%
+    stringr::str_split('_') %>% 
+    unlist()
+  
+  day <- parts[1]
+  lead <- parts[8] %>% stringr::str_replace('leadTime-', '')
+  
+  caption <- paste('Prediction for', lubridate::as_date(day), 'wtih', lead, 'Month Lead Time')
+  
   fig <- f_list %>%
     grep(pattern, ., value = T) %>%
     lapply(map_to_tidy) %>%
@@ -62,7 +73,8 @@ plot_single_date <- function(pattern, f_list, out_dir) {
                                  'D2' = '#FFAA00',
                                  'D3' = '#E60000',
                                  'D4' = '#730000')) + 
-    facet_wrap(~type, nrow=2)
+    facet_wrap(~type, nrow=2) + 
+    labs(title=caption)
   
   ggsave(out_name, fig, width = 7, height = 5, units = 'in',
          dpi = 300)

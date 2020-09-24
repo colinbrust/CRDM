@@ -212,10 +212,23 @@ if __name__ == '__main__':
     parser.add_argument('-m', '--mon_f', type=str, help='File of memmap of monthlys.')
     parser.add_argument('-t', '--target_f', type=str, help='File of memmap of targets.')
     parser.add_argument('-e', '--epochs', type=int, default=25, help='Number of epochs.')
+    parser.add_argument('-bs', '--batch_size', type=int, help='Batch size to train model with.')
+    parser.add_argument('-hs', '--hidden_size', type=int, help='LSTM hidden dimension size.')
+    parser.add_argument('--search', dest='search', action='store_true', help='Perform gridsearch for hyperparameter selection.')
+    parser.add_argument('--no-search', dest='search', action='store_true', help='Do not perform gridsearch for hyperparameter selection.')
+    parser.set_defaults(search=False)
 
     args = parser.parse_args()
 
-    for hidden in [32, 64, 128, 256]:
-        for batch in [64, 128, 256]:
+    if args.grid_search:
+        for hidden in [32, 64, 128, 256, 512]:
+            for batch in [32, 64, 128, 256, 512]:
+                train_lstm(const_f=args.const_f, mon_f=args.mon_f, target_f=args.target_f,
+                           epochs=args.epochs, batch_size=batch, hidden_size=hidden, lead_time=2)
+
+    else:
+        try:         
             train_lstm(const_f=args.const_f, mon_f=args.mon_f, target_f=args.target_f,
-                       epochs=args.epochs, batch_size=batch, hidden_size=hidden, lead_time=2)
+                    epochs=args.epochs, batch_size=args.batch_size, hidden_size=args.hidden_size, lead_time=2)
+        except AttributeError as e:
+            print('-bs and -hs flags must be used when you are not using the search option.')

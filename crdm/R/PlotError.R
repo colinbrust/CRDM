@@ -41,7 +41,7 @@ plot_all <- function(f_dir) {
     tidyr::pivot_longer(c(train, test), names_to='set') %>%
     dplyr::mutate(batch = factor(batch),
                   hiddenSize = factor(hiddenSize)) %>%
-    dplyr::filter(set == 'test') %>%
+    dplyr::filter(set == 'test', epochs == 35) %>%
     ggplot(aes(x=rowid, y=value, color=batch)) + 
      geom_line() +
      facet_wrap(~hiddenSize) + 

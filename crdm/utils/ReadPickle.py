@@ -1,6 +1,6 @@
 import pickle
 
-# File that reads pickle so that it can be loaded into R with reticulate. 
+# File that reads pickle so that it can be loaded into R with reticulate and plotted.
 def read_pickle(f):
     with open(f, 'rb') as dat:
         out = pickle.load(dat)

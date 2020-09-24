@@ -6,6 +6,7 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 import pickle
 import argparse
+from crdm.utils.ParsePremade import parse_premade
 
  
 class LSTM(nn.Module):
@@ -66,10 +67,19 @@ class LSTM(nn.Module):
 class PixelLoader(Dataset):
     
     def __init__(self, constant, monthly, target):
-        self.constant = np.memmap(constant, dtype='float32', mode='c', shape=(461000, 18))
+
+        info = parse_premade(constant)
+
+        const_shape = np.memmap(constant, dtype='float32', mode='r').size
+        num_consts = 16 if info['rmFeatures'] else 18
+        num_samples = int(const_shape/num_consts)
+
+        self.constant = np.memmap(constant, dtype='float32', mode='c', shape=(num_samples, num_consts))
         self.constant = np.nan_to_num(self.constant, nan=-0.5)
-        self.monthly = np.memmap(monthly, dtype='float32', mode='c', shape=(461000, 13, 12))
+
+        self.monthly = np.memmap(monthly, dtype='float32', mode='c', shape=(num_samples, int(info['nMonths']), 12))
         self.monthly = np.nan_to_num(self.monthly, nan=-0.5)
+
         self.target = np.memmap(target, dtype='int8', mode='c')
     
     def __len__(self):
@@ -82,15 +92,19 @@ class PixelLoader(Dataset):
 
  
 
-def train_lstm(const_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=64, lead_time=2):
+def train_lstm(const_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=64):
 
-# const_f ='/Users/colinbrust/projects/CRDM/data/drought/premade/constant_pixelPremade_nMonths-13_leadTime-2_size-1000.dat'
-# mon_f = '/Users/colinbrust/projects/CRDM/data/drought/premade/monthly_pixelPremade_nMonths-13_leadTime-2_size-1000.dat'
-# target_f = '/Users/colinbrust/projects/CRDM/data/drought/premade/target_pixelPremade_nMonths-13_leadTime-2_size-1000.dat'
-# epochs = 10
-# batch_size = 64
-# hidden_size = 64
-# lead_time = 2
+const_f ='/Users/colinbrust/projects/CRDM/data/drought/premade/constant_pixelPremade_nMonths-12_leadTime-2_size-2000_rmFeatures-True.dat'
+mon_f = '/Users/colinbrust/projects/CRDM/data/drought/premade/monthly_pixelPremade_nMonths-12_leadTime-2_size-2000_rmFeatures-True.dat'
+target_f = '/Users/colinbrust/projects/CRDM/data/drought/premade/target_pixelPremade_nMonths-12_leadTime-2_size-2000_rmFeatures-True.dat'
+epochs = 10
+batch_size = 64
+hidden_size = 64
+
+
+    info = parse_premade(const_f)
+    lead_time = info['leadTime']
+    const_size = 16 if info['rmFeatures'] else 18
 
     # Make data loader
     loader = PixelLoader(const_f, mon_f, target_f)
@@ -105,7 +119,8 @@ def train_lstm(const_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=6
 
     # Define model, loss and optimizer.
     seq_len, input_size = loader[0]['mon'].shape
-    model = LSTM(input_size=input_size, hidden_size=hidden_size, output_size=6, batch_size=batch_size, seq_len=seq_len)
+    model = LSTM(input_size=input_size, hidden_size=hidden_size, output_size=6,
+                 batch_size=batch_size, seq_len=seq_len, const_size=const_size)
 
     device = torch.device('cuda:0' if torch.cuda.is_available() else "cpu")
     model.to(device)

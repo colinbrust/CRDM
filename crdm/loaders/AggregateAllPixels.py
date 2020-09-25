@@ -40,3 +40,6 @@ class AggregateAllPixles(Aggregate):
         constants = np.concatenate((constants, day_diff[np.newaxis]))
 
         return arrs, constants
+
+    def remove_lat_lon(self):
+        self.constants = [x for x in self.constants if not ('lon.dat' in x or 'lat.dat' in x)]

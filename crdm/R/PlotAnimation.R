@@ -1,6 +1,6 @@
 PlotAnimation <- function(
   f_dir = '~/projects/CRDM/figures/',
-  out_name = '~/projects/CRDM/figures/predictions.gif') {
+  out_name = '~/projects/CRDM/figures/predictions_test_images.gif') {
   
   f_dir %>%
     list.files(full.names = T, pattern = '.png') %>%

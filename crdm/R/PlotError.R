@@ -41,10 +41,10 @@ plot_all <- function(f_dir) {
     tidyr::pivot_longer(c(train, test), names_to='set') %>%
     dplyr::mutate(batch = factor(batch),
                   hiddenSize = factor(hiddenSize)) %>%
-    dplyr::filter(set == 'test', epochs == 35) %>%
+    dplyr::filter(set == 'test') %>%
     ggplot(aes(x=rowid, y=value, color=batch)) + 
      geom_line() +
-     facet_wrap(~hiddenSize) + 
+     # facet_wrap(~hiddenSize) + 
      labs(x='Epoch', y='Cross-Entropy Loss', color='Batch Size') + 
      theme_bw()
 }

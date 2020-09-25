@@ -36,6 +36,9 @@ class Aggregate(ABC):
 
 
     def _get_date_list(self) -> List[str]:
+        """
+        Get a list of feature dates to use given the target image. 
+        """
         d = os.path.basename(self.target).replace('_USDM.dat', '')
         d = d[:-2] + '01'
         d = dt.datetime.strptime(d, '%Y%m%d').date()
@@ -46,7 +49,9 @@ class Aggregate(ABC):
         return [x.replace('-', '') for x in dates]
 
     def _get_day_diff(self) -> int:
-
+        """
+        Get the number of days between the feature date and the target image date. 
+        """
         d_pred = os.path.basename(self.target).replace('_USDM.dat', '')
         d_feat = d_pred[:-2] + '01'
 
@@ -58,6 +63,9 @@ class Aggregate(ABC):
         return (d_pred - d_feat).days
 
     def _get_monthlys(self) -> List[str]:
+        """
+        Get a list of monthly image paths to use to predict a given target. 
+        """
         p = os.path.join(self.in_features, 'monthly_memmap')
         out = []
         for x in self.dates:
@@ -68,9 +76,15 @@ class Aggregate(ABC):
         return sorted(out)
 
     def _get_annuals(self) -> List[str]:
+        """
+        Get a list of annual image paths to use to predict a given target. 
+        """
         p = os.path.join(self.in_features, 'annual_memmap')
         return [str(img) for img in pathlib.Path(p).glob(self.annual_date + '_*.dat')]
 
     def _get_constants(self) -> List[str]:
+        """
+        Get constant feature images. 
+        """
         p = os.path.join(self.in_features, 'constant_memmap')
         return sorted([str(img) for img in pathlib.Path(p).iterdir()])

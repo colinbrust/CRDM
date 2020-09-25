@@ -4,9 +4,10 @@ from torch.utils.data import Dataset, DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 import numpy as np
 from sklearn.model_selection import train_test_split
+from collections import Counter
 import pickle
 import argparse
-from crdm.utils.ParsePremade import parse_premade
+from crdm.utils.ParseFileNames import parse_fname
 
  
 class LSTM(nn.Module):
@@ -68,10 +69,10 @@ class PixelLoader(Dataset):
     
     def __init__(self, constant, monthly, target):
 
-        info = parse_premade(constant)
+        info = parse_fname(constant)
 
         const_shape = np.memmap(constant, dtype='float32', mode='r').size
-        num_consts = 16 if info['rmFeatures'] else 18
+        num_consts = 16 if info['rmFeatures'] == 'True' else 18
         num_samples = int(const_shape/num_consts)
 
         self.constant = np.memmap(constant, dtype='float32', mode='c', shape=(num_samples, num_consts))
@@ -94,17 +95,17 @@ class PixelLoader(Dataset):
 
 def train_lstm(const_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=64):
 
-const_f ='/Users/colinbrust/projects/CRDM/data/drought/premade/constant_pixelPremade_nMonths-12_leadTime-2_size-2000_rmFeatures-True.dat'
-mon_f = '/Users/colinbrust/projects/CRDM/data/drought/premade/monthly_pixelPremade_nMonths-12_leadTime-2_size-2000_rmFeatures-True.dat'
-target_f = '/Users/colinbrust/projects/CRDM/data/drought/premade/target_pixelPremade_nMonths-12_leadTime-2_size-2000_rmFeatures-True.dat'
-epochs = 10
-batch_size = 64
-hidden_size = 64
+    # const_f ='/Users/colinbrust/projects/CRDM/data/drought/premade/constant_pixelPremade_nMonths-12_leadTime-2_size-2000_rmFeatures-True.dat'
+    # mon_f = '/Users/colinbrust/projects/CRDM/data/drought/premade/monthly_pixelPremade_nMonths-12_leadTime-2_size-2000_rmFeatures-True.dat'
+    # target_f = '/Users/colinbrust/projects/CRDM/data/drought/premade/target_pixelPremade_nMonths-12_leadTime-2_size-2000_rmFeatures-True.dat'
+    # epochs = 10
+    # batch_size = 64
+    # hidden_size = 64
 
 
-    info = parse_premade(const_f)
+    info = parse_fname(const_f)
     lead_time = info['leadTime']
-    const_size = 16 if info['rmFeatures'] else 18
+    const_size = 16 if info['rmFeatures'] == 'True' else 18
 
     # Make data loader
     loader = PixelLoader(const_f, mon_f, target_f)
@@ -125,14 +126,18 @@ hidden_size = 64
     device = torch.device('cuda:0' if torch.cuda.is_available() else "cpu")
     model.to(device)
 
-    criterion = nn.CrossEntropyLoss()
+    # Provide relative frequency weights to use in loss function. 
+    targets = np.memmap(target_f, dtype='int8', mode='r')
+    counts = list(Counter(targets).values())
+    weights = torch.Tensor([1 - (x / sum(counts)) for x in counts])
+    criterion = nn.CrossEntropyLoss(weight=weights)
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
     prev_best_loss = 1e6
     err_out = {}
 
-    out_name_mod = 'LSTM_epochs-{}_batch-{}_nMonths-{}_hiddenSize-{}_leadTime-{}_model.p'.format(epochs, batch_size, seq_len, hidden_size, lead_time)
-    out_name_err = 'LSTM_epochs-{}_batch-{}_nMonths-{}_hiddenSize-{}_leadTime-{}_err.p'.format(epochs, batch_size, seq_len, hidden_size, lead_time)
+    out_name_mod = 'modelType-LSTM_epochs-{}_batch-{}_nMonths-{}_hiddenSize-{}_leadTime-{}_rmFeatures-{}_fType-model.p'.format(epochs, batch_size, seq_len, hidden_size, lead_time, info['rmFeatures'])
+    out_name_err = 'modelType-LSTM_epochs-{}_batch-{}_nMonths-{}_hiddenSize-{}_leadTime-{}_rmFeatures-{}_fType-err.p'.format(epochs, batch_size, seq_len, hidden_size, lead_time, info['rmFeatures'])
 
     for epoch in range(epochs):
         total_loss = 0
@@ -162,8 +167,7 @@ hidden_size = 64
                 if i % 500 == 0:
                     print('Epoch: {}, Train Loss: {}'.format(epoch, loss.item()))
             
-                # Store loss
-                total_loss += loss.item()
+                # Store loss info
                 train_loss.append(loss.item())
 
             except RuntimeError as e:
@@ -187,6 +191,7 @@ hidden_size = 64
                     print('Epoch: {}, Test Loss: {}\n'.format(epoch, loss.item()))
                 
                 # Save loss info
+                total_loss += loss.item()
                 test_loss.append(loss.item())
 
             except RuntimeError as e:
@@ -215,20 +220,20 @@ if __name__ == '__main__':
     parser.add_argument('-bs', '--batch_size', type=int, help='Batch size to train model with.')
     parser.add_argument('-hs', '--hidden_size', type=int, help='LSTM hidden dimension size.')
     parser.add_argument('--search', dest='search', action='store_true', help='Perform gridsearch for hyperparameter selection.')
-    parser.add_argument('--no-search', dest='search', action='store_true', help='Do not perform gridsearch for hyperparameter selection.')
+    parser.add_argument('--no-search', dest='search', action='store_false', help='Do not perform gridsearch for hyperparameter selection.')
     parser.set_defaults(search=False)
 
     args = parser.parse_args()
 
-    if args.grid_search:
+    if args.search:
         for hidden in [32, 64, 128, 256, 512]:
             for batch in [32, 64, 128, 256, 512]:
                 train_lstm(const_f=args.const_f, mon_f=args.mon_f, target_f=args.target_f,
-                           epochs=args.epochs, batch_size=batch, hidden_size=hidden, lead_time=2)
+                           epochs=args.epochs, batch_size=batch, hidden_size=hidden)
 
     else:
         try:         
             train_lstm(const_f=args.const_f, mon_f=args.mon_f, target_f=args.target_f,
-                    epochs=args.epochs, batch_size=args.batch_size, hidden_size=args.hidden_size, lead_time=2)
+                    epochs=args.epochs, batch_size=args.batch_size, hidden_size=args.hidden_size)
         except AttributeError as e:
             print('-bs and -hs flags must be used when you are not using the search option.')

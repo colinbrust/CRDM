@@ -1,5 +1,6 @@
 import argparse
 from crdm.loaders.AggregateTrainingPixels import PremakeTrainingPixels
+import glob
 import numpy as np
 import os
 
@@ -51,7 +52,7 @@ def make_lstm_pixel_ts(target_dir, in_features, lead_time, size, n_months, out_d
 
     for prefix, arr in list(zip(['featType-monthly', 'featType-constant', 'featType-target'], [arrs_out, consts_out, targets_out])):
 
-        if prefix == 'target':
+        if prefix == 'featType-target':
             mm = np.memmap(os.path.join(out_dir, prefix+basename), dtype='int8', mode='w+', shape=arr.shape)
         else:
             mm = np.memmap(os.path.join(out_dir, prefix+basename), dtype='float32', mode='w+', shape=arr.shape)

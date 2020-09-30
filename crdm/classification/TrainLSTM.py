@@ -10,6 +10,8 @@ import argparse
 from crdm.utils.ParseFileNames import parse_fname
 
  
+device = torch.device('cuda:0' if torch.cuda.is_available() else "cpu")
+
 class LSTM(nn.Module):
     def __init__(self, input_size=1, hidden_size=64, output_size=1, batch_size=64, seq_len=13, const_size=18):
         super().__init__()
@@ -49,8 +51,9 @@ class LSTM(nn.Module):
           nn.ReLU()
         )
 
-        self.hidden_cell = (torch.zeros(1,batch_size,self.hidden_size),
-                            torch.zeros(1,batch_size,self.hidden_size))
+        self.hidden_cell = (torch.zeros(1,batch_size,self.hidden_size, device=device),
+                            torch.zeros(1,batch_size,self.hidden_size, device=device))
+
 
     def forward(self, input_seq, constants):
 
@@ -123,8 +126,11 @@ def train_lstm(const_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=6
     model = LSTM(input_size=input_size, hidden_size=hidden_size, output_size=6,
                  batch_size=batch_size, seq_len=seq_len, const_size=const_size)
 
-    device = torch.device('cuda:0' if torch.cuda.is_available() else "cpu")
     model.to(device)
+
+    if torch.cuda.is_available():
+        print('Using GPU')
+        model.cuda()
 
     # Provide relative frequency weights to use in loss function. 
     targets = np.memmap(target_f, dtype='int8', mode='r')

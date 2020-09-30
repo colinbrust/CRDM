@@ -153,6 +153,9 @@ def train_lstm(const_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=6
                 mon = item['mon'].permute(1, 0, 2)
                 const = item['const'].permute(0, 1)
 
+                mon = mon.type(torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor)
+                const = const.type(torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor)
+
                 # Zero out the optimizer's gradient buffer
                 optimizer.zero_grad()
 
@@ -160,7 +163,8 @@ def train_lstm(const_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=6
                 outputs = model(mon, const)
 
                 # Compute the loss and step the optimizer
-                loss = criterion(outputs.type(torch.FloatTensor), item['target'].type(torch.LongTensor))
+                loss = criterion(outputs.type(torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor), 
+                                 item['target'].type(torch.cuda.LongTensor if torch.cuda.is_available() else torch.LongTensor))
                 loss.backward(retain_graph=True)
                 optimizer.step() 
 
@@ -185,11 +189,11 @@ def train_lstm(const_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=6
 
                 mon = mon.type(torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor)
                 const = const.type(torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor)
-                
+
                 # Run model on test set
                 outputs = model(mon, const)
                 loss = criterion(outputs.type(torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor), 
-                                 item['target'].type(torch.LongTensor).type(torch.cuda.LongTensor if torch.cuda.is_available() else torch.LongTensor))
+                                 item['target'].type(torch.cuda.LongTensor if torch.cuda.is_available() else torch.LongTensor))
 
                 if i % 500 == 0:
                     print('Epoch: {}, Test Loss: {}\n'.format(epoch, loss.item()))

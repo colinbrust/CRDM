@@ -62,6 +62,8 @@ def make_lstm_pixel_ts(target_dir, in_features, lead_time, size, n_months, out_d
 
         # Flush to disk.
         del mm
+    
+    return basename
 
 
 if __name__ == '__main__':

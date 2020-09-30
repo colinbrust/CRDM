@@ -128,14 +128,14 @@ def train_lstm(const_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=6
 
     model.to(device)
 
-    if torch.cuda.is_available():
-        print('Using GPU')
-        model.cuda()
+    # if torch.cuda.is_available():
+    #     print('Using GPU')
+    #     model.cuda()
 
     # Provide relative frequency weights to use in loss function. 
     targets = np.memmap(target_f, dtype='int8', mode='r')
     counts = list(Counter(targets).values())
-    weights = torch.Tensor([1 - (x / sum(counts)) for x in counts])
+    weights = torch.Tensor([1 - (x / sum(counts)) for x in counts]).type(torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor)
     criterion = nn.CrossEntropyLoss(weight=weights)
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 

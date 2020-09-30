@@ -55,14 +55,16 @@ def get_pred_true_arrays(model, mod_f, target, in_features):
 
         mon_batch = monthlys[batch_indices[i]: batch_indices[i+1]].swapaxes(0, 1)
         const_batch = constants[batch_indices[i]: batch_indices[i+1]]
-        preds = model(torch.Tensor(mon_batch), torch.Tensor(const_batch))
+        preds = model(torch.Tensor(mon_batch).type(torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor), 
+                      torch.Tensor(const_batch).type(torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor))
         preds = np.argmax(preds.detach().numpy(), axis=1)
 
         all_preds = np.concatenate((all_preds, preds))
 
     mon_batch = monthlys[tail[0]: tail[1]].swapaxes(0, 1)
     const_batch = constants[tail[0]: tail[1]]
-    preds = model(torch.Tensor(mon_batch), torch.Tensor(const_batch))
+    preds = model(torch.Tensor(mon_batch).type(torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor),
+                  torch.Tensor(const_batch).type(torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor))
     preds = np.argmax(preds.detach().numpy(), axis=1)
     fill = LENGTH - len(all_preds)
     fill = preds[-fill:]

@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 import numpy as np
 from sklearn.model_selection import train_test_split
@@ -8,6 +8,7 @@ from collections import Counter
 import pickle
 import argparse
 from crdm.utils.ParseFileNames import parse_fname
+from crdm.loaders.PixelLoader import PixelLoader
 
  
 device = torch.device('cuda:0' if torch.cuda.is_available() else "cpu")
@@ -66,34 +67,6 @@ class LSTM(nn.Module):
         # Make predictions
         preds = self.classifier(lstm_and_const)
         return preds
-
-
-class PixelLoader(Dataset):
-    
-    def __init__(self, constant, monthly, target):
-
-        info = parse_fname(constant)
-
-        const_shape = np.memmap(constant, dtype='float32', mode='r').size
-        num_consts = 16 if info['rmFeatures'] == 'True' else 18
-        num_samples = int(const_shape/num_consts)
-
-        self.constant = np.memmap(constant, dtype='float32', mode='c', shape=(num_samples, num_consts))
-        self.constant = np.nan_to_num(self.constant, nan=-0.5)
-
-        self.monthly = np.memmap(monthly, dtype='float32', mode='c', shape=(num_samples, int(info['nMonths']), 12))
-        self.monthly = np.nan_to_num(self.monthly, nan=-0.5)
-
-        self.target = np.memmap(target, dtype='int8', mode='c')
-    
-    def __len__(self):
-        return len(self.target)
-    
-    def __getitem__(self, idx):
-        return {'const': torch.tensor(self.constant[idx]), 
-                'mon': torch.tensor(self.monthly[idx]),
-                'target': self.target[idx]}
-
  
 
 def train_lstm(const_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=64):

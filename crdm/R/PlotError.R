@@ -41,11 +41,12 @@ plot_all <- function(f_dir='~/projects/CRDM/data/drought/model_results') {
     dplyr::bind_rows() %>%
     tidyr::pivot_longer(c(train, test), names_to='set') %>%
     dplyr::mutate(batch = factor(batch),
-                  hiddenSize = factor(hiddenSize)) %>%
-    dplyr::filter(set == 'test', epochs==50) %>%
-    ggplot(aes(x=rowid, y=value, color=batch)) + 
+                  hiddenSize = factor(hiddenSize),
+                  nMonths = factor(nMonths)) %>%
+    dplyr::filter(set == 'train') %>%
+    ggplot(aes(x=rowid, y=value, color=nMonths)) + 
      geom_line() +
-     facet_wrap(~hiddenSize) + 
+     # facet_wrap(~hiddenSize) + 
      labs(x='Epoch', y='Cross-Entropy Loss', color='Batch Size') + 
      theme_bw()
 }

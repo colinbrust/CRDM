@@ -54,6 +54,17 @@ class CroppedLoader(Dataset):
             tmp = crop(tmp, x, y, self.crop_size)
             arr_out.append(tmp)
 
+        month = int(os.path.basename(agg.target)[4:6])
+        month = month * 0.01
+        month = np.ones_like(arr_out[0]) * month
+
+        day_diff = agg._get_day_diff()
+        day_diff = day_diff * 0.01
+        day_diff = np.ones_like(arr_out[0]) * day_diff
+
+        arr_out.append(month)
+        arr_out.append(day_diff)
+
         feats = torch.Tensor(arr_out)
 
         target = np.memmap(agg.target, dtype='int8', mode='r', shape=DIMS)
@@ -63,11 +74,3 @@ class CroppedLoader(Dataset):
                 'target': target}
 
 
-target_dir = '/Users/colinbrust/projects/CRDM/data/drought/out_classes/out_memmap'
-in_features = '/Users/colinbrust/projects/CRDM/data/drought/in_features'
-out_dir = '/Users/colinbrust/projects/CRDM/data/drought/premade/unet'
-lead_time = 1
-n_months = 5
-crop_size = 64
-crops_per_img = 75
-rm_features=  True

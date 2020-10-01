@@ -22,7 +22,8 @@ read_file <- function(f) {
     dplyr::mutate(f = basename(f)) %>%
     tidyr::separate(
       f,
-      c('drop1', 'epochs', 'batch', 'nMonths', 'hiddenSize', 'leadTime', 'drop2'), 
+      c('modelType', 'epochs', 'batch', 'nMonths', 'hiddenSize', 
+        'leadTime', 'rmFeatures', 'fType'), 
       sep='_'
     ) %>%
     dplyr::select(-dplyr::starts_with('drop')) %>%
@@ -32,7 +33,7 @@ read_file <- function(f) {
     )
 }
 
-plot_all <- function(f_dir) {
+plot_all <- function(f_dir='~/projects/CRDM/data/drought/model_results') {
   
   f_dir %>%
     list.files(full.names = T, pattern = 'err.p') %>%
@@ -41,10 +42,10 @@ plot_all <- function(f_dir) {
     tidyr::pivot_longer(c(train, test), names_to='set') %>%
     dplyr::mutate(batch = factor(batch),
                   hiddenSize = factor(hiddenSize)) %>%
-    dplyr::filter(set == 'test') %>%
+    dplyr::filter(set == 'test', epochs==50) %>%
     ggplot(aes(x=rowid, y=value, color=batch)) + 
      geom_line() +
-     # facet_wrap(~hiddenSize) + 
+     facet_wrap(~hiddenSize) + 
      labs(x='Epoch', y='Cross-Entropy Loss', color='Batch Size') + 
      theme_bw()
 }

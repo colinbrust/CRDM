@@ -178,7 +178,7 @@ if __name__ == '__main__':
     parser.add_argument('-e', '--epochs', type=int, default=25, help='Number of epochs.')
     parser.add_argument('-nm', '--n_months', type=int, default=5, help='Number of months to use for predictions.')
     parser.add_argument('-cs', '--crop_size', type=int, default=64, help='Size of crop to sample from input features/targets.')
-    parser.add_argument('-cpi', '-crops_per_img', type=int, default=64, help='Number of crops to take per image.')
+    parser.add_argument('-cpi', '--crops_per_img', type=int, default=64, help='Number of crops to take per image.')
     parser.add_argument('-bs', '--batch_size', type=int, default=64, help='Batch size to train model with.')
     parser.add_argument('--search', dest='search', action='store_true', help='Perform gridsearch for hyperparameter selection.')
     parser.add_argument('--no-search', dest='search', action='store_false', help='Do not perform gridsearch for hyperparameter selection.')
@@ -193,4 +193,4 @@ if __name__ == '__main__':
 
     else:  
             train_model(args.target_dir, args.in_features, args.lead_time, args.n_months,
-                    args.crop_size, args.crops_per_img, True, args.batch, args.epochs)
+                    args.crop_size, args.crops_per_img, True, args.batch_size, args.epochs)

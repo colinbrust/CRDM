@@ -10,7 +10,7 @@ from crdm.loaders.AssertComplete import assert_complete
 
 class Aggregate(ABC):
 
-    def __init__(self, target: str, in_features: str, lead_time: int, n_months: int = 2, **kwargs) -> None:
+    def __init__(self, target: str, in_features: str, lead_time: int, n_months: int = 2, memmap: bool=True, **kwargs) -> None:
         """
         :param target: Path to target flash drought image
         :param in_features: Path to directory containing 'monthly', 'constant' and 'annual' subdirectories
@@ -25,6 +25,7 @@ class Aggregate(ABC):
         self.in_features = in_features
         self.n_months = n_months
         self.lead_time = lead_time
+        self.memmap = memmap
         self.kwargs = kwargs
 
         self.dates = self._get_date_list()
@@ -39,7 +40,8 @@ class Aggregate(ABC):
         """
         Get a list of feature dates to use given the target image. 
         """
-        d = os.path.basename(self.target).replace('_USDM.dat', '')
+        match = '.dat' if self.memmap else '.tif'
+        d = os.path.basename(self.target).replace('_USDM'+match, '')
         d = d[:-2] + '01'
         d = dt.datetime.strptime(d, '%Y%m%d').date()
 
@@ -52,7 +54,8 @@ class Aggregate(ABC):
         """
         Get the number of days between the feature date and the target image date. 
         """
-        d_pred = os.path.basename(self.target).replace('_USDM.dat', '')
+        match = '.dat' if self.memmap else '.tif'
+        d_pred = os.path.basename(self.target).replace('_USDM'+match, '')
         d_feat = d_pred[:-2] + '01'
 
         d_pred = dt.datetime.strptime(d_pred, '%Y%m%d').date()
@@ -66,10 +69,13 @@ class Aggregate(ABC):
         """
         Get a list of monthly image paths to use to predict a given target. 
         """
-        p = os.path.join(self.in_features, 'monthly_memmap')
+        match = 'monthly_memmap' if self.memmap else 'monthly_tif'
+        suffix = '.dat' if self.memmap else '.tif'
+
+        p = os.path.join(self.in_features, match)
         out = []
         for x in self.dates:
-            x = [img for img in pathlib.Path(p).glob(x + '_*.dat')]
+            x = [img for img in pathlib.Path(p).glob(x + '_*'+suffix)]
             [out.append(str(y)) for y in x]
 
         assert_complete(self.dates, out)
@@ -79,12 +85,17 @@ class Aggregate(ABC):
         """
         Get a list of annual image paths to use to predict a given target. 
         """
-        p = os.path.join(self.in_features, 'annual_memmap')
-        return [str(img) for img in pathlib.Path(p).glob(self.annual_date + '_*.dat')]
+        match = 'annual_memmap' if self.memmap else 'annual_tif'
+        suffix = '.dat' if self.memmap else '.tif'
+
+        p = os.path.join(self.in_features, match)
+        return [str(img) for img in pathlib.Path(p).glob(self.annual_date + '_*'+suffix)]
 
     def _get_constants(self) -> List[str]:
         """
         Get constant feature images. 
         """
-        p = os.path.join(self.in_features, 'constant_memmap')
+        match = 'constant_memmap' if self.memmap else 'constant_tif'
+
+        p = os.path.join(self.in_features, match)
         return sorted([str(img) for img in pathlib.Path(p).iterdir()])

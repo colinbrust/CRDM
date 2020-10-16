@@ -2,6 +2,7 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 import numpy as np
 from sklearn.model_selection import train_test_split
 from collections import Counter
@@ -10,7 +11,6 @@ import argparse
 from crdm.utils.ParseFileNames import parse_fname
 from crdm.loaders.PixelLoader import PixelLoader
 
- 
 device = torch.device('cuda:0' if torch.cuda.is_available() else "cpu")
 
 class LSTM(nn.Module):
@@ -101,16 +101,18 @@ def train_lstm(const_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=6
 
     model.to(device)
 
-    # if torch.cuda.is_available():
-    #     print('Using GPU')
-    #     model.cuda()
+    if torch.cuda.is_available():
+        print('Using GPU')
+        model.cuda()
 
     # Provide relative frequency weights to use in loss function. 
     targets = np.memmap(target_f, dtype='int8', mode='r')
     counts = list(Counter(targets).values())
     weights = torch.Tensor([1 - (x / sum(counts)) for x in counts]).type(torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor)
     criterion = nn.CrossEntropyLoss(weight=weights)
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+    lr = 1e-3
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    scheduler = ReduceLROnPlateau(optimizer, mode='min', patience=3, threshold=1e-4, verbose=True)
 
     prev_best_loss = 1e6
     err_out = {}
@@ -189,6 +191,8 @@ def train_lstm(const_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=6
         if prev_best_loss > total_loss:
             torch.save(model.state_dict(), out_name_mod)
             prev_best_loss = total_loss
+            
+        scheduler.step(total_loss)
 
         # Save out train and test set loss. 
         err_out[epoch] = {'train': train_loss,
@@ -213,8 +217,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.search:
-        for hidden in [32, 64, 128, 256, 512]:
-            for batch in [32, 64, 128, 256, 512]:
+        for hidden in [32, 64, 128, 256, 512, 1024]:
+            for batch in [32, 64, 128, 256, 512, 1024]:
                 train_lstm(const_f=args.const_f, mon_f=args.mon_f, target_f=args.target_f,
                            epochs=args.epochs, batch_size=batch, hidden_size=hidden)
 

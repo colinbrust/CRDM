@@ -20,9 +20,11 @@ class PremakeTrainingPixels(Aggregate):
         indices = self.kwargs['indices']
         arrs = []
 
+        match = '.dat' if self.memmap else '.tif'
+
         # Read one variable at a time so that tensors are all formatted the same for training.
         for v in VARIABLES:
-            filt = sorted([x for x in self.monthlys if v+'.dat' in x])
+            filt = sorted([x for x in self.monthlys if v+match in x])
             tmp = np.array([np.memmap(x, 'float32', 'c') for x in filt])
             arrs.append(tmp)
 
@@ -51,5 +53,6 @@ class PremakeTrainingPixels(Aggregate):
         return arrs, constants
 
     def remove_lat_lon(self):
-        self.constants = [x for x in self.constants if not ('lon.dat' in x or 'lat.dat' in x)]
+        match = '.dat' if self.memmap else '.tif'
+        self.constants = [x for x in self.constants if not ('lon'+match in x or 'lat'+match in x)]
 

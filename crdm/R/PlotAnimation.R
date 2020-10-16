@@ -1,6 +1,8 @@
+library(magrittr)
+
 PlotAnimation <- function(
   f_dir = '~/projects/CRDM/figures/',
-  out_name = '~/projects/CRDM/figures/preds_7mons.gif') {
+  out_name = '~/projects/CRDM/figures/long_training_big_size.gif') {
   
   f_dir %>%
     list.files(full.names = T, pattern = '.png') %>%

@@ -3,6 +3,7 @@ library(magrittr)
 library(ggplot2)
 use_condaenv("gee", conda = "/opt/miniconda3/bin/conda")
 source_python('~/projects/CRDM/crdm/utils/ReadPickle.py')
+source('https://raw.githubusercontent.com/colinbrust/CRDM/develop/crdm/R/PlotTheme.R')
 
 strip_text = function(x) {
   
@@ -33,7 +34,7 @@ read_file <- function(f) {
     )
 }
 
-plot_all <- function(f_dir='~/projects/CRDM/data/drought/model_results') {
+plot_all <- function(f_dir='~/projects/CRDM/data/drought/model_results/') {
   
   f_dir %>%
     list.files(full.names = T, pattern = 'err.p') %>%
@@ -44,9 +45,10 @@ plot_all <- function(f_dir='~/projects/CRDM/data/drought/model_results') {
                   hiddenSize = factor(hiddenSize),
                   nMonths = factor(nMonths)) %>%
     dplyr::filter(set == 'train') %>%
-    ggplot(aes(x=rowid, y=value, color=nMonths)) + 
+    ggplot(aes(x=rowid, y=value, color=batch)) + 
      geom_line() +
-     # facet_wrap(~hiddenSize) + 
-     labs(x='Epoch', y='Cross-Entropy Loss', color='Batch Size') + 
-     theme_bw()
+     facet_wrap(~hiddenSize) + 
+     labs(x='Epoch', y='Cross-Entropy Loss', color='# Month\nHistory') + 
+     plot_theme()
 }
+

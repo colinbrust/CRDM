@@ -16,19 +16,20 @@ def crop(img, x_crop, y_crop, size):
 class CroppedLoader(Dataset):
     
     def __init__(self, target_dir, in_features, lead_time=1, n_months=5, 
-                 crop_size=64, crops_per_img=50, rm_features=False):
+                 crop_size=64, crops_per_img=50, rm_features=False, memmap=False):
 
         self.crop_size = crop_size
         self.crops_per_img = crops_per_img
 
-        targets = glob.glob(os.path.join(target_dir, '*.dat'))
+        match = '*.dat' if memmap else '*.tif'
+        targets = glob.glob(os.path.join(target_dir, match))
         self.targets = [x for x in targets if not('/2015' in x or '/2016' in x)] if rm_features else targets
         self.agg_list = []
 
         for target in self.targets:
             try:
 
-                agg = PremakeTrainingPixels(target, in_features, lead_time, n_months)
+                agg = PremakeTrainingPixels(target, in_features, lead_time, n_months, memmap=memmap)
                 if rm_features:
                     agg.remove_lat_lon()
                 self.agg_list.append(agg)
@@ -71,6 +72,6 @@ class CroppedLoader(Dataset):
         target = crop(target, x, y, self.crop_size)
 
         return {'feats': feats, 
-                'target': target}
+                'target': torch.Tensor(target)}
 
 

@@ -80,7 +80,7 @@ plot_single_date <- function(pattern, f_list, out_dir) {
          dpi = 300)
 }
 
-save_all <- function(f_dir='~/projects/CRDM/data/drought/model_results/pred_maps',
+save_all <- function(f_dir='~/projects/CRDM/data/drought/model_results/maps',
                      out_dir='~/projects/CRDM/figures') {
   
   f_list <- list.files(f_dir, full.names = T, pattern = '.csv') 

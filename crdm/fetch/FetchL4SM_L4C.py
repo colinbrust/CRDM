@@ -10,22 +10,37 @@ from pathlib import Path
 # chmod 0600 ~/.netrc
 
 
-def fetch_l4sm(download_dir):
+def fetch_l4sm(download_dir, dataset):
 
     os.chdir(download_dir)
     f_list = [os.path.basename(str(x)) for x in Path(download_dir).glob('*.h5')]
-    dates = [dt.datetime.strptime(x, 'SMAP_L4_SM_aup_%Y%m%dT120000_Vv4030_001.h5').date() for x in f_list]
 
-    days = [str(dt.date(2020, 1, 1) - dt.timedelta(days=x)).replace('-', '.') for x in range(1, (dt.date(2020, 1, 1) - max(dates)).days)]
+    if dataset == 'l4sm':
+        dates = [dt.datetime.strptime(x, 'SMAP_L4_SM_aup_%Y%m%dT120000_Vv4030_001.h5').date() for x in f_list]
+    elif dataset == 'l4c':
+        dates = [dt.datetime.strptime(x, 'SMAP_L4_C_mdl_%Y%m%dT120000_Vv4030_001.h5').date() for x in f_list]
+    else:
+        raise ValueError("Dataset argument must be one of 'l4sm' or 'l4c'.")
+
+    min_date = min(dates) if dates else dt.date(2015, 3, 30)
+    days = [str(dt.date(2020, 1, 1) - dt.timedelta(days=x)).replace('-', '.') for x in range(1, (dt.date(2020, 1, 1) - min_date).days)]
 
     for day in days:
         # Make valid URL to download from
         day_stripped = day.replace('.', '')
-        url = 'https://n5eil01u.ecs.nsidc.org/SMAP/SPL4SMAU.004/{}/SMAP_L4_SM_aup_{}T120000_Vv4030_001.h5'.format(day, day_stripped)
+        if dataset == 'l4sm':
+            url = 'https://n5eil01u.ecs.nsidc.org/SMAP/SPL4SMAU.004/{}/SMAP_L4_SM_aup_{}T120000_Vv4030_001.h5'.format(day, day_stripped)
+        elif dataset == 'l4c':
+            url = 'https://n5eil01u.ecs.nsidc.org/SMAP/SPL4CMDL.004/{}/SMAP_L4_C_mdl_{}T000000_Vv4040_001.h5'.format(day, day_stripped)
+        else:
+            raise ValueError("Dataset argument must be one of 'l4sm' or 'l4c'.")
+
         download_file(url)
 
 
-if __name__ ==
+if __name__ == '__main__':
+    fetch_l4sm('/mnt/e/PycharmProjects/CRDM/data/raw/l4c/ncdf', dataset='l4c')
+
 
 # # from FetchMissing import FetchMissing
 # class FetchL4SM(FetchMissing):

@@ -5,9 +5,10 @@ from pathlib import Path
 
 def fetch_gridmet(download_dir, variable):
 
+    print(variable)
     # Get date of the last available raster
     f_dir = [str(x) for x in Path(download_dir).glob(variable + '*.nc')]
-    years = [int(os.path.basename(x)[-7:-3]) for x in f_dir] if f_dir else ['2002']
+    years = [int(os.path.basename(x)[-7:-3]) for x in f_dir] if f_dir else [2002]
 
     # Make a list of years for which we don't have data
     missing_years = [x for x in range(max(years), 2021)]

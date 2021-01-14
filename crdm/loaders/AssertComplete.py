@@ -1,8 +1,13 @@
 import os
-from crdm.utils.ImportantVars import VARIABLES
 
-def assert_complete(dates, features):
 
+def assert_complete(dates, features, weekly=True):
+
+    if weekly:
+        VARIABLES = ['pr', 'rmax', 'rmin', 'sm-rootzone', 'sm-surface',
+                     'srad', 'tmmn', 'tmmx', 'vpd', 'vs', 'fw', 'VOD']
+    else:
+        VARIABLES = ['ET', 'gpp']
     for v in VARIABLES:
         filt = [x for x in features if v in x]
 

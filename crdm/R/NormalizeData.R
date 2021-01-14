@@ -1,3 +1,4 @@
+library(magrittr)
 args <- commandArgs(trailingOnly=TRUE)
 
 # Normalize data between -1 and 1
@@ -10,7 +11,7 @@ norm_calc <- function(x) {
 # Stack rasters of same variable, normalize between -1 and 1, write out
 normalize <- function(variable, in_dir, out_dir) {
 
-  f_list <- list.files(in_dir, pattern = variable, full.names = T) %>% head(20)
+  f_list <- list.files(in_dir, pattern = variable, full.names = T) 
   
   stk <-  f_list %>%
     raster::stack() %>%

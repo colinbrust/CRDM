@@ -3,16 +3,17 @@ library(doParallel)
 
 args <- commandArgs(trailingOnly=TRUE)
 
-possible_dates <- seq(as.Date('2000-01-04'), as.Date(Sys.time()), by='1 week')
-template <- raster::raster(args[[4]])
-
 gm_to_tif <- function(gm_dir='/mnt/e/PycharmProjects/CRDM/data/raw/gridmet/ncdf',
                       out_dir='/mnt/e/PycharmProjects/a;sldgfh',
                       variable='tmmn') {
   
   f_list <-   list.files(gm_dir, pattern=variable, full.names = T)
   
-  cl = makeCluster(20)
+  possible_dates <- seq(as.Date('2000-01-04'), as.Date(Sys.time()), by='1 week')
+  # template <- raster::raster(args[[4]])
+  template <- raster::raster('~/Desktop/misc_data/template.tif')
+  
+  cl = makeCluster(15)
   registerDoParallel(cl)
   
   foreach(i=1:(length(possible_dates) - 1), 
@@ -63,4 +64,14 @@ gm_to_tif <- function(gm_dir='/mnt/e/PycharmProjects/CRDM/data/raw/gridmet/ncdf'
   }
 }
 
-gm_to_tif(gm_dir = args[[1]], out_dir = args[[2]], variable = args[[3]])
+# gm_to_tif(gm_dir = '/mnt/e/PycharmProjects/CRDM/data/raw/gridmet/ncdf',
+#           out_dir = '/mnt/e/PycharmProjects/CRDM/data/in_features/weekly', 
+#           variable = 'srad')
+
+# gm_to_tif(gm_dir = '/mnt/e/PycharmProjects/CRDM/data/raw/gridmet/ncdf',
+#           out_dir = '/mnt/e/PycharmProjects/CRDM/data/in_features/weekly', 
+#           variable = 'vs')
+
+gm_to_tif(gm_dir = '/mnt/e/PycharmProjects/CRDM/data/raw/gridmet/ncdf',
+          out_dir = '/mnt/e/PycharmProjects/CRDM/data/in_features/weekly', 
+          variable = 'vpd')

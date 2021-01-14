@@ -1,3 +1,5 @@
+args <- commandArgs(trailingOnly=TRUE)
+
 # Normalize data between -1 and 1
 norm_calc <- function(x) {
   
@@ -6,7 +8,7 @@ norm_calc <- function(x) {
 }
 
 # Stack rasters of same variable, normalize between -1 and 1, write out
-normalize <- function(in_dir, variable, out_dir) {
+normalize <- function(variable, in_dir, out_dir) {
 
   f_list <- list.files(in_dir, pattern = variable, full.names = T) %>% head(20)
   
@@ -19,3 +21,9 @@ normalize <- function(in_dir, variable, out_dir) {
   
   mapply(raster::writeRaster, x=stk, filename=out_names)
 }
+
+variables = c('fw', 'pr', 'rmax', 'rmin', 'sm-surface', 'sm-rootzone', 
+              'srad', 'tmmn', 'tmmx', 'VOD', 'vpd', 'vs') %>% paste0('.tif')
+
+variables %>%
+  parallel::mclapply(normalize, in_dir = args[[1]], out_dir = args[[2]], mc.cores=12)

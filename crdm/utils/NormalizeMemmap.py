@@ -31,7 +31,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Convert all files in a directory to numpy memmap file')
     parser.add_argument('-d', '--file_dir', type=str, help='Directory .tif images.')
     parser.add_argument('-o', '--out_dir', type=str, help='Directory to write memmap arrays to.')
-    parser.add_argument('-i', '--as_int', type=bool, default=False, help='Whether or not data should be treated as an integer.')
+    parser.add_argument('--int', dest='as_int', action='store_true', help='Store data as int8.')
+    parser.add_argument('--no-int', dest='as_int', action='store_false', help='Store data as float32.')
+
     args = parser.parse_args()
 
     f_list = glob.glob(os.path.join(args.file_dir, '*.tif'))

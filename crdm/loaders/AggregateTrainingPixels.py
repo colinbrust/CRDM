@@ -3,7 +3,7 @@ import pickle
 import glob
 import os
 from crdm.loaders.Aggregate import Aggregate
-from crdm.utils.ImportantVars import VARIABLES
+from crdm.utils.ImportantVars import WEEKLY_VARS, MONTHLY_VARS
 from crdm.utils.ParseFileNames import parse_fname
 
 
@@ -12,26 +12,37 @@ from crdm.utils.ParseFileNames import parse_fname
 # Have a dense layer after the end of the LSTM that incorporates the constant information that doesn't change with time
 class PremakeTrainingPixels(Aggregate):
 
-    def premake_features(self) -> np.array:
-        # Make sure you have pixel indices to slice by.
-        assert 'indices' in self.kwargs, "'indices' must be included as a kwarg when instantiating the AggregatePixels class."
-        assert len(self.kwargs['indices']) <= 161040, "'indices' must be smaller than 161040 (the number of 9km pixels in the CONUS domain)."
+    def make_pixel_stack(self, indices, weekly):
+        out = []
 
-        indices = self.kwargs['indices']
-        arrs = []
-
-        match = '.dat' if self.memmap else '.tif'
+        VARIABLES = WEEKLY_VARS if weekly else MONTHLY_VARS
+        images = self.weeklys if weekly else self.monthlys
 
         # Read one variable at a time so that tensors are all formatted the same for training.
         for v in VARIABLES:
-            filt = sorted([x for x in self.monthlys if v+match in x])
+            filt = sorted([x for x in images if v + '.dat' in x])
             tmp = np.array([np.memmap(x, 'float32', 'c') for x in filt])
-            arrs.append(tmp)
+            out.append(tmp)
 
         # dim = variable x timestep x location
-        arrs = np.array(arrs)
+        out = np.array(out)
+
         # Slice out only training indices
-        arrs = np.take(arrs, indices, axis=2)
+        out = np.take(out, indices, axis=2)
+
+        return out
+
+    def premake_features(self) -> np.array:
+        # Make sure you have pixel indices to slice by.
+        assert 'indices' in self.kwargs, "'indices' must be included as a kwarg when instantiating the " \
+                                         "AggregatePixels class. "
+        assert len(self.kwargs['indices']) <= 176648, "'indices' must be smaller than 161040 (the number of 9km " \
+                                                      "pixels in the CONUS domain). "
+
+        indices = self.kwargs['indices']
+
+        weeklys = self.make_pixel_stack(indices, True)
+        monthlys = self.make_pixel_stack(indices, False)
 
         # dim = variable x location
         constants = [np.memmap(x, 'float32', 'c') for x in [*self.constants, *self.annuals]]
@@ -47,10 +58,17 @@ class PremakeTrainingPixels(Aggregate):
         day_diff = day_diff * 0.01
         day_diff = np.ones_like(constants[0]) * day_diff
 
+        drought = np.memmap(self.initial_drought, 'int8', 'c')
+        drought = np.take(drought, indices, axis=1)
+
+
         constants = np.concatenate((constants, month[np.newaxis]))
         constants = np.concatenate((constants, day_diff[np.newaxis]))
+        # concatenate drought with constants @@@@@@@@@@@@@@@@@@
 
-        return arrs, constants
+
+
+        return weeklys, monthlys, constants
 
     def remove_lat_lon(self):
         match = '.dat' if self.memmap else '.tif'

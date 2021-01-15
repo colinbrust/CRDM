@@ -13,64 +13,64 @@ from crdm.loaders.PixelLoader import PixelLoader
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else "cpu")
 
+
 class LSTM(nn.Module):
-    def __init__(self, input_size=1, hidden_size=64, output_size=1, batch_size=64, seq_len=13, const_size=18):
+    def __init__(self, monthly_size=1, weekly_size=1, hidden_size=64, output_size=1, batch_size=64, const_size=18):
         super().__init__()
 
         self.hidden_size = hidden_size
         self.batch_size = batch_size
 
-        self.lstm = nn.LSTM(input_size, hidden_size)
+        self.weekly_lstm = nn.LSTM(weekly_size, hidden_size)
+        self.monthly_lstm = nn.LSTM(monthly_size, hidden_size)
 
         # Downscale to output size
         self.classifier = nn.Sequential(
-          nn.Linear(hidden_size+const_size, 128),
-          nn.BatchNorm1d(128),
-          nn.ReLU(),
-          nn.Dropout(0.25),
-          nn.Linear(128, 256),
-          nn.BatchNorm1d(256),
-          nn.ReLU(),
-          nn.Dropout(0.25),
-          nn.Linear(256, 128),
-          nn.BatchNorm1d(128),
-          nn.ReLU(),
-          nn.Dropout(0.25),
-          nn.Linear(128, 64),
-          nn.BatchNorm1d(64),
-          nn.ReLU(),
-          nn.Dropout(0.25),
-          nn.Linear(64, 32),
-          nn.BatchNorm1d(32),
-          nn.ReLU(),
-          nn.Dropout(0.25),
-          nn.Linear(32, 16),
-          nn.BatchNorm1d(16),
-          nn.ReLU(),
-          nn.Dropout(0.25),
-          nn.Linear(16, output_size), 
-          nn.ReLU()
+            nn.Linear(2*hidden_size + const_size, 128),
+            nn.BatchNorm1d(128),
+            nn.ReLU(),
+            nn.Dropout(0.25),
+            nn.Linear(128, 256),
+            nn.BatchNorm1d(256),
+            nn.ReLU(),
+            nn.Dropout(0.25),
+            nn.Linear(256, 128),
+            nn.BatchNorm1d(128),
+            nn.ReLU(),
+            nn.Dropout(0.25),
+            nn.Linear(128, 64),
+            nn.BatchNorm1d(64),
+            nn.ReLU(),
+            nn.Dropout(0.25),
+            nn.Linear(64, 32),
+            nn.BatchNorm1d(32),
+            nn.ReLU(),
+            nn.Dropout(0.25),
+            nn.Linear(32, 16),
+            nn.BatchNorm1d(16),
+            nn.ReLU(),
+            nn.Dropout(0.25),
+            nn.Linear(16, output_size),
+            nn.ReLU()
         )
 
-        self.hidden_cell = (torch.zeros(1,batch_size,self.hidden_size, device=device),
-                            torch.zeros(1,batch_size,self.hidden_size, device=device))
+        self.hidden_cell = (torch.zeros(1, batch_size, self.hidden_size, device=device),
+                            torch.zeros(1, batch_size, self.hidden_size, device=device))
 
-
-    def forward(self, input_seq, constants):
-
+    def forward(self, weekly_seq, monthly_seq, constants):
         # Run the LSTM forward
-        lstm_out, _ = self.lstm(input_seq, self.hidden_cell)
+        weekly_out, _ = self.weekly_lstm(weekly_seq, self.hidden_cell)
+        monthly_out, _ = self.monthly_lstm(monthly_seq, self.hidden_cell)
 
         # Concatenate the last output of the LSTM timeseries with the constant inputs
-        lstm_and_const = torch.cat((lstm_out[-1], constants), dim=1)
+        lstm_and_const = torch.cat((weekly_out[-1], monthly_out[-1], constants), dim=1)
 
         # Make predictions
         preds = self.classifier(lstm_and_const)
         return preds
- 
+
 
 def train_lstm(const_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=64):
-
     # const_f ='/Users/colinbrust/projects/CRDM/data/drought/premade/constant_pixelPremade_nMonths-12_leadTime-2_size-2000_rmFeatures-True.dat'
     # mon_f = '/Users/colinbrust/projects/CRDM/data/drought/premade/monthly_pixelPremade_nMonths-12_leadTime-2_size-2000_rmFeatures-True.dat'
     # target_f = '/Users/colinbrust/projects/CRDM/data/drought/premade/target_pixelPremade_nMonths-12_leadTime-2_size-2000_rmFeatures-True.dat'
@@ -78,10 +78,9 @@ def train_lstm(const_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=6
     # batch_size = 64
     # hidden_size = 64
 
-
     info = parse_fname(const_f)
     lead_time = info['leadTime']
-    const_size = 16 if info['rmFeatures'] == 'True' else 18
+    const_size = 1 if info['rmFeatures'] == 'True' else 3
 
     # Make data loader
     loader = PixelLoader(const_f, mon_f, target_f)
@@ -96,8 +95,8 @@ def train_lstm(const_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=6
 
     # Define model, loss and optimizer.
     seq_len, input_size = loader[0]['mon'].shape
-    model = LSTM(input_size=input_size, hidden_size=hidden_size, output_size=6,
-                 batch_size=batch_size, seq_len=seq_len, const_size=const_size)
+    model = LSTM(weekly_size=@@@, monthly_size=@@@, hidden_size=hidden_size, output_size=6,
+                 batch_size=batch_size, const_size=const_size)
 
     model.to(device)
 
@@ -108,7 +107,8 @@ def train_lstm(const_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=6
     # Provide relative frequency weights to use in loss function. 
     targets = np.memmap(target_f, dtype='int8', mode='r')
     counts = list(Counter(targets).values())
-    weights = torch.Tensor([1 - (x / sum(counts)) for x in counts]).type(torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor)
+    weights = torch.Tensor([1 - (x / sum(counts)) for x in counts]).type(
+        torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor)
     criterion = nn.CrossEntropyLoss(weight=weights)
     lr = 1e-3
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
@@ -117,8 +117,10 @@ def train_lstm(const_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=6
     prev_best_loss = 1e6
     err_out = {}
 
-    out_name_mod = 'modelType-LSTM_epochs-{}_batch-{}_nMonths-{}_hiddenSize-{}_leadTime-{}_rmFeatures-{}_fType-model.p'.format(epochs, batch_size, seq_len, hidden_size, lead_time, info['rmFeatures'])
-    out_name_err = 'modelType-LSTM_epochs-{}_batch-{}_nMonths-{}_hiddenSize-{}_leadTime-{}_rmFeatures-{}_fType-err.p'.format(epochs, batch_size, seq_len, hidden_size, lead_time, info['rmFeatures'])
+    out_name_mod = 'modelType-LSTM_epochs-{}_batch-{}_nMonths-{}_hiddenSize-{}_leadTime-{}_rmFeatures-{}_fType-model.p'.format(
+        epochs, batch_size, seq_len, hidden_size, lead_time, info['rmFeatures'])
+    out_name_err = 'modelType-LSTM_epochs-{}_batch-{}_nMonths-{}_hiddenSize-{}_leadTime-{}_rmFeatures-{}_fType-err.p'.format(
+        epochs, batch_size, seq_len, hidden_size, lead_time, info['rmFeatures'])
 
     for epoch in range(epochs):
         total_loss = 0
@@ -144,14 +146,15 @@ def train_lstm(const_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=6
                 outputs = model(mon, const)
 
                 # Compute the loss and step the optimizer
-                loss = criterion(outputs.type(torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor), 
-                                 item['target'].type(torch.cuda.LongTensor if torch.cuda.is_available() else torch.LongTensor))
+                loss = criterion(
+                    outputs.type(torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor),
+                    item['target'].type(torch.cuda.LongTensor if torch.cuda.is_available() else torch.LongTensor))
                 loss.backward(retain_graph=True)
-                optimizer.step() 
+                optimizer.step()
 
                 if i % 500 == 0:
                     print('Epoch: {}, Train Loss: {}'.format(epoch, loss.item()))
-            
+
                 # Store loss info
                 train_loss.append(loss.item())
 
@@ -173,12 +176,13 @@ def train_lstm(const_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=6
 
                 # Run model on test set
                 outputs = model(mon, const)
-                loss = criterion(outputs.type(torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor), 
-                                 item['target'].type(torch.cuda.LongTensor if torch.cuda.is_available() else torch.LongTensor))
+                loss = criterion(
+                    outputs.type(torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor),
+                    item['target'].type(torch.cuda.LongTensor if torch.cuda.is_available() else torch.LongTensor))
 
                 if i % 500 == 0:
                     print('Epoch: {}, Test Loss: {}\n'.format(epoch, loss.item()))
-                
+
                 # Save loss info
                 total_loss += loss.item()
                 test_loss.append(loss.item())
@@ -186,20 +190,21 @@ def train_lstm(const_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=6
             except RuntimeError as e:
                 # For some reason the SubsetRandomSampler makes uneven batch sizes at the end of the batch, so this is done as a workaound.
                 print(e, '\nSkipping this mini-batch.')
-        
+
         # If our new loss is better than old loss, save the model
         if prev_best_loss > total_loss:
             torch.save(model.state_dict(), out_name_mod)
             prev_best_loss = total_loss
-            
+
         scheduler.step(total_loss)
 
         # Save out train and test set loss. 
         err_out[epoch] = {'train': train_loss,
-                            'test': test_loss}
+                          'test': test_loss}
 
         with open(out_name_err, 'wb') as f:
             pickle.dump(err_out, f)
+
 
 if __name__ == '__main__':
 
@@ -210,8 +215,10 @@ if __name__ == '__main__':
     parser.add_argument('-e', '--epochs', type=int, default=25, help='Number of epochs.')
     parser.add_argument('-bs', '--batch_size', type=int, help='Batch size to train model with.')
     parser.add_argument('-hs', '--hidden_size', type=int, help='LSTM hidden dimension size.')
-    parser.add_argument('--search', dest='search', action='store_true', help='Perform gridsearch for hyperparameter selection.')
-    parser.add_argument('--no-search', dest='search', action='store_false', help='Do not perform gridsearch for hyperparameter selection.')
+    parser.add_argument('--search', dest='search', action='store_true',
+                        help='Perform gridsearch for hyperparameter selection.')
+    parser.add_argument('--no-search', dest='search', action='store_false',
+                        help='Do not perform gridsearch for hyperparameter selection.')
     parser.set_defaults(search=False)
 
     args = parser.parse_args()
@@ -223,8 +230,8 @@ if __name__ == '__main__':
                            epochs=args.epochs, batch_size=batch, hidden_size=hidden)
 
     else:
-        try:         
+        try:
             train_lstm(const_f=args.const_f, mon_f=args.mon_f, target_f=args.target_f,
-                    epochs=args.epochs, batch_size=args.batch_size, hidden_size=args.hidden_size)
+                       epochs=args.epochs, batch_size=args.batch_size, hidden_size=args.hidden_size)
         except AttributeError as e:
             print('-bs and -hs flags must be used when you are not using the search option.')

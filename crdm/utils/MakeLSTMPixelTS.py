@@ -1,15 +1,18 @@
 import argparse
 from crdm.loaders.AggregateTrainingPixels import PremakeTrainingPixels
+from crdm.utils.ImportantVars import LENGTH
 import glob
 import numpy as np
 import os
+
 
 def make_lstm_pixel_ts(target_dir, in_features, lead_time, size, n_months, out_dir, rm_features=False):
 
     targets = glob.glob(os.path.join(target_dir, '*.dat'))
     targets = [x for x in targets if not('/2015' in x or '/2016' in x)] if rm_features else targets
 
-    arrs_out = []
+    weeklys_out = []
+    monthlys_out = []
     consts_out = []
     targets_out = []
 
@@ -17,7 +20,7 @@ def make_lstm_pixel_ts(target_dir, in_features, lead_time, size, n_months, out_d
         
         try:
             # For each image, get new random indices so we don't overfit to certain locations
-            indices = np.random.choice(161040, size=size, replace=False)
+            indices = np.random.choice(LENGTH, size=size, replace=False)
             agg = PremakeTrainingPixels(target=target, in_features=in_features, lead_time=lead_time, n_months=n_months, indices=indices)
 
             if rm_features:
@@ -26,20 +29,24 @@ def make_lstm_pixel_ts(target_dir, in_features, lead_time, size, n_months, out_d
             print(target)
 
             # Make monthly, constant, and target arrays
-            arrs, consts = agg.premake_features()
+            weeklys, monthlys, constants = agg.premake_features()
             target = np.memmap(target, 'int8', 'c')
             target = target[indices]
 
-            arrs_out.append(arrs)
-            consts_out.append(consts)
+            weeklys_out.append(weeklys)
+            monthlys_out.append(monthlys)
+            consts_out.append(constants)
             targets_out.append(target)
 
         except AssertionError as e:
             print('{}\n Skipping {}'.format(e, target))
     
     # Flatten and reorder all the axes
-    arrs_out = np.concatenate([*arrs_out], axis=2)
-    arrs_out = np.swapaxes(arrs_out, 0, 2)
+    weeklys_out = np.concatenate([*weeklys_out], axis=2)
+    weeklys_out = np.swapaxes(weeklys_out, 0, 2)
+
+    monthlys_out = np.concatenate([*monthlys_out], axis=2)
+    monthlys_out = np.swapaxes(monthlys_out, 0, 2)
 
     consts_out = np.concatenate([*consts_out], axis=1)
     consts_out = np.swapaxes(consts_out, 0, 1)

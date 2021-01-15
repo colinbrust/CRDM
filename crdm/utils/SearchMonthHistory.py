@@ -2,6 +2,7 @@ from crdm.classification.TrainLSTM import train_lstm
 from crdm.utils.MakeLSTMPixelTS import make_lstm_pixel_ts
 import os
 
+
 def run_different_months(target_dir, in_features, premade_dir):
     for n_months in range(2, 14):
         base_name = make_lstm_pixel_ts(target_dir, in_features, 1, 15000, n_months=n_months, 

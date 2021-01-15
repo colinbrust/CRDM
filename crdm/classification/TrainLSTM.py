@@ -70,10 +70,11 @@ class LSTM(nn.Module):
         return preds
 
 
-def train_lstm(const_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=64):
-    # const_f ='/Users/colinbrust/projects/CRDM/data/drought/premade/constant_pixelPremade_nMonths-12_leadTime-2_size-2000_rmFeatures-True.dat'
-    # mon_f = '/Users/colinbrust/projects/CRDM/data/drought/premade/monthly_pixelPremade_nMonths-12_leadTime-2_size-2000_rmFeatures-True.dat'
-    # target_f = '/Users/colinbrust/projects/CRDM/data/drought/premade/target_pixelPremade_nMonths-12_leadTime-2_size-2000_rmFeatures-True.dat'
+def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=64):
+    # const_f ='/mnt/e/PycharmProjects/CRDM/data/premade/featType-constant_trainingType-pixelPremade_nWeeks-25_leadTime-6_size-100_rmFeatures-False.dat'
+    # mon_f = '/mnt/e/PycharmProjects/CRDM/data/premade/featType-monthly_trainingType-pixelPremade_nWeeks-25_leadTime-6_size-100_rmFeatures-False.dat'
+    # target_f = '/mnt/e/PycharmProjects/CRDM/data/premade/featType-target_trainingType-pixelPremade_nWeeks-25_leadTime-6_size-100_rmFeatures-False.dat'
+    # week_f = '/mnt/e/PycharmProjects/CRDM/data/premade/featType-weekly_trainingType-pixelPremade_nWeeks-25_leadTime-6_size-100_rmFeatures-False.dat'
     # epochs = 10
     # batch_size = 64
     # hidden_size = 64
@@ -83,7 +84,7 @@ def train_lstm(const_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=6
     const_size = 1 if info['rmFeatures'] == 'True' else 3
 
     # Make data loader
-    loader = PixelLoader(const_f, mon_f, target_f)
+    loader = PixelLoader(const_f, week_f, mon_f, target_f)
 
     # Split into training and test sets
     train, test = train_test_split([x for x in range(len(loader))], test_size=0.25)
@@ -94,9 +95,9 @@ def train_lstm(const_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=6
     test_loader = DataLoader(dataset=loader, batch_size=batch_size, sampler=test_sampler)
 
     # Define model, loss and optimizer.
-    seq_len, input_size = loader[0]['mon'].shape
-    model = LSTM(weekly_size=@@@, monthly_size=@@@, hidden_size=hidden_size, output_size=6,
-                 batch_size=batch_size, const_size=const_size)
+    hyperparams = loader[0]
+    model = LSTM(weekly_size=hyperparams['week'].shape[1], monthly_size=hyperparams['mon'].shape[1], hidden_size=hidden_size, output_size=6,
+                 batch_size=batch_size, const_size=hyperparams['const'].shape[0])
 
     model.to(device)
 
@@ -118,9 +119,9 @@ def train_lstm(const_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=6
     err_out = {}
 
     out_name_mod = 'modelType-LSTM_epochs-{}_batch-{}_nMonths-{}_hiddenSize-{}_leadTime-{}_rmFeatures-{}_fType-model.p'.format(
-        epochs, batch_size, seq_len, hidden_size, lead_time, info['rmFeatures'])
+        epochs, batch_size, info['nWeeks'], hidden_size, lead_time, info['rmFeatures'])
     out_name_err = 'modelType-LSTM_epochs-{}_batch-{}_nMonths-{}_hiddenSize-{}_leadTime-{}_rmFeatures-{}_fType-err.p'.format(
-        epochs, batch_size, seq_len, hidden_size, lead_time, info['rmFeatures'])
+        epochs, batch_size, info['nWeeks'], hidden_size, lead_time, info['rmFeatures'])
 
     for epoch in range(epochs):
         total_loss = 0
@@ -134,16 +135,18 @@ def train_lstm(const_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=6
             try:
 
                 mon = item['mon'].permute(1, 0, 2)
+                week = item['week'].permute(1, 0, 2)
                 const = item['const'].permute(0, 1)
 
                 mon = mon.type(torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor)
+                week = week.type(torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor)
                 const = const.type(torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor)
 
                 # Zero out the optimizer's gradient buffer
                 optimizer.zero_grad()
 
                 # Make prediction with model
-                outputs = model(mon, const)
+                outputs = model(week, mon, const)
 
                 # Compute the loss and step the optimizer
                 loss = criterion(
@@ -159,7 +162,8 @@ def train_lstm(const_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=6
                 train_loss.append(loss.item())
 
             except RuntimeError as e:
-                # For some reason the SubsetRandomSampler makes uneven batch sizes at the end of the batch, so this is done as a workaound.
+                # For some reason the SubsetRandomSampler makes uneven batch sizes at the end of the batch,
+                # so this is done as a workaound.
                 print(e, '\nSkipping this mini-batch.')
 
         # Switch to evaluation mode
@@ -169,13 +173,15 @@ def train_lstm(const_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=6
             try:
 
                 mon = item['mon'].permute(1, 0, 2)
+                week = item['week'].permute(1, 0, 2)
                 const = item['const'].permute(0, 1)
 
                 mon = mon.type(torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor)
+                week = week.type(torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor)
                 const = const.type(torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor)
 
                 # Run model on test set
-                outputs = model(mon, const)
+                outputs = model(week, mon, const)
                 loss = criterion(
                     outputs.type(torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor),
                     item['target'].type(torch.cuda.LongTensor if torch.cuda.is_available() else torch.LongTensor))
@@ -188,7 +194,8 @@ def train_lstm(const_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=6
                 test_loss.append(loss.item())
 
             except RuntimeError as e:
-                # For some reason the SubsetRandomSampler makes uneven batch sizes at the end of the batch, so this is done as a workaound.
+                # For some reason the SubsetRandomSampler makes uneven batch sizes at the end of the batch,
+                # so this is done as a workaound.
                 print(e, '\nSkipping this mini-batch.')
 
         # If our new loss is better than old loss, save the model

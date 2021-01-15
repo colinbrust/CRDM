@@ -2,11 +2,10 @@ import argparse
 import os
 from osgeo import gdal
 from pathlib import Path
-
-
 """
 Taken from: https://github.com/jgomezdans/eoldas_ng_observations/blob/master/eoldas_ng_observations/eoldas_observation_helpers.py#L29
 """
+
 
 def reproject_image_to_template(template, newDs, out_name, method='cubic'):
     newDs_ds = gdal.Open(newDs)

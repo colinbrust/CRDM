@@ -22,6 +22,8 @@ class Aggregate(ABC):
         specified by 'size'.
         """
         self.target = target
+        self.target_date = None
+        self.guess_date = None
         self.annual_date = os.path.basename(self.target)[:4] + '0101'
         self.in_features = in_features
         self.n_weeks = n_weeks
@@ -48,7 +50,9 @@ class Aggregate(ABC):
         # Find the date that is lead_time weeks away from the target USDM image.
         d = os.path.basename(self.target).replace('_USDM' + match, '')
         d = dt.datetime.strptime(d, '%Y%m%d').date()
+        self.target_date = d
         d = d - rd.relativedelta(weeks=self.lead_time)
+        self.guess_date = d
 
         # Find the input feature image dates for weekly and monthly features.
         dates = [str((d - rd.relativedelta(weeks=x)) - rd.relativedelta(days=1)) for x in range(self.n_weeks)]
@@ -72,8 +76,7 @@ class Aggregate(ABC):
 
         assert len(out) == 1, 'No initial USDM images available for this target.'
 
-        return out
-
+        return out[0]
 
     def _get_day_diff(self) -> int:
         """

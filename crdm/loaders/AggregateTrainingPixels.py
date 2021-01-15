@@ -3,7 +3,7 @@ import pickle
 import glob
 import os
 from crdm.loaders.Aggregate import Aggregate
-from crdm.utils.ImportantVars import WEEKLY_VARS, MONTHLY_VARS
+from crdm.utils.ImportantVars import LENGTH, WEEKLY_VARS, MONTHLY_VARS
 from crdm.utils.ParseFileNames import parse_fname
 
 
@@ -36,7 +36,7 @@ class PremakeTrainingPixels(Aggregate):
         # Make sure you have pixel indices to slice by.
         assert 'indices' in self.kwargs, "'indices' must be included as a kwarg when instantiating the " \
                                          "AggregatePixels class. "
-        assert len(self.kwargs['indices']) <= 176648, "'indices' must be smaller than 161040 (the number of 9km " \
+        assert len(self.kwargs['indices']) <= LENGTH, "'indices' must be smaller than 161040 (the number of 9km " \
                                                       "pixels in the CONUS domain). "
 
         indices = self.kwargs['indices']
@@ -49,24 +49,27 @@ class PremakeTrainingPixels(Aggregate):
         constants = np.array(constants)
         constants = np.take(constants, indices, axis=1)
 
-        # Add month 
-        month = int(os.path.basename(self.target)[4:6])
-        month = month * 0.01
-        month = np.ones_like(constants[0]) * month
+        # Add day of year for target image.
+        target_doy = self.target_date.timetuple().tm_yday
+        target_doy = target_doy * 0.001
+        target_doy = np.ones_like(constants[0]) * target_doy
+
+        # Add day of year for image guess date.
+        guess_doy = self.guess_date.timetuple().tm_yday
+        guess_doy = guess_doy * 0.001
+        guess_doy = np.ones_like(constants[0]) * guess_doy
 
         day_diff = self._get_day_diff()
-        day_diff = day_diff * 0.01
+        day_diff = day_diff * 0.001
         day_diff = np.ones_like(constants[0]) * day_diff
 
         drought = np.memmap(self.initial_drought, 'int8', 'c')
-        drought = np.take(drought, indices, axis=1)
+        drought = np.take(drought, indices, axis=0)
 
-
-        constants = np.concatenate((constants, month[np.newaxis]))
+        constants = np.concatenate((constants, target_doy[np.newaxis]))
+        constants = np.concatenate((constants, guess_doy[np.newaxis]))
         constants = np.concatenate((constants, day_diff[np.newaxis]))
-        # concatenate drought with constants @@@@@@@@@@@@@@@@@@
-
-
+        constants = np.concatenate((constants, drought[np.newaxis]))
 
         return weeklys, monthlys, constants
 

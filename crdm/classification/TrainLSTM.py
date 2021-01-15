@@ -218,6 +218,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train Drought Prediction Model')
     parser.add_argument('-c', '--const_f', type=str, help='File of memmap of constants.')
     parser.add_argument('-m', '--mon_f', type=str, help='File of memmap of monthlys.')
+    parser.add_argument('-w', '--week_f', type=str, help='File of memmap of weeklys.')
     parser.add_argument('-t', '--target_f', type=str, help='File of memmap of targets.')
     parser.add_argument('-e', '--epochs', type=int, default=25, help='Number of epochs.')
     parser.add_argument('-bs', '--batch_size', type=int, help='Batch size to train model with.')
@@ -233,12 +234,12 @@ if __name__ == '__main__':
     if args.search:
         for hidden in [32, 64, 128, 256, 512, 1024]:
             for batch in [32, 64, 128, 256, 512, 1024]:
-                train_lstm(const_f=args.const_f, mon_f=args.mon_f, target_f=args.target_f,
+                train_lstm(const_f=args.const_f, mon_f=args.mon_f, week_f=args.week_f, target_f=args.target_f,
                            epochs=args.epochs, batch_size=batch, hidden_size=hidden)
 
     else:
         try:
-            train_lstm(const_f=args.const_f, mon_f=args.mon_f, target_f=args.target_f,
+            train_lstm(const_f=args.const_f, mon_f=args.mon_f, week_f=args.week_f, target_f=args.target_f,
                        epochs=args.epochs, batch_size=args.batch_size, hidden_size=args.hidden_size)
         except AttributeError as e:
             print('-bs and -hs flags must be used when you are not using the search option.')

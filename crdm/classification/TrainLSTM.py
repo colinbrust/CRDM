@@ -245,7 +245,12 @@ if __name__ == '__main__':
                         help='Perform gridsearch for hyperparameter selection.')
     parser.add_argument('--no-search', dest='search', action='store_false',
                         help='Do not perform gridsearch for hyperparameter selection.')
+    parser.add_argument('--cuda', dest='cuda', action='store_true',
+                        help='Train model on GPU.')
+    parser.add_argument('--no-cuda', dest='cuda', action='store_false',
+                        help='Train model on CPU. ')
     parser.set_defaults(search=False)
+    parser.set_defaults(cuda=False)
 
     args = parser.parse_args()
     infile = open(args.pickle_f, 'rb')
@@ -261,12 +266,12 @@ if __name__ == '__main__':
         for hidden in [32, 64, 128, 256, 512, 1024]:
             for batch in [32, 64, 128, 256, 512, 1024]:
                 train_lstm(const_f=const_f, mon_f=mon_f, week_f=week_f, target_f=target_f,
-                           epochs=args.epochs, batch_size=batch, hidden_size=hidden)
+                           epochs=args.epochs, batch_size=batch, hidden_size=hidden, cuda=args.cuda)
 
     else:
         try:
             assert 'batch_size' in args and 'hidden_size' in args
             train_lstm(const_f=const_f, mon_f=mon_f, week_f=week_f, target_f=target_f,
-                       epochs=args.epochs, batch_size=args.batch_size, hidden_size=args.hidden_size)
+                       epochs=args.epochs, batch_size=args.batch_size, hidden_size=args.hidden_size, cuda=args.cuda)
         except AssertionError as e:
             print('-bs and -hs flags must be used when you are not using the search option.')

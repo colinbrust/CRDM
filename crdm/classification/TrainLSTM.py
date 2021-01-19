@@ -1,3 +1,4 @@
+import os
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
@@ -15,29 +16,30 @@ device = torch.device('cuda:0' if torch.cuda.is_available() else "cpu")
 
 
 class LSTM(nn.Module):
-    def __init__(self, monthly_size=1, weekly_size=1, hidden_size=64, output_size=1, batch_size=64, const_size=18):
+    def __init__(self, monthly_size=1, weekly_size=1, hidden_size=64, output_size=6, batch_size=64, const_size=18):
         super().__init__()
 
         self.hidden_size = hidden_size
         self.batch_size = batch_size
+        self.weekly_size = weekly_size
 
-        self.weekly_lstm = nn.LSTM(weekly_size, hidden_size)
-        self.monthly_lstm = nn.LSTM(monthly_size, hidden_size)
+        self.weekly_lstm = nn.LSTM(weekly_size, self.hidden_size)
+        self.monthly_lstm = nn.LSTM(monthly_size, self.hidden_size)
 
         # Downscale to output size
         self.classifier = nn.Sequential(
             nn.Linear(2*hidden_size + const_size, 128),
-            nn.BatchNorm1d(128),
-            nn.ReLU(),
-            nn.Dropout(0.25),
-            nn.Linear(128, 256),
-            nn.BatchNorm1d(256),
-            nn.ReLU(),
-            nn.Dropout(0.25),
-            nn.Linear(256, 128),
-            nn.BatchNorm1d(128),
-            nn.ReLU(),
-            nn.Dropout(0.25),
+            # # nn.BatchNorm1d(128),
+            # nn.ReLU(),
+            # # nn.Dropout(0.25),
+            # nn.Linear(128, 256),
+            # # nn.BatchNorm1d(256),
+            # nn.ReLU(),
+            # # nn.Dropout(0.25),
+            # nn.Linear(256, 128),
+            # nn.BatchNorm1d(128),
+            # nn.ReLU(),
+            # nn.Dropout(0.25),
             nn.Linear(128, 64),
             nn.BatchNorm1d(64),
             nn.ReLU(),
@@ -54,30 +56,34 @@ class LSTM(nn.Module):
             nn.ReLU()
         )
 
-        self.hidden_cell = (torch.zeros(1, batch_size, self.hidden_size, device=device),
-                            torch.zeros(1, batch_size, self.hidden_size, device=device))
+        # self.hidden_cell = (torch.zeros(1, self.batch_size, self.hidden_size, device=device),
+        #                     torch.zeros(1, self.batch_size, self.hidden_size, device=device))
 
-    def forward(self, weekly_seq, monthly_seq, constants):
+    def init_state(self):
+        # This is what we'll initialise our hidden state as
+        return (torch.zeros(1, self.batch_size, self.hidden_size, device=device),
+                torch.zeros(1, self.batch_size, self.hidden_size, device=device))
+
+    def forward(self, weekly_seq, monthly_seq, constants, prev_week_state, prev_month_state):
         # Run the LSTM forward
-        weekly_out, _ = self.weekly_lstm(weekly_seq, self.hidden_cell)
-        monthly_out, _ = self.monthly_lstm(monthly_seq, self.hidden_cell)
 
-        # Concatenate the last output of the LSTM timeseries with the constant inputs
-        lstm_and_const = torch.cat((weekly_out[-1], monthly_out[-1], constants), dim=1)
-
-        # Make predictions
+        week_out, week_state = self.weekly_lstm(weekly_seq, prev_week_state)
+        month_out, month_state = self.monthly_lstm(monthly_seq, prev_month_state)
+        # preds = self.linear(lstm_out)
+        lstm_and_const = torch.cat((week_out[-1], month_out[-1], constants), dim=1)
         preds = self.classifier(lstm_and_const)
-        return preds
+        return preds, week_state, month_state
 
 
 def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=64):
-    # const_f ='/mnt/e/PycharmProjects/CRDM/data/premade/featType-constant_trainingType-pixelPremade_nWeeks-25_leadTime-6_size-100_rmFeatures-False.dat'
-    # mon_f = '/mnt/e/PycharmProjects/CRDM/data/premade/featType-monthly_trainingType-pixelPremade_nWeeks-25_leadTime-6_size-100_rmFeatures-False.dat'
-    # target_f = '/mnt/e/PycharmProjects/CRDM/data/premade/featType-target_trainingType-pixelPremade_nWeeks-25_leadTime-6_size-100_rmFeatures-False.dat'
-    # week_f = '/mnt/e/PycharmProjects/CRDM/data/premade/featType-weekly_trainingType-pixelPremade_nWeeks-25_leadTime-6_size-100_rmFeatures-False.dat'
-    # epochs = 10
-    # batch_size = 64
-    # hidden_size = 64
+    # const_f ='/mnt/e/PycharmProjects/CRDM/data/premade/featType-constant_trainingType-pixelPremade_nWeeks-25_leadTime-6_size-20000_rmFeatures-True.dat'
+    # mon_f = '/mnt/e/PycharmProjects/CRDM/data/premade/featType-monthly_trainingType-pixelPremade_nWeeks-25_leadTime-6_size-20000_rmFeatures-True.dat'
+    # target_f = '/mnt/e/PycharmProjects/CRDM/data/premade/featType-target_trainingType-pixelPremade_nWeeks-25_leadTime-6_size-20000_rmFeatures-True.dat'
+    # week_f = '/mnt/e/PycharmProjects/CRDM/data/premade/featType-weekly_trainingType-pixelPremade_nWeeks-25_leadTime-6_size-20000_rmFeatures-True.dat'
+
+    epochs = 10
+    batch_size = 512
+    hidden_size = 512
 
     info = parse_fname(const_f)
     lead_time = info['leadTime']
@@ -105,7 +111,7 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidde
         print('Using GPU')
         model.cuda()
 
-    # Provide relative frequency weights to use in loss function. 
+    # Provide relative frequency weights to use in loss function.
     targets = np.memmap(target_f, dtype='int8', mode='r')
     counts = list(Counter(targets).values())
     weights = torch.Tensor([1 - (x / sum(counts)) for x in counts]).type(
@@ -127,12 +133,15 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidde
         total_loss = 0
         train_loss = []
         test_loss = []
+
         model.train()
 
         # Loop over each subset of data
         for i, item in enumerate(train_loader, 1):
 
             try:
+                week_h, week_c = model.init_state()
+                month_h, month_c = model.init_state()
 
                 mon = item['mon'].permute(1, 0, 2)
                 week = item['week'].permute(1, 0, 2)
@@ -145,18 +154,23 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidde
                 # Zero out the optimizer's gradient buffer
                 optimizer.zero_grad()
 
-                # Make prediction with model
-                outputs = model(week, mon, const)
+                # model.hidden = model.init_hidden()
 
+                # Make prediction with model
+                outputs, (week_h, week_c), (month_h, month_c) = model(week, mon, const, (week_h, week_c), (month_h, month_c))
+
+                week_h, month_h = week_h.detach(), month_h.detach()
+                week_c, month_c = week_c.detach(), week_c.detach()
                 # Compute the loss and step the optimizer
                 loss = criterion(
                     outputs.type(torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor),
-                    item['target'].type(torch.cuda.LongTensor if torch.cuda.is_available() else torch.LongTensor))
-                loss.backward(retain_graph=True)
+                    item['target'].type(torch.cuda.LongTensor if torch.cuda.is_available() else torch.LongTensor)
+                )
+                loss.backward()
                 optimizer.step()
 
-                if i % 500 == 0:
-                    print('Epoch: {}, Train Loss: {}'.format(epoch, loss.item()))
+                # if i % 500 == 0:
+                print('Epoch: {}, Train Loss: {}'.format(epoch, loss.item()))
 
                 # Store loss info
                 train_loss.append(loss.item())
@@ -168,9 +182,13 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidde
 
         # Switch to evaluation mode
         model.eval()
+
         for i, item in enumerate(test_loader, 1):
 
             try:
+
+                week_h, week_c = model.init_state()
+                month_h, month_c = model.init_state()
 
                 mon = item['mon'].permute(1, 0, 2)
                 week = item['week'].permute(1, 0, 2)
@@ -181,13 +199,14 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidde
                 const = const.type(torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor)
 
                 # Run model on test set
-                outputs = model(week, mon, const)
+                outputs, (week_h, week_c), (month_h, month_c) = model(week, mon, const, (week_h, week_c), (month_h, month_c))
                 loss = criterion(
                     outputs.type(torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor),
-                    item['target'].type(torch.cuda.LongTensor if torch.cuda.is_available() else torch.LongTensor))
+                    item['target'].type(torch.cuda.LongTensor if torch.cuda.is_available() else torch.LongTensor)
+                )
 
-                if i % 500 == 0:
-                    print('Epoch: {}, Test Loss: {}\n'.format(epoch, loss.item()))
+                # if i % 500 == 0:
+                print('Epoch: {}, Test Loss: {}\n'.format(epoch, loss.item()))
 
                 # Save loss info
                 total_loss += loss.item()
@@ -205,7 +224,7 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidde
 
         scheduler.step(total_loss)
 
-        # Save out train and test set loss. 
+        # Save out train and test set loss.
         err_out[epoch] = {'train': train_loss,
                           'test': test_loss}
 
@@ -216,10 +235,7 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidde
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Train Drought Prediction Model')
-    parser.add_argument('-c', '--const_f', type=str, help='File of memmap of constants.')
-    parser.add_argument('-m', '--mon_f', type=str, help='File of memmap of monthlys.')
-    parser.add_argument('-w', '--week_f', type=str, help='File of memmap of weeklys.')
-    parser.add_argument('-t', '--target_f', type=str, help='File of memmap of targets.')
+    parser.add_argument('-p', '--pickle_f', type=str, help='File of memmap of constants.')
     parser.add_argument('-e', '--epochs', type=int, default=25, help='Number of epochs.')
     parser.add_argument('-bs', '--batch_size', type=int, help='Batch size to train model with.')
     parser.add_argument('-hs', '--hidden_size', type=int, help='LSTM hidden dimension size.')
@@ -230,16 +246,25 @@ if __name__ == '__main__':
     parser.set_defaults(search=False)
 
     args = parser.parse_args()
+    infile = open(args.pickle_f, 'rb')
+    pick = pickle.load(infile)
+    infile.close()
+
+    week_f = os.path.join(os.path.dirname(args.pickle_f), pick['featType-weekly'])
+    mon_f = os.path.join(os.path.dirname(args.pickle_f), pick['featType-monthly'])
+    const_f = os.path.join(os.path.dirname(args.pickle_f), pick['featType-constant'])
+    target_f = os.path.join(os.path.dirname(args.pickle_f), pick['featType-target'])
 
     if args.search:
         for hidden in [32, 64, 128, 256, 512, 1024]:
             for batch in [32, 64, 128, 256, 512, 1024]:
-                train_lstm(const_f=args.const_f, mon_f=args.mon_f, week_f=args.week_f, target_f=args.target_f,
+                train_lstm(const_f=const_f, mon_f=mon_f, week_f=week_f, target_f=target_f,
                            epochs=args.epochs, batch_size=batch, hidden_size=hidden)
 
     else:
         try:
-            train_lstm(const_f=args.const_f, mon_f=args.mon_f, week_f=args.week_f, target_f=args.target_f,
+            assert 'batch_size' in args and 'hidden_size' in args
+            train_lstm(const_f=const_f, mon_f=mon_f, week_f=week_f, target_f=target_f,
                        epochs=args.epochs, batch_size=args.batch_size, hidden_size=args.hidden_size)
-        except AttributeError as e:
+        except AssertionError as e:
             print('-bs and -hs flags must be used when you are not using the search option.')

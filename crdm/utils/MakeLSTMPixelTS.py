@@ -4,6 +4,7 @@ from crdm.utils.ImportantVars import LENGTH
 import glob
 import numpy as np
 import os
+import pickle
 
 
 def make_lstm_pixel_ts(target_dir, in_features, lead_time, size, n_weeks, out_dir, rm_features=False):
@@ -57,20 +58,29 @@ def make_lstm_pixel_ts(target_dir, in_features, lead_time, size, n_weeks, out_di
     basename = '_trainingType-pixelPremade_nWeeks-{}_leadTime-{}_size-{}_rmFeatures-{}.dat'.format(n_weeks, lead_time,
                                                                                                    size, rm_features)
 
+    pick = {}
     for prefix, arr in list(
             zip(['featType-weekly', 'featType-monthly', 'featType-constant', 'featType-target'],
                 [weeklys_out, monthlys_out, consts_out, targets_out])):
 
+        out_name = prefix + basename
+        pick[prefix] = out_name
+
         if prefix == 'featType-target':
-            mm = np.memmap(os.path.join(out_dir, prefix + basename), dtype='int8', mode='w+', shape=arr.shape)
+            mm = np.memmap(out_name, dtype='int8', mode='w+', shape=arr.shape)
         else:
-            mm = np.memmap(os.path.join(out_dir, prefix + basename), dtype='float32', mode='w+', shape=arr.shape)
+            mm = np.memmap(out_name, dtype='float32', mode='w+', shape=arr.shape)
 
         # Copy .tif array to the memmap.
         mm[:] = arr[:]
 
         # Flush to disk.
         del mm
+
+    pick_name = os.path.join(out_dir, 'pickle' + basename)
+    out = open(pick_name, 'wb')
+    pickle.dump(pick, out)
+    out.close()
 
     return basename
 
@@ -80,7 +90,7 @@ if __name__ == '__main__':
 
     parser.add_argument('-td', '--target_dir', type=str, help='Directory containing target memmap images.')
     parser.add_argument('-if', '--in_features', type=str,
-                        help='Direcotry containing directorys with memmaps of training features')
+                        help='Directory containing directorys with memmaps of training features')
     parser.add_argument('-lt', '--lead_time', type=int, help='Number of weeks in advance to make predictions.')
     parser.add_argument('-nw', '--n_weeks', type=int, help='Number of week "history" to use as model inputs.')
     parser.add_argument('-sz', '--size', type=int, help='Number of pixels to use to train model.')

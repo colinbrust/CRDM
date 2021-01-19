@@ -10,7 +10,7 @@ import pickle
 def make_lstm_pixel_ts(target_dir, in_features, lead_time, size, n_weeks, out_dir, rm_features=False):
     targets = glob.glob(os.path.join(target_dir, '*.dat'))
     targets = [x for x in targets if not ('/2015' in x or '/2016' in x)] if rm_features else targets
-
+    targets = sorted(targets)
     weeklys_out = []
     monthlys_out = []
     consts_out = []
@@ -63,8 +63,8 @@ def make_lstm_pixel_ts(target_dir, in_features, lead_time, size, n_weeks, out_di
             zip(['featType-weekly', 'featType-monthly', 'featType-constant', 'featType-target'],
                 [weeklys_out, monthlys_out, consts_out, targets_out])):
 
-        out_name = prefix + basename
-        pick[prefix] = out_name
+        out_name = os.path.join(out_dir, prefix + basename)
+        pick[prefix] = prefix + basename
 
         if prefix == 'featType-target':
             mm = np.memmap(out_name, dtype='int8', mode='w+', shape=arr.shape)

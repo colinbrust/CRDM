@@ -4,7 +4,7 @@ import os
 
 
 def run_different_months(target_dir, in_features, premade_dir):
-    for n_months in range(2, 14):
+    for n_months in range(5, 14):
         base_name = make_lstm_pixel_ts(target_dir, in_features, 1, 15000, n_months=n_months, 
                                     out_dir=premade_dir, rm_features=True)
 

@@ -20,11 +20,12 @@ normalize <- function(variable, in_dir, out_dir) {
   
   out_names <- file.path(out_dir, basename(f_list))
   
-  mapply(raster::writeRaster, x=stk, filename=out_names)
+  mapply(raster::writeRaster, x=stk, filename=out_names, overwrite = T)
 }
 
-variables = c('fw', 'pr', 'rmax', 'rmin', 'sm-surface', 'sm-rootzone', 
-              'srad', 'tmmn', 'tmmx', 'VOD', 'vpd', 'vs') %>% paste0('.tif')
+variables = c('sm-surface') %>% paste0('.tif')
+
+
 
 variables %>%
-  parallel::mclapply(normalize, in_dir = args[[1]], out_dir = args[[2]], mc.cores=12)
+  lapply(normalize, in_dir = './weekly', out_dir = './week_norm')

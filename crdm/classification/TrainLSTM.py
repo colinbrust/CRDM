@@ -1,7 +1,8 @@
 import argparse
 from collections import Counter
-from crdm.loaders.ContinuousPixelLoader import PixelLoader
+from crdm.loaders.PixelLoader import PixelLoader
 from crdm.utils.ImportantVars import MONTHLY_VARS, WEEKLY_VARS
+from crdm.utils.ParseFileNames import parse_fname
 import os
 import torch
 from torch import nn
@@ -67,21 +68,21 @@ class LSTM(nn.Module):
         return preds, week_state, month_state
 
 
-def train_lstm(feature_dir, target_dir, pixel_per_img, lead_time,
-               n_weeks, epochs=50, batch_size=64, hidden_size=64, cuda=False):
-
-    # feature_dir = '/mnt/e/PycharmProjects/CRDM/data/in_features'
-    # target_dir = '/mnt/e/PycharmProjects/CRDM/data/out_classes/out_memmap'
-    # n_weeks = 16
-    # lead_time = 4
-    # pixel_per_img = 10000
+def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=64, cuda=False):
+    # const_f ='/mnt/e/PycharmProjects/CRDM/data/premade/featType-constant_trainingType-pixelPremade_nWeeks-25_leadTime-6_size-20000_rmFeatures-True.dat'
+    # mon_f = '/mnt/e/PycharmProjects/CRDM/data/premade/featType-monthly_trainingType-pixelPremade_nWeeks-25_leadTime-6_size-20000_rmFeatures-True.dat'
+    # target_f = '/mnt/e/PycharmProjects/CRDM/data/premade/featType-target_trainingType-pixelPremade_nWeeks-25_leadTime-6_size-20000_rmFeatures-True.dat'
+    # week_f = '/mnt/e/PycharmProjects/CRDM/data/premade/featType-weekly_trainingType-pixelPremade_nWeeks-25_leadTime-6_size-20000_rmFeatures-True.dat'
+    #
     # epochs = 10
     # batch_size = 512
     # hidden_size = 512
+    device = 'cuda:0' if torch.cuda.is_available() and cuda else 'cpu'
+    info = parse_fname(const_f)
+    lead_time = info['leadTime']
 
     # Make data loader
-    loader = PixelLoader(target_dir=target_dir, feature_dir=feature_dir, pixel_per_img=pixel_per_img,
-                         lead_time=lead_time, n_weeks=n_weeks)
+    loader = PixelLoader(const_f, week_f, mon_f, target_f)
 
     # Split into training and test sets
     train, test = train_test_split([x for x in range(len(loader))], test_size=0.25)
@@ -95,19 +96,17 @@ def train_lstm(feature_dir, target_dir, pixel_per_img, lead_time,
     model = LSTM(weekly_size=len(WEEKLY_VARS), monthly_size=len(MONTHLY_VARS), hidden_size=hidden_size, output_size=6,
                  batch_size=batch_size, const_size=8)
 
-    device = 'cuda:0' if torch.cuda.is_available() and cuda else 'cpu'
     model.to(device)
 
     if torch.cuda.is_available() and cuda:
         print('Using GPU')
         model.cuda()
 
-    # Provide relative frequency weights to use in loss function. These weights correspond to approximately the
-    # inverse of how frequent each drough class is.
-
-    weights = torch.Tensor([0.2488, 0.9486, 0.9312, 0.9744, 0.9936, 0.9035]).type(
-         torch.cuda.FloatTensor if (cuda and torch.cuda.is_available()) else torch.FloatTensor
-    )
+    # Provide relative frequency weights to use in loss function.
+    targets = np.memmap(target_f, dtype='int8', mode='r')
+    counts = list(Counter(targets).values())
+    weights = torch.Tensor([1 - (x / sum(counts)) for x in counts]).type(
+        torch.cuda.FloatTensor if (cuda and torch.cuda.is_available()) else torch.FloatTensor)
     criterion = nn.CrossEntropyLoss(weight=weights)
     lr = 1e-3
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
@@ -116,17 +115,15 @@ def train_lstm(feature_dir, target_dir, pixel_per_img, lead_time,
     prev_best_loss = 1e6
     err_out = {}
 
-    out_name_mod = 'modelType-LSTM_epochs-{}_batch-{}_nWeeks-{}_hiddenSize-{}_leadTime-{}_numPixels-{}_rmFeatures-{}_fType-model.p'.format(epochs, batch_size, n_weeks, hidden_size, lead_time, pixel_per_img, False)
-    out_name_err = 'modelType-LSTM_epochs-{}_batch-{}_nWeeks-{}_hiddenSize-{}_leadTime-{}_numPixels-{}_rmFeatures-{}_fType-err.p'.format(epochs, batch_size, n_weeks, hidden_size, lead_time, pixel_per_img, False)
+    out_name_mod = 'modelType-LSTM_epochs-{}_batch-{}_nMonths-{}_hiddenSize-{}_leadTime-{}_rmFeatures-{}_fType-model.p'.format(
+        epochs, batch_size, info['nWeeks'], hidden_size, lead_time, info['rmFeatures'])
+    out_name_err = 'modelType-LSTM_epochs-{}_batch-{}_nMonths-{}_hiddenSize-{}_leadTime-{}_rmFeatures-{}_fType-err.p'.format(
+        epochs, batch_size, info['nWeeks'], hidden_size, lead_time, info['rmFeatures'])
 
     for epoch in range(epochs):
         total_loss = 0
         train_loss = []
         test_loss = []
-
-        # Use this for stateful LSTM
-        # week_h, week_c = model.init_state()
-        # month_h, month_c = model.init_state()
 
         model.train()
 
@@ -134,12 +131,11 @@ def train_lstm(feature_dir, target_dir, pixel_per_img, lead_time,
         for i, item in enumerate(train_loader, 1):
 
             try:
-                # Use this for stateless LSTM
                 week_h, week_c = model.init_state()
                 month_h, month_c = model.init_state()
 
-                mon = item['mon'].permute(2, 0, 1)
-                week = item['week'].permute(2, 0, 1)
+                mon = item['mon'].permute(1, 0, 2)
+                week = item['week'].permute(1, 0, 2)
                 const = item['const'].permute(0, 1)
 
                 mon = mon.type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor)
@@ -149,12 +145,13 @@ def train_lstm(feature_dir, target_dir, pixel_per_img, lead_time,
                 # Zero out the optimizer's gradient buffer
                 optimizer.zero_grad()
 
+                # model.hidden = model.init_hidden()
+
                 # Make prediction with model
                 outputs, (week_h, week_c), (month_h, month_c) = model(week, mon, const, (week_h, week_c), (month_h, month_c))
 
                 week_h, month_h = week_h.detach(), month_h.detach()
-                week_c, month_c = week_c.detach(), month_c.detach()
-
+                week_c, month_c = week_c.detach(), week_c.detach()
                 # Compute the loss and step the optimizer
                 loss = criterion(
                     outputs.type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor),
@@ -229,14 +226,10 @@ def train_lstm(feature_dir, target_dir, pixel_per_img, lead_time,
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Train Drought Prediction Model')
-    parser.add_argument('-fd', '--feature_dir', type=str, help='Directory containing features')
-    parser.add_argument('-td', '--target_dir', type=str, help='Directory containing targets')
-    parser.add_argument('-np', '--num_pixels', type=int, default=10000, help='Number of pixels to sample per image.')
-    parser.add_argument('-lt', '--lead_time', type=int, default=4, help='Lead time for making predictions')
-    parser.add_argument('-nw', '--n_weeks', type=int, default=20, help='Number of weeks to use for predictions.')
+    parser.add_argument('-p', '--pickle_f', type=str, help='File of memmap of constants.')
     parser.add_argument('-e', '--epochs', type=int, default=25, help='Number of epochs.')
-    parser.add_argument('-bs', '--batch_size', type=int, default=512, help='Batch size to train model with.')
-    parser.add_argument('-hs', '--hidden_size', type=int, default=512, help='LSTM hidden dimension size.')
+    parser.add_argument('-bs', '--batch_size', type=int, help='Batch size to train model with.')
+    parser.add_argument('-hs', '--hidden_size', type=int, help='LSTM hidden dimension size.')
     parser.add_argument('--search', dest='search', action='store_true',
                         help='Perform gridsearch for hyperparameter selection.')
     parser.add_argument('--no-search', dest='search', action='store_false',
@@ -249,19 +242,25 @@ if __name__ == '__main__':
     parser.set_defaults(cuda=False)
 
     args = parser.parse_args()
+    infile = open(args.pickle_f, 'rb')
+    pick = pickle.load(infile)
+    infile.close()
+
+    week_f = os.path.join(os.path.dirname(args.pickle_f), pick['featType-weekly'])
+    mon_f = os.path.join(os.path.dirname(args.pickle_f), pick['featType-monthly'])
+    const_f = os.path.join(os.path.dirname(args.pickle_f), pick['featType-constant'])
+    target_f = os.path.join(os.path.dirname(args.pickle_f), pick['featType-target'])
 
     if args.search:
         for hidden in [32, 64, 128, 256, 512, 1024]:
             for batch in [32, 64, 128, 256, 512, 1024]:
-                train_lstm(feature_dir=args.feature_dir, target_dir=args.target_dir,
-                           pixel_per_img=args.num_pixels, lead_time=args.lead_time, n_weeks=args.n_weeks,
+                train_lstm(const_f=const_f, mon_f=mon_f, week_f=week_f, target_f=target_f,
                            epochs=args.epochs, batch_size=batch, hidden_size=hidden, cuda=args.cuda)
 
     else:
         try:
             assert 'batch_size' in args and 'hidden_size' in args
-            train_lstm(feature_dir=args.feature_dir, target_dir=args.target_dir,
-                       pixel_per_img=args.num_pixels, lead_time=args.lead_time, n_weeks=args.n_weeks,
+            train_lstm(const_f=const_f, mon_f=mon_f, week_f=week_f, target_f=target_f,
                        epochs=args.epochs, batch_size=args.batch_size, hidden_size=args.hidden_size, cuda=args.cuda)
         except AssertionError as e:
             print('-bs and -hs flags must be used when you are not using the search option.')

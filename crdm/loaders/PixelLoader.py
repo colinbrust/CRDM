@@ -17,13 +17,10 @@ class PixelLoader(Dataset):
         nMonths = int(info['nWeeks'])//4
 
         self.constant = np.memmap(constant, dtype='float32', mode='c', shape=(num_samples, num_consts))
-        # self.constant = np.nan_to_num(self.constant, nan=-0.5)
 
         self.weekly = np.memmap(weekly, dtype='float32', mode='c', shape=(num_samples, int(info['nWeeks']), len(WEEKLY_VARS)))
-        # self.weekly = np.nan_to_num(self.weekly, nan=-0.5)
 
         self.monthly = np.memmap(monthly, dtype='float32', mode='c', shape=(num_samples, nMonths, len(MONTHLY_VARS)))
-        # self.monthly = np.nan_to_num(self.monthly, nan=-0.5)
 
         self.target = np.memmap(target, dtype='int8', mode='c')
     
@@ -31,7 +28,9 @@ class PixelLoader(Dataset):
         return len(self.target)
     
     def __getitem__(self, idx):
-        return {'const': torch.tensor(self.constant[idx]), 
+
+        # self.monthly = np.nan_to_num(self.monthly, =-0.5)
+        return {'const': torch.tensor(self.constant[idx]),
                 'mon': torch.tensor(self.monthly[idx]),
                 'week': torch.tensor(self.weekly[idx]),
                 'target': self.target[idx]}

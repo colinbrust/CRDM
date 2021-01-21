@@ -117,7 +117,7 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidde
     targets = np.memmap(target_f, dtype='int8', mode='r')
     counts = list(Counter(targets).values())
     weights = torch.Tensor([1 - (x / sum(counts)) for x in counts]).type(
-        torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor)
+        torch.cuda.FloatTensor if (cuda and torch.cuda.is_available()) else torch.FloatTensor)
     criterion = nn.CrossEntropyLoss(weight=weights)
     lr = 1e-3
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)

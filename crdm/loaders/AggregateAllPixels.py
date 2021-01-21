@@ -3,7 +3,7 @@ import pickle
 import glob
 import os
 from crdm.loaders.Aggregate import Aggregate
-from crdm.utils.ImportantVars import VARIABLES
+from crdm.utils.ImportantVars import WEEKLY_VARS, MONTHLY_VARS
 
 # TODO: Make an 'AggregatePixel' class that both this class and the 'AggregateTrainingPixels' inherit from to minimize code duplication.
 # make list of tuples where elem[0] is the sequence of features and elem[1] is the output class
@@ -15,6 +15,16 @@ class AggregateAllPixles(Aggregate):
         arrs = []
 
         # Read one variable at a time so that tensors are all formatted the same for training.
+
+        VARIABLES = WEEKLY_VARS if weekly else MONTHLY_VARS
+        images = self.weeklys if weekly else self.monthlys
+
+        # Read one variable at a time so that tensors are all formatted the same for training.
+        for v in VARIABLES:
+            filt = sorted([x for x in images if v + '.dat' in x])
+            tmp = np.array([np.memmap(x, 'float32', 'c') for x in filt])
+            out.append(tmp)
+
         for v in VARIABLES:
             filt = sorted([x for x in self.monthlys if v+'.dat' in x])
             tmp = np.array([np.memmap(x, 'float32', 'c') for x in filt])

@@ -14,6 +14,7 @@ def to_memmap(f: str, out_dir: str, as_int=False) -> None:
 
     # Read array, convert na values to np.nan, normalize between zero and one
     arr = rio.open(f).read(1)
+    arr = np.where(arr <= -10, -1.5, arr)
 
     if as_int:
         mm = np.memmap(os.path.join(out_dir, os.path.basename(f)).replace('.tif', '.dat'), dtype='int8', mode='w+', shape=arr.shape)

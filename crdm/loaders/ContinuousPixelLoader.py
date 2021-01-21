@@ -1,11 +1,13 @@
 from crdm.utils.FilterMissing import find_missing_dates
-from crdm.utils.ImportantVars import WEEKLY_VARS, MONTHLY_VARS
-from crdm.utils.ParseFileNames import parse_fname
+from crdm.utils.ImportantVars import LENGTH, MONTHLY_VARS, WEEKLY_VARS
 import datetime as dt
 import dateutil.relativedelta as rd
+from functools import partial
+from itertools import chain
 import numpy as np
 import os
 from pathlib import Path
+import re
 from torch.utils.data import Dataset
 import torch
 from typing import List, Tuple
@@ -31,20 +33,27 @@ class PixelLoader(Dataset):
         self.valid_months = [dt.date(2003, 1, 1) + rd.relativedelta(months=x) for x in range(1, 17*12)]
         self.valid_months = [str(x).replace('-', '') for x in self.valid_months]
         self.targets = [str(x) for x in Path(self.target_dir).glob('*.dat')]
-        self.targets = self._get_date_list()
+        self.targets = self._get_target_feature_pairs()
         self.keys = list(self.targets.keys())
+        self.constants = [str(x) for x in Path(os.path.join(feature_dir, 'constant_mem')).iterdir()]
+        self.indices = [np.random.randint(low=0, high=LENGTH, size=self.pixel_per_img) for _ in range(len(self.keys))]
 
-    def _get_date_list(self) -> dict:
+    def _get_target_feature_pairs(self) -> dict:
         """
         Get a list of feature dates to use given the target image.
         """
+        month_list = [str(x) for x in Path(os.path.join(self.feature_dir, 'monthly_mem')).iterdir()]
+        week_list = [str(x) for x in Path(os.path.join(self.feature_dir, 'weekly_mem')).iterdir()]
+        annual_list = [str(x) for x in Path(os.path.join(self.feature_dir, 'annual_mem')).iterdir()]
 
         out = {}
         for target in self.targets:
 
             # find the date that is 'lead_time' weeks away from the target
             d = dt.datetime.strptime(os.path.basename(target)[:8], '%Y%m%d').date()
+            target_date = d
             d = d - rd.relativedelta(weeks=self.lead_time)
+            init_date = d
 
             # Find the input feature image dates for weekly and monthly features.
             dates = [str((d - rd.relativedelta(weeks=x)) - rd.relativedelta(days=1)) for x in range(self.n_weeks)]
@@ -56,131 +65,94 @@ class PixelLoader(Dataset):
 
             # If all necessary images are present, add the dates to the list
             if all([x in self.valid_months for x in months]) and all([x in self.valid_dates for x in dates]):
-                #TODO: Change this so that months and dates are the full image paths rather than just the dates.
-                out[target] = {'months': months,
-                               'dates': dates}
+
+                year = sorted(dates)[-1][:4]
+                weeks = [x for x in week_list for y in dates if y in x]
+                weeks_out = []
+                for var in WEEKLY_VARS:
+                    filt = sorted([x for x in weeks if var + '.dat' in x])
+                    weeks_out.append(filt)
+                weeks_out = list(chain(*weeks_out))
+
+                months = [x for x in month_list for y in months if y in x]
+                months_out = []
+                for var in MONTHLY_VARS:
+                    filt = sorted([x for x in months if var + '.dat' in x])
+                    months_out.append(filt)
+                months_out = list(chain(*months_out))
+
+                annual = [x for x in annual_list if year in x]
+                init_drought = self._get_init_drought_status(str(init_date).replace('-', ''))
+                doy_data = self._get_doy_data(target_date, init_date)
+
+                out[target] = {'months': months_out,
+                               'weeks': weeks_out,
+                               'annual': annual[0],
+                               'init_drought': init_drought,
+                               'doy_data': doy_data}
 
         return out
 
-    def get_images(self, idx):
-
-        target = self.keys[idx]
-        dates = self.targets[target]
-
-    '''
-    def get_constants(self):
-
-        # dim = variable x location
-        constants = [np.memmap(x, 'float32', 'c') for x in [*self.constants, *self.annuals]]
-        constants = np.array(constants)
-        constants = np.take(constants, indices, axis=1)
+    @staticmethod
+    def _get_doy_data(target_date, init_date):
 
         # Add day of year for target image.
-        target_doy = self.target_date.timetuple().tm_yday
+        target_doy = target_date.timetuple().tm_yday
         target_doy = target_doy * 0.001
-        target_doy = np.ones_like(constants[0]) * target_doy
 
         # Add day of year for image guess date.
-        guess_doy = self.guess_date.timetuple().tm_yday
+        guess_doy = init_date.timetuple().tm_yday
         guess_doy = guess_doy * 0.001
-        guess_doy = np.ones_like(constants[0]) * guess_doy
 
-        day_diff = self._get_day_diff()
+        day_diff = (target_date - init_date).days
         day_diff = day_diff * 0.001
-        day_diff = np.ones_like(constants[0]) * day_diff
 
-        drought = np.memmap(self.initial_drought, 'int8', 'c')
-        drought = np.take(drought, indices, axis=0)
+        return [target_doy, guess_doy, day_diff]
 
-        constants = np.concatenate((constants, target_doy[np.newaxis]))
-        constants = np.concatenate((constants, guess_doy[np.newaxis]))
-        constants = np.concatenate((constants, day_diff[np.newaxis]))
-        constants = np.concatenate((constants, drought[np.newaxis]))
-
-    def _get_init_drought_status(self) -> str:
-        match = '.dat' if self.memmap else '.tif'
+    def _get_init_drought_status(self, date) -> str:
 
         # Find the date that is lead_time weeks away from the target USDM image.
-        d = os.path.basename(self.target).replace('_USDM' + match, '')
-        d = dt.datetime.strptime(d, '%Y%m%d').date()
-        d = d - rd.relativedelta(weeks=self.lead_time)
-
-        out = [str(x) for x in pathlib.Path(os.path.dirname(self.target)).glob(str(d).replace('-', '')+'*')]
+        out = [x for x in self.targets if date in x]
 
         assert len(out) == 1, 'No initial USDM images available for this target.'
 
         return out[0]
 
-    def _get_day_diff(self) -> int:
-        """
-        Get the number of days between the feature date and the target image date.
-        """
+    @staticmethod
+    def _read_image(img, idx, as_int=False):
+        dType = 'int8' if as_int else 'float32'
+        out = np.memmap(img, dType, 'c')
+        return out[idx]
 
-        return int(7 * self.lead_time)
-
-    def _get_monthlys(self) -> List[str]:
-        """
-        Get a list of monthly image paths to use to predict a given target.
-        """
-        match = 'monthly_mem' if self.memmap else 'monthly'
-        suffix = '.dat' if self.memmap else '.tif'
-
-        p = os.path.join(self.in_features, match)
-        out = []
-        for x in self.monthly_dates:
-            x = [img for img in pathlib.Path(p).glob(x + '_*' + suffix)]
-            [out.append(str(y)) for y in x]
-
-        assert_complete(self.monthly_dates, out, weekly=False)
-        return sorted(out)
-
-    def _get_weeklys(self) -> List[str]:
-        """
-        Get a list of weekly image paths to use to predict a given target.
-        """
-        match = 'weekly_mem' if self.memmap else 'weekly'
-        suffix = '.dat' if self.memmap else '.tif'
-
-        p = os.path.join(self.in_features, match)
-        out = []
-        for x in self.weekly_dates:
-            x = [img for img in pathlib.Path(p).glob(x + '_*' + suffix)]
-            [out.append(str(y)) for y in x]
-
-        assert_complete(self.weekly_dates, out, weekly=True)
-        return sorted(out)
-
-    def _get_annuals(self) -> List[str]:
-        """
-        Get a list of annual image paths to use to predict a given target.
-        """
-        match = 'annual_mem' if self.memmap else 'annual'
-        suffix = '.dat' if self.memmap else '.tif'
-
-        p = os.path.join(self.in_features, match)
-        return [str(img) for img in Path(p).glob(self.annual_date + '_*' + suffix)]
-
-    def _get_constants(self) -> List[str]:
-        """
-        Get constant feature images.
-        """
-        match = 'constant_mem' if self.memmap else 'constant'
-
-        p = os.path.join(self.in_features, match)
-        return sorted([str(img) for img in pathlib.Path(p).iterdir()])
-    '''
     def __len__(self):
-        return len(self.target)
+        return len(self.keys) * self.pixel_per_img
 
     def __getitem__(self, idx):
 
-        if self.count <= self.pixel_per_img:
-            self.count += 1
-        else:
-            self.count = 0
-            self.target_count += 1
+        img = idx // self.pixel_per_img
+        pix = idx - (img * self.pixel_per_img)
+        data = self.indices[img][pix]
 
-        return {'const': torch.tensor(self.constant[idx]),
-                'mon': torch.tensor(self.monthly[idx]),
-                'week': torch.tensor(self.weekly[idx]),
-                'target': self.target[idx]}
+        feature_dict = self.targets[self.keys[img]]
+
+        float_func = partial(self._read_image, idx=data, as_int=False)
+        int_func = partial(self._read_image, idx=data, as_int=True)
+        weeks = list(map(float_func, feature_dict['weeks']))
+        weeks = np.array(weeks).reshape((len(WEEKLY_VARS), self.n_weeks))
+        months = list(map(float_func, feature_dict['months']))
+        months = np.array(months).reshape((len(MONTHLY_VARS), self.n_months))
+
+        annual = self._read_image(feature_dict['annual'], data, False)
+        init_drought = self._read_image(feature_dict['init_drought'], data, True)
+        const = list(map(float_func, self.constants))
+
+        const = const + feature_dict['doy_data']
+        const.append(annual)
+        const.append(init_drought/6)
+
+        target = self._read_image(self.keys[img], data, True)
+
+        return {'const': torch.tensor(const),
+                'mon': torch.tensor(months),
+                'week': torch.tensor(weeks),
+                'target': torch.tensor(target)}

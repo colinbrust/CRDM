@@ -19,7 +19,8 @@ def make_model(mod_f, cuda):
     model = LSTM(weekly_size=len(WEEKLY_VARS), monthly_size=len(MONTHLY_VARS), 
                  hidden_size=int(info['hiddenSize']), output_size=6, 
                  batch_size=int(info['batch']), const_size=const_size)
-    model.load_state_dict(torch.load(mod_f))
+    
+    model.load_state_dict(torch.load(mod_f)) if cuda and torch.cuda.is_available() else model.load_state_dict(torch.load(mod_f, map_location=torch.device('cpu')))
     device = torch.device('cuda:0' if torch.cuda.is_available() else "cpu")
     model.to(device)
     model.eval()
@@ -42,6 +43,7 @@ def get_pred_true_arrays(model, mod_f, target, in_features, cuda):
 
     constants = constants.swapaxes(0, 1)
     monthlys = monthlys.swapaxes(2, 0)
+    weeklys = weeklys.swapaxes(2, 0)
 
     batch_indices = [x for x in range(0, LENGTH, batch)]
     tail = [(LENGTH) - batch, LENGTH + 1]
@@ -53,14 +55,14 @@ def get_pred_true_arrays(model, mod_f, target, in_features, cuda):
         week_batch = weeklys[batch_indices[i]: batch_indices[i+1]].swapaxes(0, 1)
         mon_batch = monthlys[batch_indices[i]: batch_indices[i+1]].swapaxes(0, 1)
         const_batch = constants[batch_indices[i]: batch_indices[i+1]]
-
         week_h, week_c = model.init_state()
         month_h, month_c = model.init_state()
-
+        
         preds, (week_h, week_c), (month_h, month_c) = model(
-            torch.Tensor(week_batch).type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor), 
-            torch.Tensor(mon_batch).type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor), 
-            torch.Tensor(const_batch).type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor)
+            torch.tensor(week_batch).type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor), 
+            torch.tensor(mon_batch).type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor), 
+            torch.tensor(const_batch).type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor), 
+            (week_h, week_c), (month_h, month_c)
         )
 
         week_h, month_h = week_h.detach(), month_h.detach()
@@ -78,9 +80,10 @@ def get_pred_true_arrays(model, mod_f, target, in_features, cuda):
     month_h, month_c = model.init_state()
 
     preds, (week_h, week_c), (month_h, month_c) = model(
-        torch.Tensor(week_batch).type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor), 
-        torch.Tensor(mon_batch).type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor), 
-        torch.Tensor(const_batch).type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor)
+        torch.tensor(week_batch).type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor), 
+        torch.tensor(mon_batch).type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor), 
+        torch.tensor(const_batch).type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor),
+        (week_h, week_c), (month_h, month_c)
     )
 
     week_h, month_h = week_h.detach(), month_h.detach()
@@ -111,7 +114,7 @@ def save_all_preds(target_dir, in_features, mod_f, out_dir, test, cuda):
     model = make_model(mod_f, cuda)
     f_list = [str(x) for x in Path(target_dir).glob('*_USDM.dat')]
     f_list = [x for x in f_list if ('/2015' in x or '/2016' in x)] if test else f_list
-
+    print(f_list)
     for f in f_list:
         print(f)
         try:

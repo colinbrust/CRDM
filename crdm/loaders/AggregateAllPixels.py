@@ -36,7 +36,6 @@ class AggregateAllPixles(Aggregate):
         # dim = variable x location
         constants = [np.memmap(x, 'float32', 'c') for x in [*self.constants, *self.annuals]]
         constants = np.array(constants)
-        constants = np.take(constants, indices, axis=1)
 
         # Add day of year for target image.
         target_doy = self.target_date.timetuple().tm_yday
@@ -53,7 +52,6 @@ class AggregateAllPixles(Aggregate):
         day_diff = np.ones_like(constants[0]) * day_diff
 
         drought = np.memmap(self.initial_drought, 'int8', 'c')
-        drought = np.take(drought, indices, axis=0)
 
         constants = np.concatenate((constants, target_doy[np.newaxis]))
         constants = np.concatenate((constants, guess_doy[np.newaxis]))

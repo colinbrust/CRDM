@@ -94,7 +94,7 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidde
 
     # Define model, loss and optimizer.
     model = LSTM(weekly_size=len(WEEKLY_VARS), monthly_size=len(MONTHLY_VARS), hidden_size=hidden_size, output_size=6,
-                 batch_size=batch_size, const_size=8)
+                 batch_size=batch_size, const_size=8, cuda=cuda)
 
     model.to(device)
 
@@ -160,8 +160,8 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidde
                 loss.backward()
                 optimizer.step()
 
-                # if i % 500 == 0:
-                print('Epoch: {}, Train Loss: {}'.format(epoch, loss.item()))
+                if i % 500 == 0:
+                    print('Epoch: {}, Train Loss: {}'.format(epoch, loss.item()))
 
                 # Store loss info
                 train_loss.append(loss.item())
@@ -196,8 +196,8 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidde
                     item['target'].type(torch.cuda.LongTensor if (torch.cuda.is_available() and cuda) else torch.LongTensor)
                 )
 
-                # if i % 500 == 0:
-                print('Epoch: {}, Test Loss: {}\n'.format(epoch, loss.item()))
+                if i % 500 == 0:
+                    print('Epoch: {}, Test Loss: {}'.format(epoch, loss.item()))
 
                 # Save loss info
                 total_loss += loss.item()
@@ -253,7 +253,7 @@ if __name__ == '__main__':
 
     if args.search:
         for hidden in [32, 64, 128, 256, 512, 1024]:
-            for batch in [32, 64, 128, 256, 512, 1024]:
+            for batch in [256, 512, 1024]:
                 train_lstm(const_f=const_f, mon_f=mon_f, week_f=week_f, target_f=target_f,
                            epochs=args.epochs, batch_size=batch, hidden_size=hidden, cuda=args.cuda)
 

@@ -11,10 +11,8 @@ from crdm.utils.ImportantVars import WEEKLY_VARS, MONTHLY_VARS
 # Have a dense layer after the end of the LSTM that incorporates the constant information that doesn't change with time
 class AggregateAllPixles(Aggregate):
 
-    def premake_features(self) -> np.array:
-        arrs = []
-
-        # Read one variable at a time so that tensors are all formatted the same for training.
+    def make_pixel_stack(self, weekly):
+        out = []
 
         VARIABLES = WEEKLY_VARS if weekly else MONTHLY_VARS
         images = self.weeklys if weekly else self.monthlys
@@ -25,31 +23,45 @@ class AggregateAllPixles(Aggregate):
             tmp = np.array([np.memmap(x, 'float32', 'c') for x in filt])
             out.append(tmp)
 
-        for v in VARIABLES:
-            filt = sorted([x for x in self.monthlys if v+'.dat' in x])
-            tmp = np.array([np.memmap(x, 'float32', 'c') for x in filt])
-            arrs.append(tmp)
-
         # dim = variable x timestep x location
-        arrs = np.array(arrs)
+        out = np.array(out)
+
+        return out
+
+    def premake_features(self) -> np.array:
+        
+        weeklys = self.make_pixel_stack(True)
+        monthlys = self.make_pixel_stack(False)
 
         # dim = variable x location
         constants = [np.memmap(x, 'float32', 'c') for x in [*self.constants, *self.annuals]]
         constants = np.array(constants)
+        constants = np.take(constants, indices, axis=1)
 
-        # Add month 
-        month = int(os.path.basename(self.target)[4:6])
-        month = month * 0.01
-        month = np.ones_like(constants[0]) * month
+        # Add day of year for target image.
+        target_doy = self.target_date.timetuple().tm_yday
+        target_doy = target_doy * 0.001
+        target_doy = np.ones_like(constants[0]) * target_doy
+
+        # Add day of year for image guess date.
+        guess_doy = self.guess_date.timetuple().tm_yday
+        guess_doy = guess_doy * 0.001
+        guess_doy = np.ones_like(constants[0]) * guess_doy
 
         day_diff = self._get_day_diff()
-        day_diff = day_diff * 0.01
+        day_diff = day_diff * 0.001
         day_diff = np.ones_like(constants[0]) * day_diff
 
-        constants = np.concatenate((constants, month[np.newaxis]))
-        constants = np.concatenate((constants, day_diff[np.newaxis]))
+        drought = np.memmap(self.initial_drought, 'int8', 'c')
+        drought = np.take(drought, indices, axis=0)
 
-        return arrs, constants
+        constants = np.concatenate((constants, target_doy[np.newaxis]))
+        constants = np.concatenate((constants, guess_doy[np.newaxis]))
+        constants = np.concatenate((constants, day_diff[np.newaxis]))
+        constants = np.concatenate((constants, drought[np.newaxis]))
+
+        return weeklys, monthlys, constants
+
 
     def remove_lat_lon(self):
         self.constants = [x for x in self.constants if not ('lon.dat' in x or 'lat.dat' in x)]

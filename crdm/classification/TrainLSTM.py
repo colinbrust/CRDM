@@ -93,8 +93,7 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidde
     test_loader = DataLoader(dataset=loader, batch_size=batch_size, sampler=test_sampler)
 
     const_size = loader[0]['const'].shape[-1]
-    print(const_size)
-
+    
     # Define model, loss and optimizer.
     model = LSTM(weekly_size=len(WEEKLY_VARS), monthly_size=len(MONTHLY_VARS), hidden_size=hidden_size, output_size=6,
                  batch_size=batch_size, const_size=const_size, cuda=cuda)
@@ -118,10 +117,10 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidde
     prev_best_loss = 1e6
     err_out = {}
 
-    out_name_mod = 'modelType-LSTM_epochs-{}_batch-{}_nMonths-{}_hiddenSize-{}_leadTime-{}_rmFeatures-{}_fType-model.p'.format(
-        epochs, batch_size, info['nWeeks'], hidden_size, lead_time, info['rmFeatures'])
-    out_name_err = 'modelType-LSTM_epochs-{}_batch-{}_nMonths-{}_hiddenSize-{}_leadTime-{}_rmFeatures-{}_fType-err.p'.format(
-        epochs, batch_size, info['nWeeks'], hidden_size, lead_time, info['rmFeatures'])
+    out_name_mod = 'modelType-LSTM_epochs-{}_batch-{}_nMonths-{}_hiddenSize-{}_leadTime-{}_init-{}_fType-model.p'.format(
+        epochs, batch_size, info['nWeeks'], hidden_size, lead_time, info['init'])
+    out_name_err = 'modelType-LSTM_epochs-{}_batch-{}_nMonths-{}_hiddenSize-{}_leadTime-{}_init-{}_fType-err.p'.format(
+        epochs, batch_size, info['nWeeks'], hidden_size, lead_time, info['init'])
 
     for epoch in range(epochs):
         total_loss = 0

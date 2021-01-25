@@ -15,10 +15,9 @@ def make_model(mod_f, cuda):
     info = parse_fname(mod_f)
     const_size = 8
     # make model from hyperparams and load trained parameters.
-    
     model = LSTM(weekly_size=len(WEEKLY_VARS), monthly_size=len(MONTHLY_VARS), 
                  hidden_size=int(info['hiddenSize']), output_size=6, 
-                 batch_size=int(info['batch']), const_size=const_size)
+                 batch_size=int(info['batch']), const_size=const_size, cuda=cuda)
     
     model.load_state_dict(torch.load(mod_f)) if cuda and torch.cuda.is_available() else model.load_state_dict(torch.load(mod_f, map_location=torch.device('cpu')))
     device = torch.device('cuda:0' if torch.cuda.is_available() else "cpu")
@@ -32,7 +31,7 @@ def get_pred_true_arrays(model, mod_f, target, in_features, cuda):
     # TODO: Make helper to extract epochs, batch, etc from data.
     # Get hyperparameters from filename
 
-    mod_f = '/Users/colinbrust/projects/CRDM/data/drought/model_results/weekly_results/modelType-LSTM_epochs-10_batch-256_nMonths-20_hiddenSize-256_leadTime-4_rmFeatures-False_fType-model.p'
+    # mod_f = '/Users/colinbrust/projects/CRDM/data/drought/model_results/weekly_results/modelType-LSTM_epochs-10_batch-256_nMonths-20_hiddenSize-256_leadTime-4_rmFeatures-False_fType-model.p'
 
     info = parse_fname(mod_f)
     batch, nMonths, leadTime = int(info['batch']), int(info['nMonths']), int(info['leadTime'])
@@ -44,7 +43,7 @@ def get_pred_true_arrays(model, mod_f, target, in_features, cuda):
     constants = constants.swapaxes(0, 1)
     monthlys = monthlys.swapaxes(2, 0)
     weeklys = weeklys.swapaxes(2, 0)
-
+    
     batch_indices = [x for x in range(0, LENGTH, batch)]
     tail = [(LENGTH) - batch, LENGTH + 1]
 
@@ -68,7 +67,7 @@ def get_pred_true_arrays(model, mod_f, target, in_features, cuda):
         week_h, month_h = week_h.detach(), month_h.detach()
         week_c, month_c = week_c.detach(), month_c.detach()
 
-        preds = np.argmax(preds.detach().numpy(), axis=1)
+        preds = np.argmax(preds.cpu().detach().numpy(), axis=1) if cuda else np.argmax(preds.detach().numpy(), axis=1)   
 
         all_preds = np.concatenate((all_preds, preds))
 
@@ -89,7 +88,7 @@ def get_pred_true_arrays(model, mod_f, target, in_features, cuda):
     week_h, month_h = week_h.detach(), month_h.detach()
     week_c, month_c = week_c.detach(), month_c.detach()
 
-    preds = np.argmax(preds.detach().numpy(), axis=1)
+    preds = np.argmax(preds.cpu().detach().numpy(), axis=1) if cuda else np.argmax(preds.detach().numpy(), axis=1)
     fill = LENGTH - len(all_preds)
     fill = preds[-fill:]
 
@@ -114,7 +113,6 @@ def save_all_preds(target_dir, in_features, mod_f, out_dir, test, cuda):
     model = make_model(mod_f, cuda)
     f_list = [str(x) for x in Path(target_dir).glob('*_USDM.dat')]
     f_list = [x for x in f_list if ('/2015' in x or '/2016' in x)] if test else f_list
-    print(f_list)
     for f in f_list:
         print(f)
         try:

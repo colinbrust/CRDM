@@ -63,13 +63,25 @@ class PremakeTrainingPixels(Aggregate):
         day_diff = day_diff * 0.001
         day_diff = np.ones_like(constants[0]) * day_diff
 
-        drought = np.memmap(self.initial_drought, 'int8', 'c')
-        drought = np.take(drought, indices, axis=0)
+
 
         constants = np.concatenate((constants, target_doy[np.newaxis]))
         constants = np.concatenate((constants, guess_doy[np.newaxis]))
         constants = np.concatenate((constants, day_diff[np.newaxis]))
-        constants = np.concatenate((constants, drought[np.newaxis]))
+
+        try:
+            if self.kwargs['init']:
+                drought = np.memmap(self.initial_drought, 'int8', 'c')
+                drought = np.take(drought, indices, axis=0)
+                constants = np.concatenate((constants, drought[np.newaxis]))
+
+            else:
+                print('Not including initial drought state.')
+
+        except KeyError:
+            drought = np.memmap(self.initial_drought, 'int8', 'c')
+            drought = np.take(drought, indices, axis=0)
+            constants = np.concatenate((constants, drought[np.newaxis]))
 
         return weeklys, monthlys, constants
 

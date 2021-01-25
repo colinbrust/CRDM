@@ -7,9 +7,9 @@ import os
 import pickle
 
 
-def make_lstm_pixel_ts(target_dir, in_features, lead_time, size, n_weeks, out_dir, rm_features=False):
+def make_lstm_pixel_ts(target_dir, in_features, lead_time, size, n_weeks, out_dir, rm_years=False, init=True):
     targets = glob.glob(os.path.join(target_dir, '*.dat'))
-    targets = [x for x in targets if not ('/2015' in x or '/2016' in x)] if rm_features else targets
+    targets = [x for x in targets if not ('/2015' in x or '/2017' in x)] if rm_years else targets
     targets = sorted(targets)
     weeklys_out = []
     monthlys_out = []
@@ -22,11 +22,7 @@ def make_lstm_pixel_ts(target_dir, in_features, lead_time, size, n_weeks, out_di
             # For each image, get new random indices so we don't overfit to certain locations
             indices = np.random.choice(LENGTH, size=size, replace=False)
             agg = PremakeTrainingPixels(target=target, in_features=in_features, lead_time=lead_time, n_weeks=n_weeks,
-                                        indices=indices, memmap=True)
-
-            if rm_features:
-                agg.remove_lat_lon()
-
+                                        indices=indices, memmap=True, init=init)
             print(target)
 
             # Make monthly, constant, and target arrays
@@ -55,8 +51,7 @@ def make_lstm_pixel_ts(target_dir, in_features, lead_time, size, n_weeks, out_di
     targets_out = np.concatenate([*targets_out])
 
     # Write out training data to numpy memmaps.
-    basename = '_trainingType-pixelPremade_nWeeks-{}_leadTime-{}_size-{}_rmFeatures-{}.dat'.format(n_weeks, lead_time,
-                                                                                                   size, rm_features)
+    basename = '_trainingType-pixelPremade_nWeeks-{}_leadTime-{}_size-{}_rmYears-{}_init-{}.dat'.format(n_weeks, lead_time, size, rm_years, init)
 
     pick = {}
     for prefix, arr in list(
@@ -95,12 +90,14 @@ if __name__ == '__main__':
     parser.add_argument('-nw', '--n_weeks', type=int, help='Number of week "history" to use as model inputs.')
     parser.add_argument('-sz', '--size', type=int, help='Number of pixels to use to train model.')
     parser.add_argument('-od', '--out_dir', type=str, help='Directory to put new files into.')
-    parser.add_argument('--rm', dest='remove', action='store_true',
-                        help='Remove lat/lon inputs and years 2015 and 2016.')
+    parser.add_argument('--rm', dest='remove', action='store_true', help='Remove data from years 2015 and 2017.')
     parser.add_argument('--no-rm', dest='remove', action='store_false', help='Do not remove any training features')
-    parser.set_defaults(remove=False)
+
+    parser.add_argument('--init', dest='init', action='store_true', help='Use initial drought condition as model input.')
+    parser.add_argument('--no-init', dest='init', action='store_false', help='Do not use initial drought condition as model input..')
+    parser.set_defaults(init=False)
 
     args = parser.parse_args()
 
     make_lstm_pixel_ts(target_dir=args.target_dir, in_features=args.in_features, lead_time=args.lead_time,
-                       n_weeks=args.n_weeks, size=args.size, out_dir=args.out_dir, rm_features=args.remove)
+                       n_weeks=args.n_weeks, size=args.size, out_dir=args.out_dir, rm_years=args.remove, init=args.init)

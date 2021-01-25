@@ -2,7 +2,7 @@ library(ggplot2)
 library(magrittr)
 source('https://raw.githubusercontent.com/colinbrust/CRDM/develop/crdm/R/PlotTheme.R')
 
-map_to_tidy <- function(f) {
+map_to_tidy <- function(f, template) {
   
   type <- f %>%
     basename() %>%
@@ -12,14 +12,15 @@ map_to_tidy <- function(f) {
     tail(1)
 
   f %>%
-    readr::read_csv(col_names = F, col_types = readr::cols()) %>%
-    tibble::rowid_to_column() %>%
-    tidyr::pivot_longer(-rowid, 
-                        names_to = 'col',
-                        values_to = 'val') %>%
-    dplyr::mutate(col = as.numeric(stringr::str_replace(col, 'X', '')),
-                  rowid = rowid * -1,
-                  val = ifelse(val < 0.01, 0, val),
+    read.csv(header = FALSE) %>% 
+    as.matrix() %>%
+    raster::raster() %>% 
+    raster::`extent<-`(raster::extent(template)) %>% 
+    raster::`crs<-`(value = raster::crs(template))  %>%
+    raster::rasterToPoints() %>%
+    tibble::as_tibble() %>%
+    dplyr::rename(val = layer) %>% 
+    dplyr::mutate(val = ifelse(val < 0.01, 0, val),
                   val = as.character(val),
                   val = dplyr::recode(
                     val, 
@@ -34,7 +35,7 @@ map_to_tidy <- function(f) {
   
 }
 
-plot_single_date <- function(pattern, f_list, out_dir) {
+plot_single_date <- function(pattern, f_list, out_dir, template, states) {
   
   print(pattern)
   out_name <- file.path(out_dir, paste0(pattern, '_map.png'))
@@ -47,20 +48,23 @@ plot_single_date <- function(pattern, f_list, out_dir) {
   day <- parts[1]
   lead <- parts[8] %>% stringr::str_replace('leadTime-', '')
   
-  caption <- paste('Prediction for', lubridate::as_date(day), 'wtih', lead, 'Month Lead Time')
+  caption <- paste('Prediction for', lubridate::as_date(day), 'wtih', lead, 'Week Lead Time')
   
-  fig <- f_list %>%
+  dat <- f_list %>%
     grep(pattern, ., value = T) %>%
-    lapply(map_to_tidy) %>%
+    lapply(map_to_tidy, template = template) %>%
     dplyr::bind_rows() %>%
     dplyr::mutate(type = ifelse(type == 'pred', 
                                 'Modeled Drought', 
-                                'USDM Drought')) %>%
-    ggplot(aes(x=col, y=rowid, fill=val)) + 
-    geom_raster() +
-    theme(aspect.ratio = 264/610) + 
+                                'USDM Drought')) 
+  
+  fig <- dat %>%
+    ggplot() + 
+    geom_raster(data = dat, mapping = aes(x=x, y=y, fill = val)) +
+    geom_sf(data = states, mapping = aes(), fill = NA, size=0.5) +
+    # theme(aspect.ratio = 264/610) + 
     labs(x='', y='', fill='Drought\nCategory', title = pattern) +
-    scale_fill_manual(values = c('No Drought' = '#d3d3d3',
+    scale_fill_manual(values = c('No Drought' = NA,
                                  'D0' = '#FFFF00',
                                  'D1' = '#FCD37F',
                                  'D2' = '#FFAA00',
@@ -76,14 +80,21 @@ plot_single_date <- function(pattern, f_list, out_dir) {
           axis.text.y=element_blank(),
           axis.ticks.y=element_blank()) 
 
-  ggsave(out_name, fig, width = 7, height = 5, units = 'in',
+  ggsave(out_name, fig, width = 220, height = 195, units = 'mm',
          dpi = 300)
 }
 
-save_all <- function(f_dir='~/projects/CRDM/data/drought/model_results/maps',
-                     out_dir='~/projects/CRDM/figures') {
+save_all <- function(f_dir='~/projects/CRDM/data/drought/model_results/weekly_maps/',
+                     out_dir='~/projects/CRDM/figures/opt_weekly/', 
+                     template='~/projects/CRDM/data/drought/template.tif') {
   
   f_list <- list.files(f_dir, full.names = T, pattern = '.csv') 
+  
+  template <- raster::raster(template)
+  
+  states <- urbnmapr::get_urbn_map(sf = TRUE) %>% 
+    dplyr::filter(state_abbv != 'AK', state_abbv != 'HI') %>%
+    sf::st_transform(6933)
   
   patterns <- f_list %>%
     basename() %>%
@@ -91,5 +102,6 @@ save_all <- function(f_dir='~/projects/CRDM/data/drought/model_results/maps',
     stringr::str_replace('_real.csv', '') %>%
     unique()
   
-  lapply(patterns, plot_single_date, f_list = f_list, out_dir = out_dir)
+  lapply(patterns, plot_single_date, f_list = f_list, out_dir = out_dir, 
+         template = template, states = states)
 }

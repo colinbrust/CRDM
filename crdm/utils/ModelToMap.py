@@ -26,7 +26,8 @@ def make_model(mod_f, cuda):
 
     return model
 
-def get_pred_true_arrays(model, mod_f, target, in_features, cuda):
+
+def get_pred_true_arrays(model, mod_f, target, in_features, init, cuda):
     # TODO: Add const_size and input_size as additional filename descriptors.
     # TODO: Make helper to extract epochs, batch, etc from data.
     # Get hyperparameters from filename
@@ -36,7 +37,7 @@ def get_pred_true_arrays(model, mod_f, target, in_features, cuda):
     info = parse_fname(mod_f)
     batch, nMonths, leadTime = int(info['batch']), int(info['nMonths']), int(info['leadTime'])
 
-    data = AggregateAllPixles(target=target, in_features=in_features, lead_time=leadTime, n_months=nMonths)
+    data = AggregateAllPixles(target=target, in_features=in_features, lead_time=leadTime, n_months=nMonths, init=init)
 
     weeklys, monthlys, constants = data.premake_features()
 
@@ -108,11 +109,11 @@ def save_arrays(out_dir, out_dict, target, mod_f):
     np.savetxt(os.path.join(out_dir, '{}_{}_real.csv'.format(base, mod_name)), out_dict['valid'], delimiter=',')
 
 
-def save_all_preds(target_dir, in_features, mod_f, out_dir, test, cuda):
+def save_all_preds(target_dir, in_features, mod_f, out_dir, remove, init, cuda):
 
     model = make_model(mod_f, cuda)
     f_list = [str(x) for x in Path(target_dir).glob('*_USDM.dat')]
-    f_list = [x for x in f_list if ('/2015' in x or '/2016' in x)] if test else f_list
+    f_list = [x for x in f_list if ('/2015' in x or '/2017' in x)] if remove else f_list
     for f in f_list:
         print(f)
         try:
@@ -121,19 +122,25 @@ def save_all_preds(target_dir, in_features, mod_f, out_dir, test, cuda):
         except AssertionError as e:
             print(e, '\nSkipping this target')
 
+
 if __name__ == '__main__':
+
     parser = argparse.ArgumentParser(description='Run model for entire domain for all target images.')
 
     parser.add_argument('-mf', '--model_file', type=str, help='Path to pickled model file.')
     parser.add_argument('-td', '--target_dir', type=str, help='Directory containing memmaps of all target images.')
     parser.add_argument('-if', '--in_features', type=str, help='Directory contining all memmap input features.')
     parser.add_argument('-od', '--out_dir', type=str, help='Directory to write np arrays out to.')
-    parser.add_argument('--test', dest='test', action='store_true', help='Run model for only 2015 and 2016 (test years not used for training).')
-    parser.add_argument('--no-test', dest='test', action='store_false', help='Run model for all years.')
-    parser.set_defaults(test=False)
+    parser.add_argument('--rm', dest='remove', action='store_true', help='Run model for only 2015 and 2016 (test years not used for training).')
+    parser.add_argument('--no-rm', dest='remove', action='store_false', help='Run model for all years.')
+    parser.set_defaults(remove=False)
+
+    parser.add_argument('--init', dest='init', action='store_true', help='Use initial drought condition as model input.')
+    parser.add_argument('--no-init', dest='init', action='store_false', help='Do not use initial drought condition as model input..')
+    parser.set_defaults(init=False)
 
     cuda = True if torch.cuda.is_available() else False
     args = parser.parse_args()
 
     save_all_preds(mod_f=args.model_file, target_dir=args.target_dir, in_features=args.in_features,
-                   out_dir=args.out_dir, test = args.test, cuda=cuda)
+                   out_dir=args.out_dir, remove=args.remove, init=args.init, cuda=cuda)

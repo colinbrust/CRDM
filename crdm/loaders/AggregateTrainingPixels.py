@@ -63,8 +63,6 @@ class PremakeTrainingPixels(Aggregate):
         day_diff = day_diff * 0.001
         day_diff = np.ones_like(constants[0]) * day_diff
 
-
-
         constants = np.concatenate((constants, target_doy[np.newaxis]))
         constants = np.concatenate((constants, guess_doy[np.newaxis]))
         constants = np.concatenate((constants, day_diff[np.newaxis]))

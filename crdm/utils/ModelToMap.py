@@ -105,8 +105,8 @@ def save_arrays(out_dir, out_dict, target, mod_f):
 
     base = os.path.basename(target).replace('.dat', '')
     mod_name = os.path.basename(mod_f).replace('.p', '')
-    np.savetxt(os.path.join(out_dir, '{}_{}_pred.csv'.format(base, mod_name)), out_dict['preds'], delimiter=',')
-    np.savetxt(os.path.join(out_dir, '{}_{}_real.csv'.format(base, mod_name)), out_dict['valid'], delimiter=',')
+    np.savetxt(os.path.join(out_dir, '{}_{}_pred.csv'.format(base, mod_name)), out_dict['preds'], fmt='%i', delimiter=',')
+    np.savetxt(os.path.join(out_dir, '{}_{}_real.csv'.format(base, mod_name)), out_dict['valid'], fmt='%i', delimiter=',')
 
 
 def save_all_preds(target_dir, in_features, mod_f, out_dir, remove, init, cuda):
@@ -117,7 +117,7 @@ def save_all_preds(target_dir, in_features, mod_f, out_dir, remove, init, cuda):
     for f in f_list:
         print(f)
         try:
-            out_dict = get_pred_true_arrays(model, mod_f, f, in_features, cuda)
+            out_dict = get_pred_true_arrays(model, mod_f, f, in_features, init, cuda)
             save_arrays(out_dir, out_dict, f, mod_f)
         except AssertionError as e:
             print(e, '\nSkipping this target')
@@ -131,7 +131,7 @@ if __name__ == '__main__':
     parser.add_argument('-td', '--target_dir', type=str, help='Directory containing memmaps of all target images.')
     parser.add_argument('-if', '--in_features', type=str, help='Directory contining all memmap input features.')
     parser.add_argument('-od', '--out_dir', type=str, help='Directory to write np arrays out to.')
-    parser.add_argument('--rm', dest='remove', action='store_true', help='Run model for only 2015 and 2016 (test years not used for training).')
+    parser.add_argument('--rm', dest='remove', action='store_true', help='Run model for only 2015 and 2017 (test years not used for training).')
     parser.add_argument('--no-rm', dest='remove', action='store_false', help='Run model for all years.')
     parser.set_defaults(remove=False)
 

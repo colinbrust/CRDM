@@ -72,11 +72,15 @@ class Aggregate(ABC):
         d = dt.datetime.strptime(d, '%Y%m%d').date()
         d = d - rd.relativedelta(weeks=self.lead_time)
 
-        out = [str(x) for x in pathlib.Path(os.path.dirname(self.target)).glob(str(d).replace('-', '')+'*')]
+        dates = [str((d - rd.relativedelta(weeks=x))) for x in range(self.n_weeks)]
+        p = pathlib.Path(os.path.dirname(self.target))
+        out = []
 
-        assert len(out) == 1, 'No initial USDM images available for this target.'
+        for x in dates:
+            x = [img for img in p.glob(str(x).replace('-', '')+'*')]
+            [out.append(str(y)) for y in x]
 
-        return out[0]
+        return sorted(out)
 
     def _get_day_diff(self) -> int:
         """

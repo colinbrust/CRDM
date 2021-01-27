@@ -68,7 +68,7 @@ class LSTM(nn.Module):
         return preds, week_state, month_state
 
 
-def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=64, cuda=False):
+def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=64, cuda=False, init=True):
     # const_f ='/mnt/e/PycharmProjects/CRDM/data/premade/featType-constant_trainingType-pixelPremade_nWeeks-25_leadTime-6_size-20000_rmFeatures-True.dat'
     # mon_f = '/mnt/e/PycharmProjects/CRDM/data/premade/featType-monthly_trainingType-pixelPremade_nWeeks-25_leadTime-6_size-20000_rmFeatures-True.dat'
     # target_f = '/mnt/e/PycharmProjects/CRDM/data/premade/featType-target_trainingType-pixelPremade_nWeeks-25_leadTime-6_size-20000_rmFeatures-True.dat'
@@ -93,9 +93,10 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidde
     test_loader = DataLoader(dataset=loader, batch_size=batch_size, sampler=test_sampler)
 
     const_size = loader[0]['const'].shape[-1]
-    
+
+    weekly_size = len(WEEKLY_VARS) + 1 if init else len(WEEKLY_VARS)
     # Define model, loss and optimizer.
-    model = LSTM(weekly_size=len(WEEKLY_VARS), monthly_size=len(MONTHLY_VARS), hidden_size=hidden_size, output_size=6,
+    model = LSTM(weekly_size=weekly_size, monthly_size=len(MONTHLY_VARS), hidden_size=hidden_size, output_size=6,
                  batch_size=batch_size, const_size=const_size, cuda=cuda)
 
     model.to(device)
@@ -253,16 +254,19 @@ if __name__ == '__main__':
     const_f = os.path.join(os.path.dirname(args.pickle_f), pick['featType-constant'])
     target_f = os.path.join(os.path.dirname(args.pickle_f), pick['featType-target'])
 
+    info = parse_fname(week_f)
+    init = info['init']
+
     if args.search:
         for hidden in [32, 64, 128, 256, 512, 1024]:
             for batch in [256, 512, 1024]:
                 train_lstm(const_f=const_f, mon_f=mon_f, week_f=week_f, target_f=target_f,
-                           epochs=args.epochs, batch_size=batch, hidden_size=hidden, cuda=args.cuda)
+                           epochs=args.epochs, batch_size=batch, hidden_size=hidden, cuda=args.cuda, init=init)
 
     else:
         try:
             assert 'batch_size' in args and 'hidden_size' in args
             train_lstm(const_f=const_f, mon_f=mon_f, week_f=week_f, target_f=target_f,
-                       epochs=args.epochs, batch_size=args.batch_size, hidden_size=args.hidden_size, cuda=args.cuda)
+                       epochs=args.epochs, batch_size=args.batch_size, hidden_size=args.hidden_size, cuda=args.cuda, init=init)
         except AssertionError as e:
             print('-bs and -hs flags must be used when you are not using the search option.')

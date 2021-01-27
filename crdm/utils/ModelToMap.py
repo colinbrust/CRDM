@@ -10,12 +10,14 @@ from crdm.utils.ImportantVars import DIMS, LENGTH, MONTHLY_VARS, WEEKLY_VARS
 from crdm.utils.ParseFileNames import parse_fname
 
 
-def make_model(mod_f, cuda):
+def make_model(mod_f, init, cuda):
 
     info = parse_fname(mod_f)
-    const_size = 8
+    const_size = 7
+
+    weekly_size = len(WEEKLY_VARS) + 1 if init else len(WEEKLY_VARS)
     # make model from hyperparams and load trained parameters.
-    model = LSTM(weekly_size=len(WEEKLY_VARS), monthly_size=len(MONTHLY_VARS), 
+    model = LSTM(weekly_size=weekly_size, monthly_size=len(MONTHLY_VARS),
                  hidden_size=int(info['hiddenSize']), output_size=6, 
                  batch_size=int(info['batch']), const_size=const_size, cuda=cuda)
     
@@ -111,7 +113,7 @@ def save_arrays(out_dir, out_dict, target, mod_f):
 
 def save_all_preds(target_dir, in_features, mod_f, out_dir, remove, init, cuda):
 
-    model = make_model(mod_f, cuda)
+    model = make_model(mod_f, init, cuda)
     f_list = [str(x) for x in Path(target_dir).glob('*_USDM.dat')]
     f_list = [x for x in f_list if ('/2015' in x or '/2017' in x)] if remove else f_list
     for f in f_list:

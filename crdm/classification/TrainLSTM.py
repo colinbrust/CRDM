@@ -118,9 +118,9 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidde
     err_out = {}
 
     out_name_mod = 'modelType-LSTM_epochs-{}_batch-{}_nMonths-{}_hiddenSize-{}_leadTime-{}_remove-{}_init-{}_fType-model.p'.format(
-        epochs, batch_size, info['nWeeks'], hidden_size, lead_time, info['remove'], info['init'])
+        epochs, batch_size, info['nWeeks'], hidden_size, lead_time, info['ymYears'], info['init'])
     out_name_err = 'modelType-LSTM_epochs-{}_batch-{}_nMonths-{}_hiddenSize-{}_leadTime-{}_remove-{}_init-{}_fType-err.p'.format(
-        epochs, batch_size, info['nWeeks'], hidden_size, lead_time, info['remove'], info['init'])
+        epochs, batch_size, info['nWeeks'], hidden_size, lead_time, info['rmYears'], info['init'])
 
     for epoch in range(epochs):
         total_loss = 0

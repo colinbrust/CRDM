@@ -7,7 +7,7 @@ import torch
 
 class PixelLoader(Dataset):
     
-    def __init__(self, constant, weekly, monthly, target):
+    def __init__(self, constant, weekly, monthly, target, init):
 
         info = parse_fname(constant)
 
@@ -16,9 +16,11 @@ class PixelLoader(Dataset):
         num_samples = int(const_shape/num_consts)
         nMonths = int(info['nWeeks'])//4
 
+        weekly_size = len(WEEKLY_VARS) + 1 if init == 'True' else len(WEEKLY_VARS)
+
         self.constant = np.memmap(constant, dtype='float32', mode='c', shape=(num_samples, num_consts))
 
-        self.weekly = np.memmap(weekly, dtype='float32', mode='c', shape=(num_samples, int(info['nWeeks']), len(WEEKLY_VARS)))
+        self.weekly = np.memmap(weekly, dtype='float32', mode='c', shape=(num_samples, int(info['nWeeks']), weekly_size))
 
         self.monthly = np.memmap(monthly, dtype='float32', mode='c', shape=(num_samples, nMonths, len(MONTHLY_VARS)))
 

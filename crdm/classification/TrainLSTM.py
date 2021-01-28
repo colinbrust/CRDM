@@ -82,7 +82,7 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidde
     lead_time = info['leadTime']
 
     # Make data loader
-    loader = PixelLoader(const_f, week_f, mon_f, target_f)
+    loader = PixelLoader(const_f, week_f, mon_f, target_f, info['init'])
 
     # Split into training and test sets
     train, test = train_test_split([x for x in range(len(loader))], test_size=0.25)

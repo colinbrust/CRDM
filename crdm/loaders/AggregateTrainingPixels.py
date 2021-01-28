@@ -72,6 +72,8 @@ class PremakeTrainingPixels(Aggregate):
 
                 drought = np.array([np.memmap(x, 'int8', 'c') for x in self.initial_drought])
                 drought = np.take(drought, indices, axis=1)
+                # Scale between -1 and 1
+                drought = 2 * drought/5 - 1
                 weeklys = np.concatenate((weeklys, drought[np.newaxis]))
 
             else:
@@ -80,6 +82,8 @@ class PremakeTrainingPixels(Aggregate):
         except KeyError:
             drought = np.array([np.memmap(x, 'int8', 'c') for x in self.initial_drought])
             drought = np.take(drought, indices, axis=1)
+            # Scale between -1 and 1
+            drought = 2 * drought / 5 - 1
             weeklys = np.concatenate((weeklys, drought[np.newaxis]))
 
         return weeklys, monthlys, constants

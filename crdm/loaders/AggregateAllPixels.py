@@ -58,14 +58,19 @@ class AggregateAllPixles(Aggregate):
 
         try:
             if self.kwargs['init']:
-                drought = np.memmap(self.initial_drought, 'int8', 'c')
-                constants = np.concatenate((constants, drought[np.newaxis]))
+
+                drought = np.array([np.memmap(x, 'int8', 'c') for x in self.initial_drought])
+                # Scale between -1 and 1
+                drought = 2 * drought/5 - 1
+                weeklys = np.concatenate((weeklys, drought[np.newaxis]))
 
             else:
                 print('Not including initial drought state.')
 
         except KeyError:
-            drought = np.memmap(self.initial_drought, 'int8', 'c')
-            constants = np.concatenate((constants, drought[np.newaxis]))
+            drought = np.array([np.memmap(x, 'int8', 'c') for x in self.initial_drought])
+            # Scale between -1 and 1
+            drought = 2 * drought / 5 - 1
+            weeklys = np.concatenate((weeklys, drought[np.newaxis]))
 
         return weeklys, monthlys, constants

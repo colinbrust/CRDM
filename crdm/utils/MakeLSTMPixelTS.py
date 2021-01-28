@@ -8,6 +8,7 @@ import pickle
 
 
 def make_lstm_pixel_ts(target_dir, in_features, lead_time, size, n_weeks, out_dir, rm_years=False, init=True):
+
     targets = glob.glob(os.path.join(target_dir, '*.dat'))
     targets = [x for x in targets if not ('/2015' in x or '/2017' in x)] if rm_years else targets
     targets = sorted(targets)

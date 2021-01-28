@@ -64,7 +64,7 @@ class Aggregate(ABC):
 
         return dates, months
 
-    def _get_init_drought_status(self) -> str:
+    def _get_init_drought_status(self) -> List[str]:
         match = '.dat' if self.memmap else '.tif'
 
         # Find the date that is lead_time weeks away from the target USDM image.
@@ -79,6 +79,8 @@ class Aggregate(ABC):
         for x in dates:
             x = [img for img in p.glob(str(x).replace('-', '')+'*')]
             [out.append(str(y)) for y in x]
+
+        assert len(out) == self.n_weeks, 'Skipping this target. Insufficient USDM data'
 
         return sorted(out)
 

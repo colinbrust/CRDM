@@ -88,7 +88,3 @@ class PremakeTrainingPixels(Aggregate):
 
         return weeklys, monthlys, constants
 
-    def remove_lat_lon(self):
-        match = '.dat' if self.memmap else '.tif'
-        self.constants = [x for x in self.constants if not ('lon'+match in x or 'lat'+match in x)]
-

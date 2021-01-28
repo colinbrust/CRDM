@@ -46,7 +46,7 @@ plot_single_date <- function(pattern, f_list, out_dir, template, states) {
     unlist()
   
   day <- parts[1]
-  lead <- parts[8] %>% stringr::str_replace('leadTime-', '')
+  lead <- parts[7] %>% stringr::str_replace('leadTime-', '')
   
   caption <- paste('Prediction for', lubridate::as_date(day), 'wtih', lead, 'Week Lead Time')
   
@@ -72,21 +72,21 @@ plot_single_date <- function(pattern, f_list, out_dir, template, states) {
                                  'D4' = '#730000')) + 
     facet_wrap(~type, nrow=2) + 
     labs(title=caption) + 
-    plot_theme() +
-    theme(axis.title.x=element_blank(),
-          axis.text.x=element_blank(),
-          axis.ticks.x=element_blank(),
-          axis.title.y=element_blank(),
-          axis.text.y=element_blank(),
-          axis.ticks.y=element_blank()) 
+    plot_theme() 
+    # theme(axis.title.x=element_blank(),
+    #       axis.text.x=element_blank(),
+    #       axis.ticks.x=element_blank(),
+    #       axis.title.y=element_blank(),
+    #       axis.text.y=element_blank(),
+    #       axis.ticks.y=element_blank()) 
 
   ggsave(out_name, fig, width = 220, height = 195, units = 'mm',
          dpi = 300)
 }
 
-save_all <- function(f_dir='~/projects/CRDM/data/drought/model_results/weekly_maps/',
-                     out_dir='~/projects/CRDM/figures/opt_weekly/', 
-                     template='~/projects/CRDM/data/drought/template.tif') {
+save_all <- function(f_dir='/mnt/e/PycharmProjects/CRDM/data/model_results/weekly_maps',
+                     out_dir='/mnt/e/PycharmProjects/CRDM/figures/maps/init', 
+                     template='/mnt/e/PycharmProjects/CRDM/data/template.tif') {
   
   f_list <- list.files(f_dir, full.names = T, pattern = '.csv') 
   
@@ -102,6 +102,6 @@ save_all <- function(f_dir='~/projects/CRDM/data/drought/model_results/weekly_ma
     stringr::str_replace('_real.csv', '') %>%
     unique()
   
-  lapply(patterns, plot_single_date, f_list = f_list, out_dir = out_dir, 
-         template = template, states = states)
+  parallel::mclapply(patterns, plot_single_date, f_list = f_list, out_dir = out_dir, 
+         template = template, states = states, mc.cores = 10)
 }

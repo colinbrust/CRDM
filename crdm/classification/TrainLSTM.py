@@ -16,7 +16,7 @@ import pickle
 
 class LSTM(nn.Module):
     def __init__(self, monthly_size=1, weekly_size=1, hidden_size=64, output_size=6,
-                 batch_size=64, const_size=8, cuda=False):
+                 batch_size=64, const_size=8, cuda=False, num_layers=1):
         super().__init__()
 
         self.hidden_size = hidden_size
@@ -24,30 +24,31 @@ class LSTM(nn.Module):
         self.batch_size = batch_size
         self.weekly_size = weekly_size
 
-        self.weekly_lstm = nn.LSTM(weekly_size, self.hidden_size)
-        self.monthly_lstm = nn.LSTM(monthly_size, self.hidden_size)
+        self.weekly_lstm = nn.LSTM(weekly_size, self.hidden_size, num_layers=num_layers, dropout=0.5)
+        self.monthly_lstm = nn.LSTM(monthly_size, self.hidden_size, num_layers=num_layers, dropout=0.5)
 
         # Downscale to output size
         self.classifier = nn.Sequential(
             nn.Linear(2*hidden_size + const_size, 256),
             nn.BatchNorm1d(256),
             nn.ReLU(),
+            nn.Dropout(0.5),
             nn.Linear(256, 128),
             nn.BatchNorm1d(128),
             nn.ReLU(),
-            nn.Dropout(0.25),
+            nn.Dropout(0.5),
             nn.Linear(128, 64),
             nn.BatchNorm1d(64),
             nn.ReLU(),
-            nn.Dropout(0.25),
+            nn.Dropout(0.5),
             nn.Linear(64, 32),
             nn.BatchNorm1d(32),
             nn.ReLU(),
-            nn.Dropout(0.25),
+            nn.Dropout(0.5),
             nn.Linear(32, 16),
             nn.BatchNorm1d(16),
             nn.ReLU(),
-            nn.Dropout(0.25),
+            nn.Dropout(0.5),
             nn.Linear(16, output_size),
             nn.ReLU()
         )
@@ -68,7 +69,8 @@ class LSTM(nn.Module):
         return preds, week_state, month_state
 
 
-def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=64, cuda=False, init=True):
+def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
+               hidden_size=64, cuda=False, init=True, num_layers=1):
     # const_f ='/mnt/e/PycharmProjects/CRDM/data/premade/featType-constant_trainingType-pixelPremade_nWeeks-25_leadTime-6_size-20000_rmFeatures-True.dat'
     # mon_f = '/mnt/e/PycharmProjects/CRDM/data/premade/featType-monthly_trainingType-pixelPremade_nWeeks-25_leadTime-6_size-20000_rmFeatures-True.dat'
     # target_f = '/mnt/e/PycharmProjects/CRDM/data/premade/featType-target_trainingType-pixelPremade_nWeeks-25_leadTime-6_size-20000_rmFeatures-True.dat'
@@ -77,6 +79,7 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidde
     # epochs = 10
     # batch_size = 512
     # hidden_size = 512
+    print('num_layers = {}'.format(num_layers))
     device = 'cuda:0' if torch.cuda.is_available() and cuda else 'cpu'
     info = parse_fname(const_f)
     lead_time = info['leadTime']
@@ -97,7 +100,7 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidde
     weekly_size = len(WEEKLY_VARS) + 1 if init else len(WEEKLY_VARS)
     # Define model, loss and optimizer.
     model = LSTM(weekly_size=weekly_size, monthly_size=len(MONTHLY_VARS), hidden_size=hidden_size, output_size=6,
-                 batch_size=batch_size, const_size=const_size, cuda=cuda)
+                 batch_size=batch_size, const_size=const_size, cuda=cuda, num_layers=num_layers)
 
     model.to(device)
 
@@ -118,10 +121,10 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidde
     prev_best_loss = 1e6
     err_out = {}
 
-    out_name_mod = 'epochs-{}_batch-{}_nMonths-{}_hiddenSize-{}_leadTime-{}_remove-{}_init-{}_fType-model.p'.format(
-        epochs, batch_size, info['nWeeks'], hidden_size, lead_time, info['rmYears'], info['init'])
-    out_name_err = 'epochs-{}_batch-{}_nMonths-{}_hiddenSize-{}_leadTime-{}_remove-{}_init-{}_fType-err.p'.format(
-        epochs, batch_size, info['nWeeks'], hidden_size, lead_time, info['rmYears'], info['init'])
+    out_name_mod = 'epochs-{}_batch-{}_nMonths-{}_hiddenSize-{}_leadTime-{}_remove-{}_init-{}_numLayers-{}_fType-model.p'.format(
+        epochs, batch_size, info['nWeeks'], hidden_size, lead_time, info['rmYears'], info['init'], num_layers)
+    out_name_err = 'epochs-{}_batch-{}_nMonths-{}_hiddenSize-{}_leadTime-{}_remove-{}_init-{}_numLayers-{}_fType-err.p'.format(
+        epochs, batch_size, info['nWeeks'], hidden_size, lead_time, info['rmYears'], info['init'], num_layers)
 
     for epoch in range(epochs):
         total_loss = 0
@@ -233,6 +236,7 @@ if __name__ == '__main__':
     parser.add_argument('-e', '--epochs', type=int, default=25, help='Number of epochs.')
     parser.add_argument('-bs', '--batch_size', type=int, help='Batch size to train model with.')
     parser.add_argument('-hs', '--hidden_size', type=int, help='LSTM hidden dimension size.')
+    parser.add_argument('-nl', '--num_layers', type=int, default=1, help='Number of stacked LSTM layers to use.')
     parser.add_argument('--search', dest='search', action='store_true',
                         help='Perform gridsearch for hyperparameter selection.')
     parser.add_argument('--no-search', dest='search', action='store_false',
@@ -258,15 +262,14 @@ if __name__ == '__main__':
     init = info['init']
 
     if args.search:
-        for hidden in [32, 64, 128, 256, 512, 1024]:
-            for batch in [256, 512, 1024]:
-                train_lstm(const_f=const_f, mon_f=mon_f, week_f=week_f, target_f=target_f,
-                           epochs=args.epochs, batch_size=batch, hidden_size=hidden, cuda=args.cuda, init=init)
+        for layers in [2, 3, 4]:
+                train_lstm(const_f=const_f, mon_f=mon_f, week_f=week_f, target_f=target_f, epochs=args.epochs,
+                           batch_size=1024, hidden_size=1024, cuda=args.cuda, init=init, num_layers=layers)
 
     else:
         try:
             assert 'batch_size' in args and 'hidden_size' in args
-            train_lstm(const_f=const_f, mon_f=mon_f, week_f=week_f, target_f=target_f,
-                       epochs=args.epochs, batch_size=args.batch_size, hidden_size=args.hidden_size, cuda=args.cuda, init=init)
+            train_lstm(const_f=const_f, mon_f=mon_f, week_f=week_f, target_f=target_f, epochs=args.epochs,
+                       batch_size=args.batch_size, hidden_size=args.hidden_size, cuda=args.cuda, init=init, num_layers=args.num_layers)
         except AssertionError as e:
             print('-bs and -hs flags must be used when you are not using the search option.')

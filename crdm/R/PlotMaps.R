@@ -105,3 +105,7 @@ save_all <- function(f_dir='/mnt/e/PycharmProjects/CRDM/data/model_results/weekl
   parallel::mclapply(patterns, plot_single_date, f_list = f_list, out_dir = out_dir, 
          template = template, states = states, mc.cores = 10)
 }
+
+args = commandArgs(trailingOnly=TRUE)
+
+save_all(args[1], args[2], args[3])

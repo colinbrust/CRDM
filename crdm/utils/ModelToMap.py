@@ -19,7 +19,7 @@ def make_model(mod_f, init, cuda):
     # make model from hyperparams and load trained parameters.
     model = LSTM(weekly_size=weekly_size, monthly_size=len(MONTHLY_VARS),
                  hidden_size=int(info['hiddenSize']), output_size=6, 
-                 batch_size=int(info['batch']), const_size=const_size, cuda=cuda, num_layers=info['num_layers'])
+                 batch_size=int(info['batch']), const_size=const_size, cuda=cuda, num_layers=int(info['numLayers']))
     
     model.load_state_dict(torch.load(mod_f)) if cuda and torch.cuda.is_available() else model.load_state_dict(torch.load(mod_f, map_location=torch.device('cpu')))
     device = torch.device('cuda:0' if torch.cuda.is_available() else "cpu")

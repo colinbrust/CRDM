@@ -29,3 +29,7 @@ variables = c('sm-surface') %>% paste0('.tif')
 
 variables %>%
   lapply(normalize, in_dir = './weekly', out_dir = './week_norm')
+
+  ptm <- proc.time()
+  a %>% raster::values() %>% max()
+  proc.time() - ptm

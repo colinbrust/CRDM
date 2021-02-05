@@ -161,8 +161,6 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
                 # Zero out the optimizer's gradient buffer
                 optimizer.zero_grad()
 
-                # model.hidden = model.init_hidden()
-
                 # Make prediction with model
                 outputs, (week_h, week_c), (month_h, month_c) = model(week, mon, const, (week_h, week_c), (month_h, month_c))
 

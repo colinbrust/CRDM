@@ -11,7 +11,7 @@ class Aggregate(ABC):
     """
     Class for aggregating all images necessary to make predictions for a given USDM image.
     """
-    def __init__(self, target: str, in_features: str, lead_time: int, n_weeks: int = 17, memmap: bool = True,
+    def __init__(self, targets: List[str], in_features: str, n_weeks: int = 17, memmap: bool = True,
                  **kwargs) -> None:
         """
         :param target: Path to target flash drought image :param in_features: Path to directory containing 'monthly',
@@ -21,14 +21,14 @@ class Aggregate(ABC):
         the number of samples to include for train/test. Notice both train and test size will be 1/2 of the size
         specified by 'size'.
         """
-        self.target = target
-        self.target_date = None
+        self.targets = sorted(targets)
+        self.target_dates = None
         self.guess_date = None
-        self.annual_date = os.path.basename(self.target)[:4] + '0101'
+        self.annual_date = os.path.basename(self.targets[0])[:4] + '0101'
         self.in_features = in_features
         self.n_weeks = n_weeks
         self.n_months = n_weeks // 4
-        self.lead_time = lead_time
+        self.lead_time = 2
         self.memmap = memmap
         self.kwargs = kwargs
 
@@ -48,10 +48,10 @@ class Aggregate(ABC):
         match = '.dat' if self.memmap else '.tif'
 
         # Find the date that is lead_time weeks away from the target USDM image.
-        d = os.path.basename(self.target).replace('_USDM' + match, '')
-        d = dt.datetime.strptime(d, '%Y%m%d').date()
-        self.target_date = d
-        d = d - rd.relativedelta(weeks=self.lead_time)
+        ds = [os.path.basename(x).replace('_USDM' + match, '') for x in self.targets]
+        ds = [dt.datetime.strptime(d, '%Y%m%d').date() for d in ds]
+        self.target_dates = ds
+        d = ds[0] - rd.relativedelta(weeks=self.lead_time)
         self.guess_date = d
 
         # Find the input feature image dates for weekly and monthly features.
@@ -68,12 +68,12 @@ class Aggregate(ABC):
         match = '.dat' if self.memmap else '.tif'
 
         # Find the date that is lead_time weeks away from the target USDM image.
-        d = os.path.basename(self.target).replace('_USDM' + match, '')
+        d = os.path.basename(self.targets[0]).replace('_USDM' + match, '')
         d = dt.datetime.strptime(d, '%Y%m%d').date()
         d = d - rd.relativedelta(weeks=self.lead_time)
 
         dates = [str((d - rd.relativedelta(weeks=x))) for x in range(self.n_weeks)]
-        p = pathlib.Path(os.path.dirname(self.target))
+        p = pathlib.Path(os.path.dirname(self.targets[0]))
         out = []
 
         for x in dates:
@@ -84,12 +84,6 @@ class Aggregate(ABC):
 
         return sorted(out)
 
-    def _get_day_diff(self) -> int:
-        """
-        Get the number of days between the feature date and the target image date. 
-        """
-
-        return int(7 * self.lead_time)
 
     def _get_monthlys(self) -> List[str]:
         """

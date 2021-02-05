@@ -100,7 +100,7 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
 
     weekly_size = len(WEEKLY_VARS) + 1 if init else len(WEEKLY_VARS)
     # Define model, loss and optimizer.
-    model = LSTM(weekly_size=weekly_size, monthly_size=len(MONTHLY_VARS), hidden_size=hidden_size, output_size=6,
+    model = LSTM(weekly_size=weekly_size, monthly_size=len(MONTHLY_VARS), hidden_size=hidden_size, output_size=8,
                  batch_size=batch_size, const_size=const_size, cuda=cuda, num_layers=num_layers)
 
     model.to(device)
@@ -109,12 +109,7 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
         print('Using GPU')
         model.cuda()
 
-    # Provide relative frequency weights to use in loss function.
-    targets = np.memmap(target_f, dtype='int8', mode='r')
-    counts = list(Counter(targets).values())
-    weights = torch.Tensor([1 - (x / sum(counts)) for x in counts]).type(
-        torch.cuda.FloatTensor if (cuda and torch.cuda.is_available()) else torch.FloatTensor)
-    criterion = nn.CrossEntropyLoss(weight=weights)
+    criterion = nn.MSELoss()
     lr = 1e-3
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     scheduler = ReduceLROnPlateau(optimizer, mode='min', patience=3, threshold=1e-4, verbose=True)
@@ -163,19 +158,37 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
 
                 # Make prediction with model
                 outputs, (week_h, week_c), (month_h, month_c) = model(week, mon, const, (week_h, week_c), (month_h, month_c))
+                outputs = outputs.type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor)
+                targets = item['target'].type(torch.cuda.LongTensor if (torch.cuda.is_available() and cuda) else torch.LongTensor)
 
                 week_h, month_h = week_h.detach(), month_h.detach()
                 week_c, month_c = week_c.detach(), week_c.detach()
+
+                l1 = criterion(outputs[0], targets[0])
+                l2 = criterion(outputs[1], targets[1])
+                l3 = criterion(outputs[2], targets[2])
+                l4 = criterion(outputs[3], targets[3])
+                l5 = criterion(outputs[4], targets[4])
+                l6 = criterion(outputs[5], targets[5])
+                l7 = criterion(outputs[6], targets[6])
+                l8 = criterion(outputs[7], targets[7])
+
+                l1.backward()
+                l2.backward()
+                l3.backward()
+                l4.backward()
+                l5.backward()
+                l6.backward()
+                l7.backward()
+                l8.backward()
                 # Compute the loss and step the optimizer
-                loss = criterion(
-                    outputs.type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor),
-                    item['target'].type(torch.cuda.LongTensor if (torch.cuda.is_available() and cuda) else torch.LongTensor)
-                )
-                loss.backward()
+
                 optimizer.step()
 
+                loss = np.mean(x.item() for x in [l1, l2, l3, l4, l5, l6, l7, l8])
+
                 if i % 500 == 0:
-                    print('Epoch: {}, Train Loss: {}'.format(epoch, loss.item()))
+                    print('Epoch: {}, Train Loss: {}'.format(epoch, loss))
 
                 # Store loss info
                 train_loss.append(loss.item())
@@ -207,16 +220,41 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
                 # Run model on test set
                 outputs, (week_h, week_c), (month_h, month_c) = model(week, mon, const, (week_h, week_c), (month_h, month_c))
 
+                outputs, (week_h, week_c), (month_h, month_c) = model(week, mon, const, (week_h, week_c),
+                                                                      (month_h, month_c))
+                outputs = outputs.type(
+                    torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor)
+                targets = item['target'].type(
+                    torch.cuda.LongTensor if (torch.cuda.is_available() and cuda) else torch.LongTensor)
+
                 week_h, month_h = week_h.detach(), month_h.detach()
                 week_c, month_c = week_c.detach(), week_c.detach()
-                
-                loss = criterion(
-                    outputs.type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor),
-                    item['target'].type(torch.cuda.LongTensor if (torch.cuda.is_available() and cuda) else torch.LongTensor)
-                )
+
+                l1 = criterion(outputs[0], targets[0])
+                l2 = criterion(outputs[1], targets[1])
+                l3 = criterion(outputs[2], targets[2])
+                l4 = criterion(outputs[3], targets[3])
+                l5 = criterion(outputs[4], targets[4])
+                l6 = criterion(outputs[5], targets[5])
+                l7 = criterion(outputs[6], targets[6])
+                l8 = criterion(outputs[7], targets[7])
+
+                l1.backward()
+                l2.backward()
+                l3.backward()
+                l4.backward()
+                l5.backward()
+                l6.backward()
+                l7.backward()
+                l8.backward()
+                # Compute the loss and step the optimizer
+
+                optimizer.step()
+
+                loss = np.mean(x.item() for x in [l1, l2, l3, l4, l5, l6, l7, l8])
 
                 if i % 500 == 0:
-                    print('Epoch: {}, Test Loss: {}'.format(epoch, loss.item()))
+                    print('Epoch: {}, Train Loss: {}'.format(epoch, loss))
 
                 # Save loss info
                 total_loss += loss.item()

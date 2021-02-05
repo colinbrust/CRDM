@@ -1,35 +1,43 @@
 library(magrittr)
+library(foreach)
+library(doParallel)
+cl <- makeCluster(10)
+registerDoParallel(cl)
 args <- commandArgs(trailingOnly=TRUE)
-
-# Normalize data between -1 and 1
-norm_calc <- function(x) {
-  
-  (2*(x - min(x, na.rm = T))/(max(x, na.rm = T) - min(x, na.rm = T))) - 1
-  
-}
 
 # Stack rasters of same variable, normalize between -1 and 1, write out
 normalize <- function(variable, in_dir, out_dir) {
 
   f_list <- list.files(in_dir, pattern = variable, full.names = T) 
   
-  stk <-  f_list %>%
-    raster::stack() %>%
-    raster::calc(norm_calc) %>%
+  rnge <- f_list %>% 
+    raster::stack() 
+    raster::`NAvalue<-`(-9999) %>% 
+    raster::values() %>%
+    range(na.rm = T)
+  
+  foreach(i=1:length(f_list), .packages=c('raster', 'magrittr')) %dopar% {
+    
+    f = f_list[i]
+    
+    f %>% 
+      raster::raster() %>%
+      raster::calc(function(x) {(2*(x - rnge[1])/(rnge[2] - rnge[1])) - 1}) %>%
+      raster::writeRaster(
+        filename = file.path(out_dir, basename(f)), 
+        overwrite = T
+      )
+    
+  }
+    raster::calc(function(x) {(2*(x - rnge[1])/(rnge[2] - rnge[1])) - 1}) %>%
     raster::as.list()
   
-  out_names <- file.path(out_dir, basename(f_list))
-  
-  mapply(raster::writeRaster, x=stk, filename=out_names, overwrite = T)
-}
+}  
 
-variables = c('sm-surface') %>% paste0('.tif')
+variables = c('pr', 'rmax', 'rmin', 'sm-rootzone', 'sm-surface', 'srad', 'tmmn', 
+              'tmmx', 'vpd', 'vs', 'fw', 'VOD') %>% paste0('.tif')
 
-
+# variables = c('gpp', 'ET') %>% paste0('.tif')
 
 variables %>%
-  lapply(normalize, in_dir = './weekly', out_dir = './week_norm')
-
-  ptm <- proc.time()
-  a %>% raster::values() %>% max()
-  proc.time() - ptm
+  lapply(normalize, in_dir = args[1], out_dir = args[2])

@@ -19,6 +19,7 @@ class LSTM(nn.Module):
                  batch_size=64, const_size=8, cuda=False, num_layers=1):
         super().__init__()
 
+        self.num_layers = num_layers
         self.hidden_size = hidden_size
         self.device = 'cuda:0' if torch.cuda.is_available() and cuda else 'cpu'
         self.batch_size = batch_size
@@ -55,8 +56,8 @@ class LSTM(nn.Module):
 
     def init_state(self):
         # This is what we'll initialise our hidden state as
-        return (torch.zeros(1, self.batch_size, self.hidden_size, device=self.device),
-                torch.zeros(1, self.batch_size, self.hidden_size, device=self.device))
+        return (torch.zeros(self.num_layers, self.batch_size, self.hidden_size, device=self.device),
+                torch.zeros(self.num_layers, self.batch_size, self.hidden_size, device=self.device))
 
     def forward(self, weekly_seq, monthly_seq, constants, prev_week_state, prev_month_state):
         # Run the LSTM forward
@@ -70,7 +71,7 @@ class LSTM(nn.Module):
 
 
 def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
-               hidden_size=64, cuda=False, init=True, num_layers=1):
+               hidden_size=64, cuda=False, init=True, num_layers=1, stateful=False):
     # const_f ='/mnt/e/PycharmProjects/CRDM/data/premade/featType-constant_trainingType-pixelPremade_nWeeks-25_leadTime-6_size-20000_rmFeatures-True.dat'
     # mon_f = '/mnt/e/PycharmProjects/CRDM/data/premade/featType-monthly_trainingType-pixelPremade_nWeeks-25_leadTime-6_size-20000_rmFeatures-True.dat'
     # target_f = '/mnt/e/PycharmProjects/CRDM/data/premade/featType-target_trainingType-pixelPremade_nWeeks-25_leadTime-6_size-20000_rmFeatures-True.dat'
@@ -121,10 +122,13 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
     prev_best_loss = 1e6
     err_out = {}
 
-    out_name_mod = 'epochs-{}_batch-{}_nMonths-{}_hiddenSize-{}_leadTime-{}_remove-{}_init-{}_numLayers-{}_fType-model.p'.format(
-        epochs, batch_size, info['nWeeks'], hidden_size, lead_time, info['rmYears'], info['init'], num_layers)
-    out_name_err = 'epochs-{}_batch-{}_nMonths-{}_hiddenSize-{}_leadTime-{}_remove-{}_init-{}_numLayers-{}_fType-err.p'.format(
-        epochs, batch_size, info['nWeeks'], hidden_size, lead_time, info['rmYears'], info['init'], num_layers)
+    f_name_info = {'epochs': str(epochs), 'batch': str(batch_size), 'nWeeks': str(info['nWeeks']),
+                   'hiddenSize': str(hidden_size), 'leadTime': str(lead_time), 'remove': str(info['rmYears']),
+                   'init': str(info['init']), 'numLayers': str(num_layers), 'stateful': str(stateful)}
+    f_name_info = '_'.join('{}-{}'.format(key, value) for key, value in f_name_info.items())
+
+    out_name_mod = f_name_info + '_fType-model.p'
+    out_name_err = f_name_info + '_fType-err.p'
 
     for epoch in range(epochs):
         total_loss = 0
@@ -133,12 +137,18 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
 
         model.train()
 
+        if stateful:
+            week_h, week_c = model.init_state()
+            month_h, month_c = model.init_state()
+
         # Loop over each subset of data
         for i, item in enumerate(train_loader, 1):
 
             try:
-                week_h, week_c = model.init_state()
-                month_h, month_c = model.init_state()
+
+                if not stateful:
+                    week_h, week_c = model.init_state()
+                    month_h, month_c = model.init_state()
 
                 mon = item['mon'].permute(1, 0, 2)
                 week = item['week'].permute(1, 0, 2)
@@ -184,8 +194,9 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
 
             try:
 
-                week_h, week_c = model.init_state()
-                month_h, month_c = model.init_state()
+                if not stateful:
+                    week_h, week_c = model.init_state()
+                    month_h, month_c = model.init_state()
 
                 mon = item['mon'].permute(1, 0, 2)
                 week = item['week'].permute(1, 0, 2)
@@ -197,6 +208,10 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
 
                 # Run model on test set
                 outputs, (week_h, week_c), (month_h, month_c) = model(week, mon, const, (week_h, week_c), (month_h, month_c))
+
+                week_h, month_h = week_h.detach(), month_h.detach()
+                week_c, month_c = week_c.detach(), week_c.detach()
+                
                 loss = criterion(
                     outputs.type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor),
                     item['target'].type(torch.cuda.LongTensor if (torch.cuda.is_available() and cuda) else torch.LongTensor)
@@ -262,9 +277,9 @@ if __name__ == '__main__':
     init = info['init']
 
     if args.search:
-        for layers in [2, 3, 4]:
-                train_lstm(const_f=const_f, mon_f=mon_f, week_f=week_f, target_f=target_f, epochs=args.epochs,
-                           batch_size=1024, hidden_size=1024, cuda=args.cuda, init=init, num_layers=layers)
+        for layers in [1, 2, 3, 4]:
+            train_lstm(const_f=const_f, mon_f=mon_f, week_f=week_f, target_f=target_f, epochs=args.epochs,
+                       batch_size=args.batch_size, hidden_size=args.hidden_size, cuda=args.cuda, init=init, num_layers=layers)
 
     else:
         try:

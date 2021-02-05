@@ -1,8 +1,8 @@
 library(reticulate)
 library(magrittr)
 library(ggplot2)
-use_condaenv("crdm", conda = "/opt/miniconda3/bin/conda")
-source_python('~/projects/CRDM/crdm/utils/ReadPickle.py')
+use_condaenv("gee", conda = "/home/colin/miniconda3/bin/conda")
+source_python('/mnt/e/PycharmProjects/CRDM/crdm/utils/ReadPickle.py')
 source('https://raw.githubusercontent.com/colinbrust/CRDM/develop/crdm/R/PlotTheme.R')
 
 strip_text = function(x) {
@@ -37,7 +37,7 @@ read_file <- function(f) {
                      'numLayers'), as.numeric)
 }
 
-plot_all <- function(f_dir='~/projects/CRDM/data/drought/model_results/weekly_results') {
+plot_all <- function(f_dir='/mnt/e/PycharmProjects/CRDM/data/model_results/weekly_results') {
   
   f_dir %>%
     list.files(full.names = T, pattern = 'err.p') %>%

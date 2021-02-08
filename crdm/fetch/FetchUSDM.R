@@ -66,11 +66,11 @@ usdm_to_raster <- function(basemap, f_dir = "/mnt/e/Data/USDM/shapefiles",
   
   f_dir %>%
     list.files(full.names = T, pattern = '.shp') %>%
-    grep('.xml', ., value = T, invert = T) %>%
+    grep('.xml', ., value = T, invert = T) %>% tail(24) %>%
     lapply(dm_to_raster, template=basemap, out_dir=out_dir)
 }
 # get_usdm('2000-01-01', '2020-01-01', '/Users/cbandjelly/Workspace/data/usdm')
 
-usdm_to_raster('~/Desktop/misc_data/template.tif')
+usdm_to_raster(basemap = '~/projects/CRDM/data/drought/template.tif')
 
 

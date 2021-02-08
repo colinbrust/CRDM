@@ -83,7 +83,6 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
     print('num_layers = {}'.format(num_layers))
     device = 'cuda:0' if torch.cuda.is_available() and cuda else 'cpu'
     info = parse_fname(const_f)
-    lead_time = info['leadTime']
 
     # Make data loader
     loader = PixelLoader(const_f, week_f, mon_f, target_f, info['init'])
@@ -118,7 +117,7 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
     err_out = {}
 
     f_name_info = {'epochs': str(epochs), 'batch': str(batch_size), 'nWeeks': str(info['nWeeks']),
-                   'hiddenSize': str(hidden_size), 'leadTime': str(lead_time), 'remove': str(info['rmYears']),
+                   'hiddenSize': str(hidden_size), 'remove': str(info['rmYears']),
                    'init': str(info['init']), 'numLayers': str(num_layers), 'stateful': str(stateful)}
     f_name_info = '_'.join('{}-{}'.format(key, value) for key, value in f_name_info.items())
 
@@ -159,33 +158,17 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
                 # Make prediction with model
                 outputs, (week_h, week_c), (month_h, month_c) = model(week, mon, const, (week_h, week_c), (month_h, month_c))
                 outputs = outputs.type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor)
-                targets = item['target'].type(torch.cuda.LongTensor if (torch.cuda.is_available() and cuda) else torch.LongTensor)
+                targets = item['target'].type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor)
 
                 week_h, month_h = week_h.detach(), month_h.detach()
                 week_c, month_c = week_c.detach(), week_c.detach()
 
-                l1 = criterion(outputs[0], targets[0])
-                l2 = criterion(outputs[1], targets[1])
-                l3 = criterion(outputs[2], targets[2])
-                l4 = criterion(outputs[3], targets[3])
-                l5 = criterion(outputs[4], targets[4])
-                l6 = criterion(outputs[5], targets[5])
-                l7 = criterion(outputs[6], targets[6])
-                l8 = criterion(outputs[7], targets[7])
+                loss = criterion(outputs, targets)
+                print(loss)
+                loss.backward()
 
-                l1.backward()
-                l2.backward()
-                l3.backward()
-                l4.backward()
-                l5.backward()
-                l6.backward()
-                l7.backward()
-                l8.backward()
                 # Compute the loss and step the optimizer
-
                 optimizer.step()
-
-                loss = np.mean(x.item() for x in [l1, l2, l3, l4, l5, l6, l7, l8])
 
                 if i % 500 == 0:
                     print('Epoch: {}, Train Loss: {}'.format(epoch, loss))
@@ -225,33 +208,12 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
                 outputs = outputs.type(
                     torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor)
                 targets = item['target'].type(
-                    torch.cuda.LongTensor if (torch.cuda.is_available() and cuda) else torch.LongTensor)
+                    torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor)
 
                 week_h, month_h = week_h.detach(), month_h.detach()
                 week_c, month_c = week_c.detach(), week_c.detach()
 
-                l1 = criterion(outputs[0], targets[0])
-                l2 = criterion(outputs[1], targets[1])
-                l3 = criterion(outputs[2], targets[2])
-                l4 = criterion(outputs[3], targets[3])
-                l5 = criterion(outputs[4], targets[4])
-                l6 = criterion(outputs[5], targets[5])
-                l7 = criterion(outputs[6], targets[6])
-                l8 = criterion(outputs[7], targets[7])
-
-                l1.backward()
-                l2.backward()
-                l3.backward()
-                l4.backward()
-                l5.backward()
-                l6.backward()
-                l7.backward()
-                l8.backward()
-                # Compute the loss and step the optimizer
-
-                optimizer.step()
-
-                loss = np.mean(x.item() for x in [l1, l2, l3, l4, l5, l6, l7, l8])
+                loss = criterion(outputs, targets)
 
                 if i % 500 == 0:
                     print('Epoch: {}, Train Loss: {}'.format(epoch, loss))

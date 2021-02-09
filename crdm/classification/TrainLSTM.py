@@ -67,6 +67,7 @@ class LSTM(nn.Module):
 
         lstm_and_const = torch.cat((week_out[-1], month_out[-1], constants), dim=1)
         preds = self.classifier(lstm_and_const)
+        print(preds)
         return preds, week_state, month_state
 
 

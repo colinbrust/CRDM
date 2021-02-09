@@ -67,10 +67,8 @@ def get_pred_true_arrays(model, mod_f, target, in_features, init, cuda):
             (week_h, week_c), (month_h, month_c)
         )
 
-        week_h, month_h = week_h.detach(), month_h.detach()
-        week_c, month_c = week_c.detach(), month_c.detach()
+        preds = preds.cpu().detach().numpy() if cuda else preds.detach().numpy()
 
-        preds = np.argmax(preds.cpu().detach().numpy(), axis=1) if cuda else np.argmax(preds.detach().numpy(), axis=1)   
 
         all_preds = np.concatenate((all_preds, preds))
 
@@ -88,10 +86,7 @@ def get_pred_true_arrays(model, mod_f, target, in_features, init, cuda):
         (week_h, week_c), (month_h, month_c)
     )
 
-    week_h, month_h = week_h.detach(), month_h.detach()
-    week_c, month_c = week_c.detach(), month_c.detach()
-
-    preds = np.argmax(preds.cpu().detach().numpy(), axis=1) if cuda else np.argmax(preds.detach().numpy(), axis=1)
+    preds = preds.cpu().detach().numpy() if cuda else preds.detach().numpy()
     fill = LENGTH - len(all_preds)
     fill = preds[-fill:]
 

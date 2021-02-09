@@ -1,27 +1,29 @@
 import argparse
 import torch
 import os
-from pathlib import Path
+import glob
 import matplotlib.pyplot as plt
 import numpy as np
 from crdm.classification.TrainLSTM import LSTM
 from crdm.loaders.AggregateAllPixels import AggregateAllPixles
 from crdm.utils.ImportantVars import DIMS, LENGTH, MONTHLY_VARS, WEEKLY_VARS
 from crdm.utils.ParseFileNames import parse_fname
+import rasterio as rio
 
 
 def make_model(mod_f, init, cuda):
 
     info = parse_fname(mod_f)
-    const_size = 7
+    const_size = 13
 
     weekly_size = len(WEEKLY_VARS) + 1 if init else len(WEEKLY_VARS)
     # make model from hyperparams and load trained parameters.
     model = LSTM(weekly_size=weekly_size, monthly_size=len(MONTHLY_VARS),
-                 hidden_size=int(info['hiddenSize']), output_size=6, 
+                 hidden_size=int(info['hiddenSize']), output_size=8,
                  batch_size=int(info['batch']), const_size=const_size, cuda=cuda, num_layers=int(info['numLayers']))
-    
-    model.load_state_dict(torch.load(mod_f)) if cuda and torch.cuda.is_available() else model.load_state_dict(torch.load(mod_f, map_location=torch.device('cpu')))
+
+    model.load_state_dict(torch.load(mod_f)) if cuda and torch.cuda.is_available() else model.load_state_dict(
+        torch.load(mod_f, map_location=torch.device('cpu')))
     device = torch.device('cuda:0' if torch.cuda.is_available() else "cpu")
     model.to(device)
     model.eval()
@@ -30,47 +32,43 @@ def make_model(mod_f, init, cuda):
 
 
 def get_pred_true_arrays(model, mod_f, target, in_features, init, cuda):
-    # TODO: Add const_size and input_size as additional filename descriptors.
-    # TODO: Make helper to extract epochs, batch, etc from data.
+
     # Get hyperparameters from filename
-
-    # mod_f = '/Users/colinbrust/projects/CRDM/data/drought/model_results/weekly_results/modelType-LSTM_epochs-10_batch-256_nMonths-20_hiddenSize-256_leadTime-4_rmFeatures-False_fType-model.p'
-
     info = parse_fname(mod_f)
-    batch, nMonths, leadTime = int(info['batch']), int(info['nMonths']), int(info['leadTime'])
+    batch, nWeeks = int(info['batch']), int(info['nWeeks'])
 
-    data = AggregateAllPixles(target=target, in_features=in_features, lead_time=leadTime, n_months=nMonths, init=init)
+    data = AggregateAllPixles(targets=target, in_features=in_features, n_weeks=nWeeks, init=init)
 
     weeklys, monthlys, constants = data.premake_features()
 
     constants = constants.swapaxes(0, 1)
     monthlys = monthlys.swapaxes(2, 0)
     weeklys = weeklys.swapaxes(2, 0)
-    
+
     batch_indices = [x for x in range(0, LENGTH, batch)]
     tail = [(LENGTH) - batch, LENGTH + 1]
 
-    all_preds = np.array([])
+    all_preds = []
 
     for i in range(len(batch_indices) - 1):
-
-        week_batch = weeklys[batch_indices[i]: batch_indices[i+1]].swapaxes(0, 1)
-        mon_batch = monthlys[batch_indices[i]: batch_indices[i+1]].swapaxes(0, 1)
-        const_batch = constants[batch_indices[i]: batch_indices[i+1]]
+        week_batch = weeklys[batch_indices[i]: batch_indices[i + 1]].swapaxes(0, 1)
+        mon_batch = monthlys[batch_indices[i]: batch_indices[i + 1]].swapaxes(0, 1)
+        const_batch = constants[batch_indices[i]: batch_indices[i + 1]]
         week_h, week_c = model.init_state()
         month_h, month_c = model.init_state()
-        
+
         preds, (week_h, week_c), (month_h, month_c) = model(
-            torch.tensor(week_batch).type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor), 
-            torch.tensor(mon_batch).type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor), 
-            torch.tensor(const_batch).type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor), 
+            torch.tensor(week_batch).type(
+                torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor),
+            torch.tensor(mon_batch).type(
+                torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor),
+            torch.tensor(const_batch).type(
+                torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor),
             (week_h, week_c), (month_h, month_c)
         )
 
         preds = preds.cpu().detach().numpy() if cuda else preds.detach().numpy()
-
-
-        all_preds = np.concatenate((all_preds, preds))
+        all_preds.append(preds)
 
     week_batch = weeklys[tail[0]: tail[1]].swapaxes(0, 1)
     mon_batch = monthlys[tail[0]: tail[1]].swapaxes(0, 1)
@@ -80,42 +78,65 @@ def get_pred_true_arrays(model, mod_f, target, in_features, init, cuda):
     month_h, month_c = model.init_state()
 
     preds, (week_h, week_c), (month_h, month_c) = model(
-        torch.tensor(week_batch).type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor), 
-        torch.tensor(mon_batch).type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor), 
-        torch.tensor(const_batch).type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor),
+        torch.tensor(week_batch).type(
+            torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor),
+        torch.tensor(mon_batch).type(
+            torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor),
+        torch.tensor(const_batch).type(
+            torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor),
         (week_h, week_c), (month_h, month_c)
     )
 
     preds = preds.cpu().detach().numpy() if cuda else preds.detach().numpy()
-    fill = LENGTH - len(all_preds)
+    fill = LENGTH - (len(all_preds) * batch)
     fill = preds[-fill:]
 
-    all_preds = np.concatenate((all_preds, fill))
-    out = all_preds.reshape(DIMS)
-    actual = np.memmap(target, dtype='int8', mode='c', shape=DIMS)
+    all_preds.append(fill)
+    out = np.concatenate([*all_preds]).swapaxes(0, 1)
 
-    return {'preds': out,
-            'valid': actual}
+    return out
 
 
-def save_arrays(out_dir, out_dict, target, mod_f):
+def save_arrays(out_dir, out, target):
 
-    base = os.path.basename(target).replace('.dat', '')
-    mod_name = os.path.basename(mod_f).replace('.p', '')
-    np.savetxt(os.path.join(out_dir, '{}_{}_pred.csv'.format(base, mod_name)), out_dict['preds'], fmt='%i', delimiter=',')
-    np.savetxt(os.path.join(out_dir, '{}_{}_real.csv'.format(base, mod_name)), out_dict['valid'], fmt='%i', delimiter=',')
+    out_dst = rio.open(
+        os.path.join(out_dir, os.path.basename(target[0]).replace('_USDM.dat', '_preds.tif')),
+        'w',
+        driver='GTiff',
+        height=DIMS[0],
+        width=DIMS[1],
+        count=8,
+        dtype='float32',
+        transform=rio.Affine(9000.0, 0.0, -12048530.45, 0.0, -9000.0, 5568540.83),
+        crs='+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs'
+    )
+
+    [out_dst.write(x.reshape(DIMS), i) for i, x in enumerate(out, 1)]
+    out_dst.close()
 
 
 def save_all_preds(target_dir, in_features, mod_f, out_dir, remove, init, cuda):
 
+    print(remove)
     model = make_model(mod_f, init, cuda)
-    f_list = [str(x) for x in Path(target_dir).glob('*_USDM.dat')]
-    f_list = [x for x in f_list if ('/2015' in x or '/2017' in x)] if remove else f_list
-    for f in f_list:
+
+    targets_tmp = sorted(glob.glob(os.path.join(target_dir, '*.dat')))
+    targets = []
+    for i in range(len(targets_tmp)):
+        if remove:
+            files = targets_tmp[i:i + 8]
+            if any(['/2015' in x or '/2017' in x for x in files]):
+                targets.append(files)
+            else:
+                continue
+        else:
+            targets.append(targets_tmp[i:i + 8])
+
+    for f in targets:
         print(f)
         try:
-            out_dict = get_pred_true_arrays(model, mod_f, f, in_features, init, cuda)
-            save_arrays(out_dir, out_dict, f, mod_f)
+            out = get_pred_true_arrays(model, mod_f, f, in_features, init, cuda)
+            save_arrays(out_dir, out, f)
         except AssertionError as e:
             print(e, '\nSkipping this target')
 

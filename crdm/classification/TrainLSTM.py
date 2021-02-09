@@ -24,6 +24,7 @@ class LSTM(nn.Module):
         self.device = 'cuda:0' if torch.cuda.is_available() and cuda else 'cpu'
         self.batch_size = batch_size
         self.weekly_size = weekly_size
+        self.output_size = output_size
 
         self.weekly_lstm = nn.LSTM(weekly_size, self.hidden_size, num_layers=num_layers, dropout=0.5)
         self.monthly_lstm = nn.LSTM(monthly_size, self.hidden_size, num_layers=num_layers, dropout=0.5)
@@ -49,10 +50,13 @@ class LSTM(nn.Module):
             nn.Linear(32, 16),
             nn.BatchNorm1d(16),
             nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(16, output_size),
-            nn.ReLU()
+            nn.Dropout(0.5)
         )
+
+        self.preds2 = nn.Linear(16, self.output_size)
+        self.preds4 = nn.Linear(16, self.output_size)
+        self.preds6 = nn.Linear(16, self.output_size)
+        self.preds8 = nn.Linear(16, self.output_size)
 
     def init_state(self):
         # This is what we'll initialise our hidden state as
@@ -67,21 +71,14 @@ class LSTM(nn.Module):
 
         lstm_and_const = torch.cat((week_out[-1], month_out[-1], constants), dim=1)
         preds = self.classifier(lstm_and_const)
-        print(preds)
-        return preds, week_state, month_state
+
+        preds2, preds4, preds6, preds8 = self.preds2(preds), self.preds4(preds), self.preds6(preds), self.preds8(preds)
+        return [preds2, preds4, preds6, preds8], week_state, month_state
 
 
 def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
                hidden_size=64, cuda=False, init=True, num_layers=1, stateful=False):
-    # const_f ='/mnt/e/PycharmProjects/CRDM/data/premade/featType-constant_trainingType-pixelPremade_nWeeks-25_leadTime-6_size-20000_rmFeatures-True.dat'
-    # mon_f = '/mnt/e/PycharmProjects/CRDM/data/premade/featType-monthly_trainingType-pixelPremade_nWeeks-25_leadTime-6_size-20000_rmFeatures-True.dat'
-    # target_f = '/mnt/e/PycharmProjects/CRDM/data/premade/featType-target_trainingType-pixelPremade_nWeeks-25_leadTime-6_size-20000_rmFeatures-True.dat'
-    # week_f = '/mnt/e/PycharmProjects/CRDM/data/premade/featType-weekly_trainingType-pixelPremade_nWeeks-25_leadTime-6_size-20000_rmFeatures-True.dat'
-    #
-    # epochs = 10
-    # batch_size = 512
-    # hidden_size = 512
-    print('num_layers = {}'.format(num_layers))
+
     device = 'cuda:0' if torch.cuda.is_available() and cuda else 'cpu'
     info = parse_fname(const_f)
 
@@ -100,7 +97,7 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
 
     weekly_size = len(WEEKLY_VARS) + 1 if init else len(WEEKLY_VARS)
     # Define model, loss and optimizer.
-    model = LSTM(weekly_size=weekly_size, monthly_size=len(MONTHLY_VARS), hidden_size=hidden_size, output_size=8,
+    model = LSTM(weekly_size=weekly_size, monthly_size=len(MONTHLY_VARS), hidden_size=hidden_size, output_size=6,
                  batch_size=batch_size, const_size=const_size, cuda=cuda, num_layers=num_layers)
 
     model.to(device)
@@ -109,12 +106,18 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
         print('Using GPU')
         model.cuda()
 
-    criterion = nn.MSELoss()
-    lr = 1e-3
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    scheduler = ReduceLROnPlateau(optimizer, mode='min', patience=3, threshold=1e-4, verbose=True)
+    # targets = np.memmap(target_f, dtype='float32', mode='r')
+    # counts = list(Counter(targets).values())
+    weights = torch.Tensor([0.2436, 0.9333, 0.9502, 0.9051, 0.9750, 0.9929]).type(
+        torch.cuda.FloatTensor if (cuda and torch.cuda.is_available()) else torch.FloatTensor)
+    # weights = torch.Tensor([1 - (x / sum(counts)) for x in counts]).type(
+    #     torch.cuda.FloatTensor if (cuda and torch.cuda.is_available()) else torch.FloatTensor)
+    criterion = nn.CrossEntropyLoss(weight=weights)
 
-    prev_best_loss = 1e6
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-2)
+    scheduler = ReduceLROnPlateau(optimizer, mode='min', patience=2, threshold=1e-4, verbose=True)
+
+    prev_best_loss = np.inf
     err_out = {}
 
     f_name_info = {'epochs': str(epochs), 'batch': str(batch_size), 'nWeeks': str(info['nWeeks']),
@@ -158,17 +161,22 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
 
                 # Make prediction with model
                 outputs, (week_h, week_c), (month_h, month_c) = model(week, mon, const, (week_h, week_c), (month_h, month_c))
-                outputs = outputs.type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor)
-                targets = item['target'].type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor)
+                # outputs = outputs.type(torch.cuda.FloatTensor if cuda else torch.FloatTensor)
+                targets = (item['target']*5).type(torch.cuda.LongTensor if cuda else torch.LongTensor)
 
                 week_h, month_h = week_h.detach(), month_h.detach()
                 week_c, month_c = week_c.detach(), week_c.detach()
 
-                loss = criterion(outputs, targets)
-                print(loss)
-                loss.backward()
+                loss2 = criterion(outputs[0], targets[:, 1])
+                loss4 = criterion(outputs[1], targets[:, 3])
+                loss6 = criterion(outputs[2], targets[:, 5])
+                loss8 = criterion(outputs[3], targets[:, 7])
+
+                loss = loss2+loss4+loss6+loss8
+                # print(loss)
 
                 # Compute the loss and step the optimizer
+                loss.backward()
                 optimizer.step()
 
                 if i % 500 == 0:
@@ -203,18 +211,18 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
 
                 # Run model on test set
                 outputs, (week_h, week_c), (month_h, month_c) = model(week, mon, const, (week_h, week_c), (month_h, month_c))
-
-                outputs, (week_h, week_c), (month_h, month_c) = model(week, mon, const, (week_h, week_c),
-                                                                      (month_h, month_c))
-                outputs = outputs.type(
-                    torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor)
-                targets = item['target'].type(
-                    torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor)
+                # outputs = outputs.type(torch.cuda.FloatTensor if cuda else torch.FloatTensor)
+                targets = (item['target']*5).type(torch.cuda.LongTensor if cuda else torch.LongTensor)
 
                 week_h, month_h = week_h.detach(), month_h.detach()
                 week_c, month_c = week_c.detach(), week_c.detach()
 
-                loss = criterion(outputs, targets)
+                loss2 = criterion(outputs[0], targets[:, 1])
+                loss4 = criterion(outputs[1], targets[:, 3])
+                loss6 = criterion(outputs[2], targets[:, 5])
+                loss8 = criterion(outputs[3], targets[:, 7])
+
+                loss = loss2+loss4+loss6+loss8
 
                 if i % 500 == 0:
                     print('Epoch: {}, Train Loss: {}'.format(epoch, loss))

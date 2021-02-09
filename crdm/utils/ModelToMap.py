@@ -117,7 +117,6 @@ def save_arrays(out_dir, out, target):
 
 def save_all_preds(target_dir, in_features, mod_f, out_dir, remove, init, cuda):
 
-    print(remove)
     model = make_model(mod_f, init, cuda)
 
     targets_tmp = sorted(glob.glob(os.path.join(target_dir, '*.dat')))
@@ -133,7 +132,6 @@ def save_all_preds(target_dir, in_features, mod_f, out_dir, remove, init, cuda):
             targets.append(targets_tmp[i:i + 8])
 
     for f in targets:
-        print(f)
         try:
             out = get_pred_true_arrays(model, mod_f, f, in_features, init, cuda)
             save_arrays(out_dir, out, f)

@@ -4,7 +4,7 @@ import os
 import glob
 import matplotlib.pyplot as plt
 import numpy as np
-from crdm.classification.TrainLSTM import LSTM
+from crdm.classification.TrainLSTMCategorical import LSTM
 from crdm.loaders.AggregateAllPixels import AggregateAllPixles
 from crdm.utils.ImportantVars import DIMS, LENGTH, MONTHLY_VARS, WEEKLY_VARS
 from crdm.utils.ParseFileNames import parse_fname
@@ -67,7 +67,7 @@ def get_pred_true_arrays(model, mod_f, target, in_features, init, cuda):
             (week_h, week_c), (month_h, month_c)
         )
 
-        preds = preds.cpu().detach().numpy() if cuda else preds.detach().numpy()
+        preds = np.argmax(preds.cpu().detach().numpy(), axis=1) if cuda else np.argmax(preds.detach().numpy(), axis=1)
         all_preds.append(preds)
 
     week_batch = weeklys[tail[0]: tail[1]].swapaxes(0, 1)
@@ -87,7 +87,7 @@ def get_pred_true_arrays(model, mod_f, target, in_features, init, cuda):
         (week_h, week_c), (month_h, month_c)
     )
 
-    preds = preds.cpu().detach().numpy() if cuda else preds.detach().numpy()
+    preds = np.argmax(preds.cpu().detach().numpy(), axis=1) if cuda else np.argmax(preds.detach().numpy(), axis=1)
     fill = LENGTH - (len(all_preds) * batch)
     fill = preds[-fill:]
 

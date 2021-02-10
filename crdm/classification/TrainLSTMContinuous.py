@@ -58,7 +58,7 @@ class LSTM(nn.Module):
         self.preds6 = nn.Linear(16, self.output_size)
         self.preds8 = nn.Linear(16, self.output_size)
 
-        self.soft = nn.Softmax()
+        self.soft = nn.Softmax(dim=1)
 
     def init_state(self):
         # This is what we'll initialise our hidden state as
@@ -163,14 +163,14 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
 
                 week_h, month_h = week_h.detach(), month_h.detach()
                 week_c, month_c = week_c.detach(), week_c.detach()
-
-                loss2 = criterion(outputs[0], np.argmax(targets[:, 1], axis=1))
-                loss4 = criterion(outputs[1], np.argmax(targets[:, 3], axis=1))
-                loss6 = criterion(outputs[2], np.argmax(targets[:, 5], axis=1))
-                loss8 = criterion(outputs[3], np.argmax(targets[:, 7], axis=1))
+                
+                loss2 = criterion(torch.argmax(outputs[0], dim=-1), targets[:, 1])
+                loss4 = criterion(torch.argmax(outputs[1], dim=-1), targets[:, 3])
+                loss6 = criterion(torch.argmax(outputs[2], dim=-1), targets[:, 5])
+                loss8 = criterion(torch.argmax(outputs[3], dim=-1), targets[:, 7])
 
                 loss = loss2+loss4+loss6+loss8
-                # print(loss)
+                loss.requires_grad = True
 
                 # Compute the loss and step the optimizer
                 loss.backward()
@@ -211,15 +211,13 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
                 # outputs = outputs.type(torch.cuda.FloatTensor if cuda else torch.FloatTensor)
                 targets = (item['target']*5).type(torch.cuda.FloatTensor if cuda else torch.FloatTensor)
 
-                print(outputs)
-                print(np.argmax(targets[:, 1], axis=1))
                 week_h, month_h = week_h.detach(), month_h.detach()
                 week_c, month_c = week_c.detach(), week_c.detach()
 
-                loss2 = criterion(outputs[0], np.argmax(targets[:, 1], axis=1))
-                loss4 = criterion(outputs[1], np.argmax(targets[:, 3], axis=1))
-                loss6 = criterion(outputs[2], np.argmax(targets[:, 5], axis=1))
-                loss8 = criterion(outputs[3], np.argmax(targets[:, 7], axis=1))
+                loss2 = criterion(torch.argmax(outputs[0], dim=-1), targets[:, 1])
+                loss4 = criterion(torch.argmax(outputs[1], dim=-1), targets[:, 3])
+                loss6 = criterion(torch.argmax(outputs[2], dim=-1), targets[:, 5])
+                loss8 = criterion(torch.argmax(outputs[3], dim=-1), targets[:, 7])
 
                 loss = loss2+loss4+loss6+loss8
 

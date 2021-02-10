@@ -138,7 +138,7 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
         if stateful:
             week_h, week_c = model.init_state()
             month_h, month_c = model.init_state()
-
+            print('Im stateful')
         # Loop over each subset of data
         for i, item in enumerate(train_loader, 1):
 
@@ -267,8 +267,11 @@ if __name__ == '__main__':
                         help='Train model on GPU.')
     parser.add_argument('--no-cuda', dest='cuda', action='store_false',
                         help='Train model on CPU. ')
+    parser.add_argument('--state', dest='state', action='store_true', help='Maintain state across batches.')
+    parser.add_argument('--no-state', dest='state', action='store_false', help='Reset state after each mini-batch.')
     parser.set_defaults(search=False)
     parser.set_defaults(cuda=False)
+    parser.set_defaults(state=False)
 
     args = parser.parse_args()
     infile = open(args.pickle_f, 'rb')
@@ -286,12 +289,12 @@ if __name__ == '__main__':
     if args.search:
         for layers in [1, 2, 3, 4]:
             train_lstm(const_f=const_f, mon_f=mon_f, week_f=week_f, target_f=target_f, epochs=args.epochs,
-                       batch_size=args.batch_size, hidden_size=args.hidden_size, cuda=args.cuda, init=init, num_layers=layers)
+                       batch_size=args.batch_size, hidden_size=args.hidden_size, cuda=args.cuda, init=init, num_layers=layers, stateful=args.state)
 
     else:
         try:
             assert 'batch_size' in args and 'hidden_size' in args
             train_lstm(const_f=const_f, mon_f=mon_f, week_f=week_f, target_f=target_f, epochs=args.epochs,
-                       batch_size=args.batch_size, hidden_size=args.hidden_size, cuda=args.cuda, init=init, num_layers=args.num_layers)
+                       batch_size=args.batch_size, hidden_size=args.hidden_size, cuda=args.cuda, init=init, num_layers=args.num_layers, stateful=args.state)
         except AssertionError as e:
             print('-bs and -hs flags must be used when you are not using the search option.')

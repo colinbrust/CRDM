@@ -266,8 +266,11 @@ if __name__ == '__main__':
                         help='Train model on GPU.')
     parser.add_argument('--no-cuda', dest='cuda', action='store_false',
                         help='Train model on CPU. ')
+    parser.add_argument('--state', dest='state', action='store_true', help='Maintain state across batches.')
+    parser.add_argument('--no-state', dest='state', action='store_false', help='Reset state after each mini-batch.')
     parser.set_defaults(search=False)
     parser.set_defaults(cuda=False)
+    parser.set_defaults(state=False)
 
     args = parser.parse_args()
     infile = open(args.pickle_f, 'rb')

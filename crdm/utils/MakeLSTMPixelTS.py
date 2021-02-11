@@ -86,7 +86,7 @@ def make_lstm_pixel_ts(target_dir, in_features, size, n_weeks, out_dir, rm_years
     pickle.dump(pick, out)
     out.close()
 
-    return basename
+    return pick_name
 
 
 if __name__ == '__main__':
@@ -95,7 +95,6 @@ if __name__ == '__main__':
     parser.add_argument('-td', '--target_dir', type=str, help='Directory containing target memmap images.')
     parser.add_argument('-if', '--in_features', type=str,
                         help='Directory containing directorys with memmaps of training features')
-    parser.add_argument('-lt', '--lead_time', type=int, help='Number of weeks in advance to make predictions.')
     parser.add_argument('-nw', '--n_weeks', type=int, help='Number of week "history" to use as model inputs.')
     parser.add_argument('-sz', '--size', type=int, help='Number of pixels to use to train model.')
     parser.add_argument('-od', '--out_dir', type=str, help='Directory to put new files into.')
@@ -104,7 +103,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--init', dest='init', action='store_true', help='Use initial drought condition as model input.')
     parser.add_argument('--no-init', dest='init', action='store_false', help='Do not use initial drought condition as model input..')
-    parser.set_defaults(init=False)
+    parser.set_defaults(init=True)
 
     args = parser.parse_args()
 

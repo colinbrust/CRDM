@@ -19,7 +19,7 @@ def make_model(mod_f, init, cuda):
     weekly_size = len(WEEKLY_VARS) + 1 if init else len(WEEKLY_VARS)
     # make model from hyperparams and load trained parameters.
     model = LSTM(weekly_size=weekly_size, monthly_size=len(MONTHLY_VARS),
-                 hidden_size=int(info['hiddenSize']), output_size=8,
+                 hidden_size=int(info['hiddenSize']), output_size=6,
                  batch_size=int(info['batch']), const_size=const_size, cuda=cuda, num_layers=int(info['numLayers']))
 
     model.load_state_dict(torch.load(mod_f)) if cuda and torch.cuda.is_available() else model.load_state_dict(
@@ -36,8 +36,6 @@ def get_pred_true_arrays(model, mod_f, target, in_features, init, cuda):
     # Get hyperparameters from filename
     info = parse_fname(mod_f)
     stateful, batch, nWeeks = bool(info['stateful']), int(info['batch']), int(info['nWeeks'])
-    if stateful:
-        print("I'm stateful")
     data = AggregateAllPixles(targets=target, in_features=in_features, n_weeks=nWeeks, init=init)
 
     weeklys, monthlys, constants = data.premake_features()
@@ -76,7 +74,7 @@ def get_pred_true_arrays(model, mod_f, target, in_features, init, cuda):
 
         if stateful:
             week_h, month_h = week_h.detach(), month_h.detach()
-            week_c, month_c = week_c.detach(), week_c.detach()
+            week_c, month_c = week_c.detach(), month_c.detach()
 
         preds = [np.argmax(x.cpu().detach().numpy(), axis=1) if cuda else np.argmax(x.detach().numpy(), axis=1) for x in preds]
         all_preds.append(preds)
@@ -100,12 +98,13 @@ def get_pred_true_arrays(model, mod_f, target, in_features, init, cuda):
 
     preds = [np.argmax(x.cpu().detach().numpy(), axis=1) if cuda else np.argmax(x.detach().numpy(), axis=1) for x in preds]
     fill = LENGTH - (len(all_preds) * batch)
-    fill = preds[-fill:]
+    fill = [x[-fill:] for x in preds]
 
     all_preds.append(fill)
-    print(all_preds[0].shape)
-    out = np.concatenate([*all_preds]).swapaxes(0, 1)
-    print(out.shape)
+    
+    out = [np.array(x) for x in all_preds]
+    out = np.concatenate([*all_preds], axis=1)
+    out = out.astype('int8')
 
     return out
 
@@ -119,7 +118,7 @@ def save_arrays(out_dir, out, target):
         height=DIMS[0],
         width=DIMS[1],
         count=8,
-        dtype='float32',
+        dtype='int8',
         transform=rio.Affine(9000.0, 0.0, -12048530.45, 0.0, -9000.0, 5568540.83),
         crs='+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs'
     )

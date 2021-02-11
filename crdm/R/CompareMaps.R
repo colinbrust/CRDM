@@ -2,38 +2,16 @@ library(ggplot2)
 library(magrittr)
 source('https://raw.githubusercontent.com/colinbrust/CRDM/develop/crdm/R/PlotTheme.R')
 
-strip_text = function(x) {
-  
-  x %>%
-    stringr::str_split('-') %>%
-    lapply(magrittr::extract, -1) %>%
-    as.character()
-}
 
-parse_fname <- function(df) {
-  
-  df %>%
-    dplyr::mutate(base = basename(f)) %>%
-    tidyr::separate(base, c('date', 'drop', 'epochs', 'batch', 'nMonths', 'hiddenSize', 'leadTime', 'remove', 'init', 'numLayers', 'drop2', 'type'), sep='_') %>%
-    dplyr::select(-dplyr::starts_with('drop')) %>%
-    dplyr::mutate_at(c('epochs', 'batch', 'nMonths', 'hiddenSize', 'leadTime', 'remove', 'init', 'numLayers'), strip_text) %>%
-    dplyr::mutate(date = lubridate::as_date(date), 
-                  type = stringr::str_replace(type, '.csv', ''))
-}
 
-map_to_tidy <- function(f, template) {
+map_to_tidy <- function(f, band) {
   
   f %>%
-    read.csv(header = FALSE) %>% 
-    as.matrix() %>%
     raster::raster() %>% 
-    raster::`extent<-`(raster::extent(template)) %>% 
-    raster::`crs<-`(value = raster::crs(template))  %>%
     raster::rasterToPoints() %>%
     tibble::as_tibble() %>%
-    dplyr::rename(val = layer) %>% 
-    dplyr::mutate(val = ifelse(val < 0.01, 0, val),
-                  val = as.character(val),
+    `colnames<-`(c('x', 'y', 'val')) %>% 
+    dplyr::mutate(val = as.character(val),
                   val = dplyr::recode(
                     val, 
                     `0` = 'No Drought',
@@ -42,52 +20,87 @@ map_to_tidy <- function(f, template) {
                     `3` = 'D2',
                     `4` = 'D3',
                     `5` = 'D4'),
-                  f = f) %>%
-    parse_fname()
+                   lead_time = band*2) 
+
   
 }
 
-plot_fun <- function(df, template, states) {
-  
-  df = unname(df)[[1]]
+plot_single <- function(dat, states) {
 
-  f_maps <- df$f %>%
-    lapply(map_to_tidy, template=template)
+  ggplot() + 
+  geom_raster(aes(x=x, y=y, fill=val), dat) +
+  geom_sf(aes(), states, fill = NA) +
+    labs(x='', y='', fill='Drought\nCategory') +
+    scale_fill_manual(values = c('No Drought' = NA,
+                                 'D0' = '#FFFF00',
+                                 'D1' = '#FCD37F',
+                                 'D2' = '#FFAA00',
+                                 'D3' = '#E60000',
+                                 'D4' = '#730000')) +
+    facet_wrap(~lab, nrow=2) +
+    plot_theme()
+}
+
+plot_fun <- function(dat, states, out_dir) {
   
-  f_maps %>% 
+  print(unique(dat$fname))
+  
+  f_maps <- dat %$%
+    purrr::map2(fname, band, map_to_tidy) %>%
     dplyr::bind_rows() %>%
-    dplyr::mutate(leadTime = ifelse(type == 'real', 'USDM Drought', paste(leadTime, 'Week Forecast'))) %>%
-    ggplot() + 
-      geom_raster(aes(x=x, y=y, fill=val)) + 
-      geom_sf(aes(), states, fill = NA) + 
-      labs(x='', y='', fill='Drought\nCategory', paste('Drought Forecast for', unique(df$date))) +
-      scale_fill_manual(values = c('No Drought' = NA,
-                                   'D0' = '#FFFF00',
-                                   'D1' = '#FCD37F',
-                                   'D2' = '#FFAA00',
-                                   'D3' = '#E60000',
-                                   'D4' = '#730000')) + 
-     facet_wrap(~leadTime, nrow=3) + 
-     plot_theme() 
-    
+    dplyr::mutate(lab = paste(lead_time, 'Week Forecast')) %>%
+    plot_single(states = states) +
+    ggtitle(paste('Forecasts of USDM for', unique(dat$d))) +
+    theme(legend.position = "none")
+  
+  true_map <- dat %$%
+    unique(true_fname) %>%
+    map_to_tidy(band=1) %>%
+    dplyr::mutate(lab = 'True USDM Drought')  %>%
+    plot_single(states = states)
+  
+  fig <- cowplot::plot_grid(f_maps, true_map, nrow=2, rel_heights = c(2, 1))
+  out_name  = file.path(
+    out_dir,
+    paste0(unique(dat$d) %>% stringr::str_replace_all('-', ''), '_preds.png')
+  )
+  ggsave(out_name, fig, width = 220, height = 195, units = 'mm',
+         dpi = 300)
 }
 
-template = raster::raster('~/projects/CRDM/data/drought/template.tif')
 
-states <- urbnmapr::get_urbn_map(sf = TRUE) %>% 
-  dplyr::filter(state_abbv != 'AK', state_abbv != 'HI') %>%
-  sf::st_transform(6933)
+save_all <- function(true_dir, map_dir, out_dir) {
+  states <- urbnmapr::get_urbn_map(sf = TRUE) %>%
+    dplyr::filter(state_abbv != 'AK', state_abbv != 'HI') %>%
+    sf::st_transform(6933)
+  true_dir <- true_dir %>%
+    list.files(full.names = T) %>%
+    tibble::tibble(true_fname = .) %>%
+    dplyr::mutate(
+      d = basename(true_fname) %>%
+        stringr::str_sub(1, 8) %>%
+        lubridate::as_date()
+    )
+  list.files(map_dir,full.names = T) %>%
+    expand.grid(., 1:4) %>%
+    tibble::as_tibble() %>%
+    `colnames<-`(c('fname', 'band')) %>%
+    dplyr::mutate(
+      fname = as.character(fname),
+      d = basename(fname) %>%
+        stringr::str_sub(1, 8) %>%
+        lubridate::as_date(),
+      d = d + band*2*7
+    ) %>%
+    dplyr::left_join(true_dir, by='d') %>%
+    split(.$d) %>%
+    lapply(plot_fun, states = states, out_dir = out_dir)
+}
 
-list.files('~/projects/CRDM/data/drought/model_results/weekly_maps', full.names = T) %>% 
-  tibble::tibble(f = .) %>%
-  dplyr::filter(basename(f) %>% stringr::str_sub(1, 4) %in% c('2015', '2017')) %>%
-  parse_fname() %>%
-  dplyr::group_by(date) %>% 
-  dplyr::arrange(date, type) %>%
-  dplyr::filter(dplyr::row_number() <= dplyr::n()/2 + 1) %>%
-  split(.$date) %>%
-  lapply(plot_fun)
-  
 
+save_all(
+  '~/projects/CRDM/data/drought/out_classes/out_tif',
+  '~/projects/CRDM/data/drought/model_results/weekly_maps/cce_stateful',
+  '~/projects/CRDM/data/drought/model_results/weekly_maps/cce_stateful/pred_maps'
+)
 
-    

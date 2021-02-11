@@ -86,7 +86,7 @@ def get_pred_true_arrays(model, mod_f, target, in_features, init, cuda):
     week_h, week_c = model.init_state()
     month_h, month_c = model.init_state()
 
-    preds, (week_h, week_c), (month_h, month_c) = model(
+    preds, _, _ = model(
         torch.tensor(week_batch).type(
             torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor),
         torch.tensor(mon_batch).type(
@@ -102,7 +102,6 @@ def get_pred_true_arrays(model, mod_f, target, in_features, init, cuda):
 
     all_preds.append(fill)
     
-    out = [np.array(x) for x in all_preds]
     out = np.concatenate([*all_preds], axis=1)
     out = out.astype('int8')
 

@@ -50,7 +50,7 @@ plot_all <- function(f_dir='/mnt/e/PycharmProjects/CRDM/data/model_results/weekl
                   numLayers = factor(numLayers)) -> a
     
     a %>%
-     dplyr::filter(rowid > 10) %>%
+     dplyr::filter(rowid >= 10) %>% 
      ggplot(aes(x=rowid, y=value, color=set)) + 
      geom_line() +
      facet_wrap(~leadTime) + 

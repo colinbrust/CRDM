@@ -31,10 +31,23 @@ class LSTM(nn.Module):
 
         # Downscale to output size
         self.classifier = nn.Sequential(
-            nn.Linear(2*hidden_size + const_size, 256),
+            nn.Linear(2*hidden_size + const_size, 1024),
+            nn.BatchNorm1d(1024),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(1024, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(512, 256),
             nn.BatchNorm1d(256),
             nn.ReLU(),
             nn.Dropout(0.5),
+            nn.Linear(256, 128),
+            nn.BatchNorm1d(128),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(128, 64),
             nn.Linear(256, 128),
             nn.BatchNorm1d(128),
             nn.ReLU(),
@@ -58,8 +71,6 @@ class LSTM(nn.Module):
         self.preds6 = nn.Linear(16, self.output_size)
         self.preds8 = nn.Linear(16, self.output_size)
 
-        self.soft = nn.Softmax(dim=1)
-
     def init_state(self):
         # This is what we'll initialise our hidden state as
         return (torch.zeros(self.num_layers, self.batch_size, self.hidden_size, device=self.device),
@@ -75,7 +86,6 @@ class LSTM(nn.Module):
         preds = self.classifier(lstm_and_const)
 
         preds2, preds4, preds6, preds8 = self.preds2(preds), self.preds4(preds), self.preds6(preds), self.preds8(preds)
-        preds2, preds4, preds6, preds8 = self.soft(preds2), self.soft(preds4), self.soft(preds6), self.soft(preds8)
 
         return [preds2, preds4, preds6, preds8], week_state, month_state
 
@@ -101,7 +111,7 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
 
     weekly_size = len(WEEKLY_VARS) + 1 if init else len(WEEKLY_VARS)
     # Define model, loss and optimizer.
-    model = LSTM(weekly_size=weekly_size, monthly_size=len(MONTHLY_VARS), hidden_size=hidden_size, output_size=6,
+    model = LSTM(weekly_size=weekly_size, monthly_size=len(MONTHLY_VARS), hidden_size=hidden_size, output_size=1,
                  batch_size=batch_size, const_size=const_size, cuda=cuda, num_layers=num_layers)
 
     model.to(device)
@@ -110,7 +120,7 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
         print('Using GPU')
         model.cuda()
 
-    criterion = nn.SmoothL1Loss(beta=0.089)
+    criterion = nn.MSELoss()
 
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
     scheduler = ReduceLROnPlateau(optimizer, mode='min', patience=2, threshold=1e-4, verbose=True)
@@ -163,11 +173,14 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
 
                 week_h, month_h = week_h.detach(), month_h.detach()
                 week_c, month_c = week_c.detach(), week_c.detach()
-                
-                loss2 = criterion(torch.argmax(outputs[0], dim=-1), targets[:, 1])
-                loss4 = criterion(torch.argmax(outputs[1], dim=-1), targets[:, 3])
-                loss6 = criterion(torch.argmax(outputs[2], dim=-1), targets[:, 5])
-                loss8 = criterion(torch.argmax(outputs[3], dim=-1), targets[:, 7])
+
+                print(outputs[0][:5])
+                print(targets[:, 1][:5])
+
+                loss2 = criterion(outputs[0], targets[:, 1])
+                loss4 = criterion(outputs[1], targets[:, 3])
+                loss6 = criterion(outputs[2], targets[:, 5])
+                loss8 = criterion(outputs[3], targets[:, 7])
 
                 loss = loss2+loss4+loss6+loss8
                 loss.requires_grad = True

@@ -48,11 +48,6 @@ class LSTM(nn.Module):
             nn.ReLU(),
             nn.Dropout(0.5),
             nn.Linear(128, 64),
-            nn.Linear(256, 128),
-            nn.BatchNorm1d(128),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(128, 64),
             nn.BatchNorm1d(64),
             nn.ReLU(),
             nn.Dropout(0.5),
@@ -169,21 +164,17 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
 
                 # Make prediction with model
                 outputs, (week_h, week_c), (month_h, month_c) = model(week, mon, const, (week_h, week_c), (month_h, month_c))
-                targets = (item['target']*5).type(torch.cuda.FloatTensor if cuda else torch.FloatTensor)
+                targets = item['target'].type(torch.cuda.FloatTensor if cuda else torch.FloatTensor)
 
                 week_h, month_h = week_h.detach(), month_h.detach()
                 week_c, month_c = week_c.detach(), week_c.detach()
-
-                print(outputs[0][:5])
-                print(targets[:, 1][:5])
-
-                loss2 = criterion(outputs[0], targets[:, 1])
-                loss4 = criterion(outputs[1], targets[:, 3])
-                loss6 = criterion(outputs[2], targets[:, 5])
-                loss8 = criterion(outputs[3], targets[:, 7])
+                
+                loss2 = criterion(outputs[0].squeeze(), targets[:, 1].squeeze())
+                loss4 = criterion(outputs[1].squeeze(), targets[:, 3].squeeze())
+                loss6 = criterion(outputs[2].squeeze(), targets[:, 5].squeeze())
+                loss8 = criterion(outputs[3].squeeze(), targets[:, 7].squeeze())
 
                 loss = loss2+loss4+loss6+loss8
-                loss.requires_grad = True
 
                 # Compute the loss and step the optimizer
                 loss.backward()
@@ -227,10 +218,10 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
                 week_h, month_h = week_h.detach(), month_h.detach()
                 week_c, month_c = week_c.detach(), month_c.detach()
 
-                loss2 = criterion(torch.argmax(outputs[0], dim=-1), targets[:, 1])
-                loss4 = criterion(torch.argmax(outputs[1], dim=-1), targets[:, 3])
-                loss6 = criterion(torch.argmax(outputs[2], dim=-1), targets[:, 5])
-                loss8 = criterion(torch.argmax(outputs[3], dim=-1), targets[:, 7])
+                loss2 = criterion(outputs[0].squeeze(), targets[:, 1].squeeze())
+                loss4 = criterion(outputs[1].squeeze(), targets[:, 3].squeeze())
+                loss6 = criterion(outputs[2].squeeze(), targets[:, 5].squeeze())
+                loss8 = criterion(outputs[3].squeeze(), targets[:, 7].squeeze())
 
                 loss = loss2+loss4+loss6+loss8
 

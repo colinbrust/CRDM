@@ -28,9 +28,8 @@ class LSTM(nn.Module):
 
         self.weekly_lstm = nn.LSTM(weekly_size, self.hidden_size, num_layers=num_layers, dropout=0.5)
         self.monthly_lstm = nn.LSTM(monthly_size, self.hidden_size, num_layers=num_layers, dropout=0.5)
-
-        # Downscale to output size
-        self.classifier = nn.Sequential(
+        
+        self.classifier = nn.Sequential( 
             nn.Linear(2*hidden_size + const_size, 1024),
             nn.BatchNorm1d(1024),
             nn.ReLU(),
@@ -43,11 +42,6 @@ class LSTM(nn.Module):
             nn.BatchNorm1d(256),
             nn.ReLU(),
             nn.Dropout(0.5),
-            nn.Linear(256, 128),
-            nn.BatchNorm1d(128),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(128, 64),
             nn.Linear(256, 128),
             nn.BatchNorm1d(128),
             nn.ReLU(),
@@ -81,10 +75,8 @@ class LSTM(nn.Module):
 
         week_out, week_state = self.weekly_lstm(weekly_seq, prev_week_state)
         month_out, month_state = self.monthly_lstm(monthly_seq, prev_month_state)
-
         lstm_and_const = torch.cat((week_out[-1], month_out[-1], constants), dim=1)
         preds = self.classifier(lstm_and_const)
-
         preds2, preds4, preds6, preds8 = self.preds2(preds), self.preds4(preds), self.preds6(preds), self.preds8(preds)
         return [preds2, preds4, preds6, preds8], week_state, month_state
 

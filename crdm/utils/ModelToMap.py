@@ -35,8 +35,9 @@ def get_pred_true_arrays(model, mod_f, target, in_features, init, cuda):
 
     # Get hyperparameters from filename
     info = parse_fname(mod_f)
-    batch, nWeeks = int(info['batch']), int(info['nWeeks'])
-
+    stateful, batch, nWeeks = bool(info['stateful']), int(info['batch']), int(info['nWeeks'])
+    if stateful:
+        print("I'm stateful")
     data = AggregateAllPixles(targets=target, in_features=in_features, n_weeks=nWeeks, init=init)
 
     weeklys, monthlys, constants = data.premake_features()
@@ -50,12 +51,18 @@ def get_pred_true_arrays(model, mod_f, target, in_features, init, cuda):
 
     all_preds = []
 
+    if stateful:
+        week_h, week_c = model.init_state()
+        month_h, month_c = model.init_state()
+
     for i in range(len(batch_indices) - 1):
         week_batch = weeklys[batch_indices[i]: batch_indices[i + 1]].swapaxes(0, 1)
         mon_batch = monthlys[batch_indices[i]: batch_indices[i + 1]].swapaxes(0, 1)
         const_batch = constants[batch_indices[i]: batch_indices[i + 1]]
-        week_h, week_c = model.init_state()
-        month_h, month_c = model.init_state()
+
+        if not stateful:
+            week_h, week_c = model.init_state()
+            month_h, month_c = model.init_state()
 
         preds, (week_h, week_c), (month_h, month_c) = model(
             torch.tensor(week_batch).type(
@@ -66,6 +73,10 @@ def get_pred_true_arrays(model, mod_f, target, in_features, init, cuda):
                 torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor),
             (week_h, week_c), (month_h, month_c)
         )
+
+        if stateful:
+            week_h, month_h = week_h.detach(), month_h.detach()
+            week_c, month_c = week_c.detach(), week_c.detach()
 
         preds = [np.argmax(x.cpu().detach().numpy(), axis=1) if cuda else np.argmax(x.detach().numpy(), axis=1) for x in preds]
         all_preds.append(preds)

@@ -165,7 +165,7 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
                 targets = (item['target']*5).type(torch.cuda.LongTensor if cuda else torch.LongTensor)
 
                 week_h, month_h = week_h.detach(), month_h.detach()
-                week_c, month_c = week_c.detach(), week_c.detach()
+                week_c, month_c = week_c.detach(), month_c.detach()
 
                 loss2 = criterion(outputs[0], targets[:, 1])
                 loss4 = criterion(outputs[1], targets[:, 3])

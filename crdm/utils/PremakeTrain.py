@@ -32,7 +32,7 @@ if __name__ == '__main__':
     out_dir = os.path.abspath(args.out_dir)
     base_dir = os.getcwd()
     model = cat_train if args.cat else con_train
-
+    
     for i in range(args.reps):
 
         new_dir = os.path.join(base_dir, 'model'+str(i))
@@ -47,15 +47,15 @@ if __name__ == '__main__':
         infile = open(pickle_name, 'rb')
         pick = pickle.load(infile)
         infile.close()
-
-        week_f = os.path.join(os.path.dirname(out_dir), pick['featType-weekly'])
-        mon_f = os.path.join(os.path.dirname(out_dir), pick['featType-monthly'])
-        const_f = os.path.join(os.path.dirname(out_dir), pick['featType-constant'])
-        target_f = os.path.join(os.path.dirname(out_dir), pick['featType-target'])
+        print(pickle_name)
+        week_f = os.path.join(out_dir, pick['featType-weekly'])
+        mon_f = os.path.join(out_dir, pick['featType-monthly'])
+        const_f = os.path.join(out_dir, pick['featType-constant'])
+        target_f = os.path.join(out_dir, pick['featType-target'])
 
         model(
             week_f=week_f, mon_f=mon_f, const_f=const_f, target_f=target_f,
-            epochs=args.epochs, batch_size=args.batch_size, hidden_size=args.hidden_size,
+            epochs=args.epochs, batch_size=1024, hidden_size=1024,
             cuda=args.cuda, init=True, num_layers=1
         )
 

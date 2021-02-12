@@ -60,10 +60,26 @@ class LSTM(nn.Module):
             nn.Dropout(0.5)
         )
 
-        self.preds2 = nn.Linear(16, self.output_size)
-        self.preds4 = nn.Linear(16, self.output_size)
-        self.preds6 = nn.Linear(16, self.output_size)
-        self.preds8 = nn.Linear(16, self.output_size)
+        self.preds2 = nn.Sequential(
+            nn.Linear(16, self.output_size),
+            nn.BatchNorm1d(self.output_size),
+            nn.ReLU()
+        )
+        self.preds4 = nn.Sequential(
+            nn.Linear(16, self.output_size),
+            nn.BatchNorm1d(self.output_size),
+            nn.ReLU()
+        )
+        self.preds6 = nn.Sequential(
+            nn.Linear(16, self.output_size),
+            nn.BatchNorm1d(self.output_size),
+            nn.ReLU()
+        )
+        self.preds8 = nn.Sequential(
+            nn.Linear(16, self.output_size),
+            nn.BatchNorm1d(self.output_size),
+            nn.ReLU()
+        )
 
     def init_state(self):
         # This is what we'll initialise our hidden state as
@@ -232,7 +248,7 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
                 loss = loss2+loss4+loss6+loss8
 
                 if i % 500 == 0:
-                    print('Epoch: {}, Train Loss: {}'.format(epoch, loss))
+                    print('Epoch: {}, Test Loss: {}'.format(epoch, loss))
 
                 # Save loss info
                 total_loss += loss.item()

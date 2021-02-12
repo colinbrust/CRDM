@@ -61,10 +61,22 @@ class LSTM(nn.Module):
             nn.Dropout(0.5)
         )
 
-        self.preds2 = nn.Linear(16, self.output_size)
-        self.preds4 = nn.Linear(16, self.output_size)
-        self.preds6 = nn.Linear(16, self.output_size)
-        self.preds8 = nn.Linear(16, self.output_size)
+        self.preds2 = nn.Sequential(
+            nn.Linear(16, self.output_size),
+            nn.Sigmoid()
+        )
+        self.preds4 = nn.Sequential(
+            nn.Linear(16, self.output_size),
+            nn.Sigmoid()
+        )
+        self.preds6 = nn.Sequential(
+            nn.Linear(16, self.output_size),
+            nn.Sigmoid()
+        )
+        self.preds8 = nn.Sequential(
+            nn.Linear(16, self.output_size),
+            nn.Sigmoid()
+        )
 
     def init_state(self):
         # This is what we'll initialise our hidden state as

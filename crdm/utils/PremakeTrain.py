@@ -22,6 +22,11 @@ if __name__ == '__main__':
                         help='Train model that treats drought as continuous variable.')
     parser.add_argument('--cuda', dest='cuda', action='store_true', help='Train model on GPU.')
     parser.add_argument('--no-cuda', dest='cuda', action='store_false', help='Train model on CPU.')
+    parser.add_argument('--state', dest='state', action='store_true', help='Train Model as stateful.')
+    parser.add_argument('--no-state', dest='state', action='store_false', help='Train model as stateless.')
+    parser.set_defaults(cuda=True)
+    parser.set_defaults(cat=True)
+    parser.set_defaults(state=False)
     parser.set_defaults(cuda=True)
     parser.set_defaults(cat=True)
 

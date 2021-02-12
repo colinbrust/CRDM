@@ -25,6 +25,10 @@ if __name__ == '__main__':
     parser.set_defaults(cat=True)
 
     args = parser.parse_args()
+
+    target_dir = os.path.abspath(args.target_dir)
+    in_features = os.path.abspath(args.in_features)
+    out_dir = os.path.abspath(args.out_dir)
     base_dir = os.getcwd()
     model = cat_train if args.cat else con_train
 
@@ -35,18 +39,18 @@ if __name__ == '__main__':
         os.chdir(new_dir)
 
         pickle_name = make_lstm_pixel_ts(
-            target_dir=args.target_dir, in_features=args.in_features, n_weeks=args.n_weeks,
-            size=args.size, out_dir=args.out_dir, rm_years=True, init=True
+            target_dir=target_dir, in_features=in_features, n_weeks=args.n_weeks,
+            size=args.size, out_dir=out_dir, rm_years=True, init=True
         )
 
         infile = open(pickle_name, 'rb')
         pick = pickle.load(infile)
         infile.close()
 
-        week_f = os.path.join(os.path.dirname(args.out_dir), pick['featType-weekly'])
-        mon_f = os.path.join(os.path.dirname(args.out_dir), pick['featType-monthly'])
-        const_f = os.path.join(os.path.dirname(args.out_dir), pick['featType-constant'])
-        target_f = os.path.join(os.path.dirname(args.out_dir), pick['featType-target'])
+        week_f = os.path.join(os.path.dirname(out_dir), pick['featType-weekly'])
+        mon_f = os.path.join(os.path.dirname(out_dir), pick['featType-monthly'])
+        const_f = os.path.join(os.path.dirname(out_dir), pick['featType-constant'])
+        target_f = os.path.join(os.path.dirname(out_dir), pick['featType-target'])
 
         model(
             week_f=week_f, mon_f=mon_f, const_f=const_f, target_f=target_f,
@@ -55,11 +59,11 @@ if __name__ == '__main__':
         )
 
         os.chdir(base_dir)
-        to_rm = os.listdir(args.out_dir)
+        to_rm = os.listdir(out_dir)
 
         for item in to_rm:
             if item.endswith(".dat"):
-                os.remove(os.path.join(args.out_dir, item))
+                os.remove(os.path.join(out_dir, item))
 
 
 

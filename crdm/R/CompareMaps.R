@@ -100,7 +100,7 @@ save_all <- function(true_dir, map_dir, out_dir) {
 
 save_all(
   '~/projects/CRDM/data/drought/out_classes/out_tif',
-  '~/projects/CRDM/data/drought/model_results/weekly_maps/cce_stateful',
-  '~/projects/CRDM/data/drought/model_results/weekly_maps/cce_stateful/pred_maps'
+  '~/projects/CRDM/data/drought/model_results/weekly_maps/cce_stateless_deep/',
+  '~/projects/CRDM/data/drought/model_results/weekly_maps/cce_stateless/pred_maps'
 )
 

@@ -111,12 +111,12 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
         print('Using GPU')
         model.cuda()
 
-    # targets = np.memmap(target_f, dtype='float32', mode='r')
-    # counts = list(Counter(targets).values())
-    weights = torch.Tensor([0.2436, 0.9333, 0.9502, 0.9051, 0.9750, 0.9929]).type(
-        torch.cuda.FloatTensor if (cuda and torch.cuda.is_available()) else torch.FloatTensor)
-    # weights = torch.Tensor([1 - (x / sum(counts)) for x in counts]).type(
+    targets = np.memmap(target_f, dtype='float32', mode='r')
+    counts = list(Counter(targets).values())
+    # weights = torch.Tensor([0.2436, 0.9333, 0.9502, 0.9051, 0.9750, 0.9929]).type(
     #     torch.cuda.FloatTensor if (cuda and torch.cuda.is_available()) else torch.FloatTensor)
+    weights = torch.Tensor([1 - (x / sum(counts)) for x in counts]).type(
+        torch.cuda.FloatTensor if (cuda and torch.cuda.is_available()) else torch.FloatTensor)
     criterion = nn.CrossEntropyLoss(weight=weights)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-2)
@@ -172,6 +172,8 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
                 week_h, month_h = week_h.detach(), month_h.detach()
                 week_c, month_c = week_c.detach(), month_c.detach()
 
+                print(outputs[0][:5])
+                print(targets[:, 1][:5])
                 loss2 = criterion(outputs[0], targets[:, 1])
                 loss4 = criterion(outputs[1], targets[:, 3])
                 loss6 = criterion(outputs[2], targets[:, 5])

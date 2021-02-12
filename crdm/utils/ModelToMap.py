@@ -112,12 +112,14 @@ def get_pred_true_arrays(model, mod_f, target, in_features, init, cuda, continuo
     all_preds.append(fill)
     
     out = np.concatenate([*all_preds], axis=1)
-    out = out.astype('int8')
+    out = out.astype('float32') if continuous else out.astype('int8')
 
     return out
 
 
-def save_arrays(out_dir, out, target):
+def save_arrays(out_dir, out, target, continuous):
+
+    dt = 'float32' if continuous else 'int8'
 
     out_dst = rio.open(
         os.path.join(out_dir, os.path.basename(target[0]).replace('_USDM.dat', '_preds.tif')),
@@ -125,8 +127,8 @@ def save_arrays(out_dir, out, target):
         driver='GTiff',
         height=DIMS[0],
         width=DIMS[1],
-        count=8,
-        dtype='int8',
+        count=4,
+        dtype=dt,
         transform=rio.Affine(9000.0, 0.0, -12048530.45, 0.0, -9000.0, 5568540.83),
         crs='+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs'
     )
@@ -154,7 +156,7 @@ def save_all_preds(target_dir, in_features, mod_f, out_dir, remove, init, cuda, 
     for f in targets:
         try:
             out = get_pred_true_arrays(model, mod_f, f, in_features, init, cuda, continuous)
-            save_arrays(out_dir, out, f)
+            save_arrays(out_dir, out, f, continuous)
         except AssertionError as e:
             print(e, '\nSkipping this target')
 

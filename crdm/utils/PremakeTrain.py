@@ -15,6 +15,7 @@ if __name__ == '__main__':
     parser.add_argument('-sz', '--size', type=int, help='Number of pixels to use to train model.')
     parser.add_argument('-od', '--out_dir', type=str, help='Directory to put new files into.')
     parser.add_argument('-rep', '--reps', type=int, help='How many new models to train.')
+    parser.add_argument('-e', '--epochs', type=int, help='Number of epochs to use.')
     parser.add_argument('--cat', dest='cat', action='store_true',
                         help='Train model that treats drought as categorical variables.')
     parser.add_argument('--no-cat', dest='cat', action='store_false',
@@ -59,11 +60,13 @@ if __name__ == '__main__':
         )
 
         os.chdir(base_dir)
-        to_rm = os.listdir(out_dir)
 
-        for item in to_rm:
-            if item.endswith(".dat"):
-                os.remove(os.path.join(out_dir, item))
+        os.remove(pickle_name)
+        os.remove(week_f)
+        os.remove(mon_f)
+        os.remove(const_f)
+        os.remove(target_f)
+
 
 
 

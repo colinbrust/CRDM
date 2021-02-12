@@ -213,7 +213,7 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
                 # Run model on test set
                 outputs, (week_h, week_c), (month_h, month_c) = model(week, mon, const, (week_h, week_c), (month_h, month_c))
                 # outputs = outputs.type(torch.cuda.FloatTensor if cuda else torch.FloatTensor)
-                targets = (item['target']*5).type(torch.cuda.FloatTensor if cuda else torch.FloatTensor)
+                targets = item['target'].type(torch.cuda.FloatTensor if cuda else torch.FloatTensor)
 
                 week_h, month_h = week_h.detach(), month_h.detach()
                 week_c, month_c = week_c.detach(), month_c.detach()

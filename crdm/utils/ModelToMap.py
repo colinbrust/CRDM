@@ -11,15 +11,16 @@ from crdm.utils.ParseFileNames import parse_fname
 import rasterio as rio
 
 
-def make_model(mod_f, init, cuda):
+def make_model(mod_f, init, cuda, continuous):
 
     info = parse_fname(mod_f)
     const_size = 13
+    out_size = 1 if continuous else 6
 
     weekly_size = len(WEEKLY_VARS) + 1 if init else len(WEEKLY_VARS)
     # make model from hyperparams and load trained parameters.
     model = LSTM(weekly_size=weekly_size, monthly_size=len(MONTHLY_VARS),
-                 hidden_size=int(info['hiddenSize']), output_size=6,
+                 hidden_size=int(info['hiddenSize']), output_size=out_size,
                  batch_size=int(info['batch']), const_size=const_size, cuda=cuda, num_layers=int(info['numLayers']))
 
     model.load_state_dict(torch.load(mod_f)) if cuda and torch.cuda.is_available() else model.load_state_dict(
@@ -31,7 +32,7 @@ def make_model(mod_f, init, cuda):
     return model
 
 
-def get_pred_true_arrays(model, mod_f, target, in_features, init, cuda):
+def get_pred_true_arrays(model, mod_f, target, in_features, init, cuda, continuous):
 
     # Get hyperparameters from filename
     info = parse_fname(mod_f)
@@ -76,7 +77,11 @@ def get_pred_true_arrays(model, mod_f, target, in_features, init, cuda):
             week_h, month_h = week_h.detach(), month_h.detach()
             week_c, month_c = week_c.detach(), month_c.detach()
 
-        preds = [np.argmax(x.cpu().detach().numpy(), axis=1) if cuda else np.argmax(x.detach().numpy(), axis=1) for x in preds]
+        if continuous:
+            preds = [x.cpu().detach().numpy() if cuda else x.detach().numpy() for x in preds]
+        else:
+            preds = [np.argmax(x.cpu().detach().numpy(), axis=1) if cuda else np.argmax(x.detach().numpy(), axis=1) for x in preds]
+
         all_preds.append(preds)
 
     week_batch = weeklys[tail[0]: tail[1]].swapaxes(0, 1)
@@ -96,7 +101,11 @@ def get_pred_true_arrays(model, mod_f, target, in_features, init, cuda):
         (week_h, week_c), (month_h, month_c)
     )
 
-    preds = [np.argmax(x.cpu().detach().numpy(), axis=1) if cuda else np.argmax(x.detach().numpy(), axis=1) for x in preds]
+    if continuous:
+        preds = [x.cpu().detach().numpy() if cuda else x.detach().numpy() for x in preds]
+    else:
+        preds = [np.argmax(x.cpu().detach().numpy(), axis=1) if cuda else np.argmax(x.detach().numpy(), axis=1) for x in preds]
+
     fill = LENGTH - (len(all_preds) * batch)
     fill = [x[-fill:] for x in preds]
 
@@ -126,9 +135,9 @@ def save_arrays(out_dir, out, target):
     out_dst.close()
 
 
-def save_all_preds(target_dir, in_features, mod_f, out_dir, remove, init, cuda):
+def save_all_preds(target_dir, in_features, mod_f, out_dir, remove, init, cuda, continuous):
 
-    model = make_model(mod_f, init, cuda)
+    model = make_model(mod_f, init, cuda, continuous=continuous)
 
     targets_tmp = sorted(glob.glob(os.path.join(target_dir, '*.dat')))
     targets = []
@@ -144,7 +153,7 @@ def save_all_preds(target_dir, in_features, mod_f, out_dir, remove, init, cuda):
 
     for f in targets:
         try:
-            out = get_pred_true_arrays(model, mod_f, f, in_features, init, cuda)
+            out = get_pred_true_arrays(model, mod_f, f, in_features, init, cuda, continuous)
             save_arrays(out_dir, out, f)
         except AssertionError as e:
             print(e, '\nSkipping this target')
@@ -166,8 +175,12 @@ if __name__ == '__main__':
     parser.add_argument('--no-init', dest='init', action='store_false', help='Do not use initial drought condition as model input..')
     parser.set_defaults(init=False)
 
+    parser.add_argument('--cont', dest='cont', action='store_true', help='Use model that predicts continuous drought.')
+    parser.add_argument('--no-cont', dest='cont', action='store_false', help='Use model that predicts categorical drought.')
+    parser.set_defaults(cont=False)
+
     cuda = True if torch.cuda.is_available() else False
     args = parser.parse_args()
 
     save_all_preds(mod_f=args.model_file, target_dir=args.target_dir, in_features=args.in_features,
-                   out_dir=args.out_dir, remove=args.remove, init=args.init, cuda=cuda)
+                   out_dir=args.out_dir, remove=args.remove, init=args.init, cuda=cuda, continuous=args.cont)

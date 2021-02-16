@@ -80,7 +80,6 @@ def get_pred_true_arrays(model, mod_f, target, in_features, init, cuda, continuo
         if continuous:
             preds = [x.cpu().detach().numpy() if cuda else x.detach().numpy() for x in preds]
         else:
-            print(preds[0])
             preds = [np.argmax(x.cpu().detach().numpy(), axis=1) if cuda else np.argmax(x.detach().numpy(), axis=1) for x in preds]
 
         all_preds.append(preds)

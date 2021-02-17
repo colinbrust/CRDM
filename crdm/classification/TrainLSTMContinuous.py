@@ -33,61 +33,57 @@ class LSTM(nn.Module):
         self.classifier = nn.Sequential(
             nn.Linear(2*hidden_size + const_size, 1024),
             nn.BatchNorm1d(1024),
-            nn.Tanh(),
+            nn.ReLU(),
             nn.Dropout(0.5),
             nn.Linear(1024, 512),
             nn.BatchNorm1d(512),
-            nn.Tanh(),
+            nn.ReLU(),
             nn.Dropout(0.5),
             nn.Linear(512, 256),
             nn.BatchNorm1d(256),
-            nn.Tanh(),
+            nn.ReLU(),
             nn.Dropout(0.5),
             nn.Linear(256, 128),
             nn.BatchNorm1d(128),
-            nn.Tanh(),
+            nn.ReLU(),
             nn.Dropout(0.5),
             nn.Linear(128, 64),
             nn.BatchNorm1d(64),
-            nn.Tanh(),
+            nn.ReLU(),
             nn.Dropout(0.5),
             nn.Linear(64, 32),
             nn.BatchNorm1d(32),
-            nn.Tanh(),
+            nn.ReLU(),
             nn.Dropout(0.5),
             nn.Linear(32, 16),
             nn.BatchNorm1d(16),
-            nn.Tanh(),
+            nn.ReLU(),
             nn.Dropout(0.5),
             nn.Linear(16, 8),
             nn.BatchNorm1d(8),
-            nn.Tanh(),
+            nn.ReLU(),
             nn.Dropout(0.5),
             nn.Linear(8, 4),
             nn.BatchNorm1d(4),
-            nn.Tanh(),
-            nn.Dropout(0.5),
-            nn.Linear(4, 2),
-            nn.BatchNorm1d(2),
-            nn.Tanh(),
+            nn.ReLU(),
             nn.Dropout(0.5)
         )
 
         self.preds2 = nn.Sequential(
-            nn.Linear(2, self.output_size),
-            nn.Tanh()
+            nn.Linear(4, self.output_size),
+            nn.ReLU()
         )
         self.preds4 = nn.Sequential(
-            nn.Linear(2, self.output_size),
-            nn.Tanh()
+            nn.Linear(4, self.output_size),
+            nn.ReLU()
         )
         self.preds6 = nn.Sequential(
-            nn.Linear(2, self.output_size),
-            nn.Tanh()
+            nn.Linear(4, self.output_size),
+            nn.ReLU()
         )
         self.preds8 = nn.Sequential(
-            nn.Linear(2, self.output_size),
-            nn.Tanh()
+            nn.Linear(4, self.output_size),
+            nn.ReLU()
         )
 
     def init_state(self):
@@ -193,6 +189,8 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
                 
                 week_h, month_h = week_h.detach(), month_h.detach()
                 week_c, month_c = week_c.detach(), week_c.detach()
+
+                print('model: {} \n true: {}\n\n'.format(outputs[0].squeeze()[:5], targets[:, 1].squeeze()[:5]))
                 
                 loss2 = criterion(outputs[0].squeeze(), targets[:, 1].squeeze())
                 loss4 = criterion(outputs[1].squeeze(), targets[:, 3].squeeze())
@@ -242,8 +240,6 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
 
                 week_h, month_h = week_h.detach(), month_h.detach()
                 week_c, month_c = week_c.detach(), month_c.detach()
-
-                print('model: {} \n true: {}'.format(outputs[0].squeeze()[:5], targets[:, 1].squeeze()[:5]))
 
                 loss2 = criterion(outputs[0].squeeze(), targets[:, 1].squeeze())
                 loss4 = criterion(outputs[1].squeeze(), targets[:, 3].squeeze())

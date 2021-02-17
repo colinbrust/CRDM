@@ -60,9 +60,7 @@ def make_lstm_pixel_ts(target_dir, in_features, size, n_weeks, out_dir, rm_years
 
     targets_out = np.concatenate([*targets_out], axis=1)
     targets_out = np.swapaxes(targets_out, 0, 1)
-    targets_out = 2 * targets_out / 5 - 1
-
-    print(consts_out.shape)
+    targets_out = targets_out / 5
 
     # Write out training data to numpy memmaps.
     basename = '_trainingType-pixelPremade_nWeeks-{}_size-{}_rmYears-{}_init-{}.dat'.format(n_weeks, size, rm_years, init)

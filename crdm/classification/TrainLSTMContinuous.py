@@ -206,7 +206,7 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
                 optimizer.step()
 
                 if i % 500 == 0:
-                    print('Epoch: {}, Test Loss: {}'.format(epoch, loss))
+                    print('Epoch: {}, Train Loss: {}'.format(epoch, loss))
 
                 # Store loss info
                 train_loss.append(loss.item())
@@ -253,7 +253,7 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
                 loss = loss2+loss4+loss6+loss8
 
                 if i % 500 == 0:
-                    print('Epoch: {}, Train Loss: {}'.format(epoch, loss))
+                    print('Epoch: {}, Test Loss: {}'.format(epoch, loss))
 
                 # Save loss info
                 total_loss += loss.item()

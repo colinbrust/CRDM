@@ -26,56 +26,68 @@ class LSTM(nn.Module):
         self.weekly_size = weekly_size
         self.output_size = output_size
 
-        self.weekly_lstm = nn.LSTM(weekly_size, self.hidden_size, num_layers=num_layers, dropout=0.5)
-        self.monthly_lstm = nn.LSTM(monthly_size, self.hidden_size, num_layers=num_layers, dropout=0.5)
+        self.weekly_lstm = nn.LSTM(weekly_size, self.hidden_size, num_layers=num_layers)
+        self.monthly_lstm = nn.LSTM(monthly_size, self.hidden_size, num_layers=num_layers)
 
         # Downscale to output size
         self.classifier = nn.Sequential(
             nn.Linear(2*hidden_size + const_size, 1024),
             nn.BatchNorm1d(1024),
-            nn.ReLU(),
+            nn.Tanh(),
             nn.Dropout(0.5),
             nn.Linear(1024, 512),
             nn.BatchNorm1d(512),
-            nn.ReLU(),
+            nn.Tanh(),
             nn.Dropout(0.5),
             nn.Linear(512, 256),
             nn.BatchNorm1d(256),
-            nn.ReLU(),
+            nn.Tanh(),
             nn.Dropout(0.5),
             nn.Linear(256, 128),
             nn.BatchNorm1d(128),
-            nn.ReLU(),
+            nn.Tanh(),
             nn.Dropout(0.5),
             nn.Linear(128, 64),
             nn.BatchNorm1d(64),
-            nn.ReLU(),
+            nn.Tanh(),
             nn.Dropout(0.5),
             nn.Linear(64, 32),
             nn.BatchNorm1d(32),
-            nn.ReLU(),
+            nn.Tanh(),
             nn.Dropout(0.5),
             nn.Linear(32, 16),
             nn.BatchNorm1d(16),
-            nn.ReLU(),
+            nn.Tanh(),
+            nn.Dropout(0.5),
+            nn.Linear(16, 8),
+            nn.BatchNorm1d(8),
+            nn.Tanh(),
+            nn.Dropout(0.5),
+            nn.Linear(8, 4),
+            nn.BatchNorm1d(4),
+            nn.Tanh(),
+            nn.Dropout(0.5),
+            nn.Linear(4, 2),
+            nn.BatchNorm1d(2),
+            nn.Tanh(),
             nn.Dropout(0.5)
         )
 
         self.preds2 = nn.Sequential(
-            nn.Linear(16, self.output_size),
-            nn.Sigmoid()
+            nn.Linear(2, self.output_size),
+            nn.Tanh()
         )
         self.preds4 = nn.Sequential(
-            nn.Linear(16, self.output_size),
-            nn.Sigmoid()
+            nn.Linear(2, self.output_size),
+            nn.Tanh()
         )
         self.preds6 = nn.Sequential(
-            nn.Linear(16, self.output_size),
-            nn.Sigmoid()
+            nn.Linear(2, self.output_size),
+            nn.Tanh()
         )
         self.preds8 = nn.Sequential(
-            nn.Linear(16, self.output_size),
-            nn.Sigmoid()
+            nn.Linear(2, self.output_size),
+            nn.Tanh()
         )
 
     def init_state(self):
@@ -115,6 +127,7 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
     test_loader = DataLoader(dataset=loader, batch_size=batch_size, sampler=test_sampler)
 
     const_size = loader[0]['const'].shape[-1]
+    print('Constant size: {}'.format(const_size))
 
     weekly_size = len(WEEKLY_VARS) + 1 if init else len(WEEKLY_VARS)
     # Define model, loss and optimizer.
@@ -193,7 +206,7 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
                 optimizer.step()
 
                 if i % 500 == 0:
-                    print('Epoch: {}, Train Loss: {}'.format(epoch, loss))
+                    print('Epoch: {}, Test Loss: {}'.format(epoch, loss))
 
                 # Store loss info
                 train_loss.append(loss.item())
@@ -229,6 +242,8 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
 
                 week_h, month_h = week_h.detach(), month_h.detach()
                 week_c, month_c = week_c.detach(), month_c.detach()
+
+                print('model: {} \n true: {}'.format(outputs[0].squeeze()[:5], targets[:, 1].squeeze()[:5]))
 
                 loss2 = criterion(outputs[0].squeeze(), targets[:, 1].squeeze())
                 loss4 = criterion(outputs[1].squeeze(), targets[:, 3].squeeze())

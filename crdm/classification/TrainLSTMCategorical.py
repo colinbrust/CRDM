@@ -57,28 +57,28 @@ class LSTM(nn.Module):
             nn.Linear(32, 16),
             nn.BatchNorm1d(16),
             nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(16, 8),
+            nn.BatchNorm1d(8),
+            nn.ReLU(),
             nn.Dropout(0.5)
         )
 
         self.preds2 = nn.Sequential(
-            nn.Linear(16, self.output_size),
-            nn.BatchNorm1d(self.output_size),
-            nn.ReLU()
+            nn.Linear(8, self.output_size),
+            nn.Sigmoid()
         )
         self.preds4 = nn.Sequential(
-            nn.Linear(16, self.output_size),
-            nn.BatchNorm1d(self.output_size),
-            nn.ReLU()
+            nn.Linear(8, self.output_size),
+            nn.Sigmoid()
         )
         self.preds6 = nn.Sequential(
-            nn.Linear(16, self.output_size),
-            nn.BatchNorm1d(self.output_size),
-            nn.ReLU()
+            nn.Linear(8, self.output_size),
+            nn.Sigmoid()
         )
         self.preds8 = nn.Sequential(
-            nn.Linear(16, self.output_size),
-            nn.BatchNorm1d(self.output_size),
-            nn.ReLU()
+            nn.Linear(8, self.output_size),
+            nn.Sigmoid()
         )
 
     def init_state(self):

@@ -52,6 +52,7 @@ class PremakeTrainingPixels(Aggregate):
         # Add day of year for target image.
         target_doy = [x.timetuple().tm_yday for x in self.target_dates]
         target_doy = [(2*(x - 1)/(366 - 1)) - 1 for x in target_doy]
+        target_doy = np.take(target_doy, [1, 3, 5, 7])
         target_doy = np.array([np.ones_like(constants[0]) * x for x in target_doy])
 
         # Add day of year for image guess date.

@@ -7,7 +7,7 @@ normalize <- function(variable, in_dir, out_dir) {
   f_list <- list.files(in_dir, pattern = variable, full.names = T) 
   
   rnge <- f_list %>% 
-    raster::stack() 
+    raster::stack() %>%
     raster::values() %>%
     range(na.rm = T)
   

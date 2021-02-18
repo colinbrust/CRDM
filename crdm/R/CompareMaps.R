@@ -4,10 +4,10 @@ source('https://raw.githubusercontent.com/colinbrust/CRDM/develop/crdm/R/PlotThe
 
 
 
-map_to_tidy <- function(f, band) {
+map_to_tidy_cat <- function(f, band) {
   
   f %>%
-    raster::raster() %>% 
+    raster::raster(band=band) %>% 
     raster::rasterToPoints() %>%
     tibble::as_tibble() %>%
     `colnames<-`(c('x', 'y', 'val')) %>% 
@@ -21,11 +21,19 @@ map_to_tidy <- function(f, band) {
                     `4` = 'D3',
                     `5` = 'D4'),
                    lead_time = band*2) 
-
-  
 }
 
-plot_single <- function(dat, states) {
+map_to_tidy_con <- function(f, band) {
+  
+  f %>%
+    raster::raster(band=band) %>% 
+    raster::rasterToPoints() %>%
+    tibble::as_tibble() %>%
+    `colnames<-`(c('x', 'y', 'val')) %>% 
+    dplyr::mutate(lead_time = band*2) 
+}
+
+plot_single_cat <- function(dat, states) {
 
   ggplot() + 
   geom_raster(aes(x=x, y=y, fill=val), dat) +
@@ -41,12 +49,29 @@ plot_single <- function(dat, states) {
     plot_theme()
 }
 
+plot_single_con <- function(dat, states) {
+  
+  ggplot() + 
+    geom_raster(aes(x=x, y=y, fill=val), dat) +
+    geom_sf(aes(), states, fill = NA) +
+    labs(x='', y='', fill='Drought\nCategory') +
+    scale_fill_manual(values = c('No Drought' = NA,
+                                 'D0' = '#FFFF00',
+                                 'D1' = '#FCD37F',
+                                 'D2' = '#FFAA00',
+                                 'D3' = '#E60000',
+                                 'D4' = '#730000')) +
+    facet_wrap(~lab, nrow=2) +
+    plot_theme()
+}
+
+
 plot_fun <- function(dat, states, out_dir) {
   
   print(unique(dat$fname))
   
   f_maps <- dat %$%
-    purrr::map2(fname, band, map_to_tidy) %>%
+    purrr::map2(fname, band, map_to_tidy_con) %>%
     dplyr::bind_rows() %>%
     dplyr::mutate(lab = paste(lead_time, 'Week Forecast')) %>%
     plot_single(states = states) +
@@ -73,6 +98,7 @@ save_all <- function(true_dir, map_dir, out_dir) {
   states <- urbnmapr::get_urbn_map(sf = TRUE) %>%
     dplyr::filter(state_abbv != 'AK', state_abbv != 'HI') %>%
     sf::st_transform(6933)
+  
   true_dir <- true_dir %>%
     list.files(full.names = T) %>%
     tibble::tibble(true_fname = .) %>%
@@ -81,7 +107,8 @@ save_all <- function(true_dir, map_dir, out_dir) {
         stringr::str_sub(1, 8) %>%
         lubridate::as_date()
     )
-  list.files(map_dir,full.names = T) %>%
+  
+  dfs <- list.files(map_dir,full.names = T) %>%
     expand.grid(., 1:4) %>%
     tibble::as_tibble() %>%
     `colnames<-`(c('fname', 'band')) %>%
@@ -94,13 +121,19 @@ save_all <- function(true_dir, map_dir, out_dir) {
     ) %>%
     dplyr::left_join(true_dir, by='d') %>%
     split(.$d) %>%
-    lapply(plot_fun, states = states, out_dir = out_dir)
+    Filter(function(x) {NROW(x) == 4}, .) 
+  
+  
+    lapply(dfs, plot_fun, states = states, out_dir = out_dir)
 }
 
-
-save_all(
-  '~/projects/CRDM/data/drought/out_classes/out_tif',
-  '~/projects/CRDM/data/drought/model_results/weekly_maps/cce_stateless_deep/',
-  '~/projects/CRDM/data/drought/model_results/weekly_maps/cce_stateless/pred_maps'
-)
+true_dir = '/mnt/e/PycharmProjects/CRDM/data/out_classes/out_tif'
+map_dir = '/mnt/e/PycharmProjects/CRDM/data/model_results/weekly_maps/mse_stateful_ensemble/model0'
+out_dir = '/mnt/e/PycharmProjects/CRDM/data/model_results/weekly_maps/mse_stateful_ensemble/pred_maps'
+ 
+# save_all(
+#   '/mnt/e/PycharmProjects/CRDM/data/out_classes/out_tif',
+#   '/mnt/e/PycharmProjects/CRDM/data/model_results/weekly_maps/mse_stateful_ensemble/model0',
+#   '/mnt/e/PycharmProjects/CRDM/data/model_results/weekly_maps/mse_stateful_ensemble/pred_maps'
+# )
 

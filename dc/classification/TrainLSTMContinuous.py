@@ -66,25 +66,27 @@ class LSTM(nn.Module):
             nn.Linear(8, 4),
             nn.BatchNorm1d(4),
             nn.ReLU(),
-            nn.Dropout(0.5)
+            nn.Dropout(0.5),
+            nn.Linear(4, self.output_size),
+            nn.ReLU()
         )
 
-        self.preds2 = nn.Sequential(
-            nn.Linear(4, self.output_size),
-            nn.ReLU()
-        )
-        self.preds4 = nn.Sequential(
-            nn.Linear(4, self.output_size),
-            nn.ReLU()
-        )
-        self.preds6 = nn.Sequential(
-            nn.Linear(4, self.output_size),
-            nn.ReLU()
-        )
-        self.preds8 = nn.Sequential(
-            nn.Linear(4, self.output_size),
-            nn.ReLU()
-        )
+        # self.preds2 = nn.Sequential(
+        #     nn.Linear(4, self.output_size),
+        #     nn.ReLU()
+        # )
+        # self.preds4 = nn.Sequential(
+        #     nn.Linear(4, self.output_size),
+        #     nn.ReLU()
+        # )
+        # self.preds6 = nn.Sequential(
+        #     nn.Linear(4, self.output_size),
+        #     nn.ReLU()
+        # )
+        # self.preds8 = nn.Sequential(
+        #     nn.Linear(4, self.output_size),
+        #     nn.ReLU()
+        # )
 
     def init_state(self):
         # This is what we'll initialise our hidden state as
@@ -100,9 +102,9 @@ class LSTM(nn.Module):
         lstm_and_const = torch.cat((week_out[-1], month_out[-1], constants), dim=1)
         preds = self.classifier(lstm_and_const)
 
-        preds2, preds4, preds6, preds8 = self.preds2(preds), self.preds4(preds), self.preds6(preds), self.preds8(preds)
+        # preds2, preds4, preds6, preds8 = self.preds2(preds), self.preds4(preds), self.preds6(preds), self.preds8(preds)
 
-        return [preds2, preds4, preds6, preds8], week_state, month_state
+        return preds, week_state, month_state
 
 
 def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
@@ -192,12 +194,12 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
 
                 print('model: {} \n true: {}\n\n'.format(outputs[0].squeeze()[:5], targets[:, 1].squeeze()[:5]))
                 
-                loss2 = criterion(outputs[0].squeeze(), targets[:, 1].squeeze())
-                loss4 = criterion(outputs[1].squeeze(), targets[:, 3].squeeze())
-                loss6 = criterion(outputs[2].squeeze(), targets[:, 5].squeeze())
-                loss8 = criterion(outputs[3].squeeze(), targets[:, 7].squeeze())
+                loss = criterion(outputs.squeeze(), targets[:, 1].squeeze())
+                # loss4 = criterion(outputs[1].squeeze(), targets[:, 3].squeeze())
+                # loss6 = criterion(outputs[2].squeeze(), targets[:, 5].squeeze())
+                # loss8 = criterion(outputs[3].squeeze(), targets[:, 7].squeeze())
 
-                loss = loss2+loss4+loss6+loss8
+                # loss = loss2+loss4+loss6+loss8
 
                 # Compute the loss and step the optimizer
                 loss.backward()
@@ -241,12 +243,12 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
                 week_h, month_h = week_h.detach(), month_h.detach()
                 week_c, month_c = week_c.detach(), month_c.detach()
 
-                loss2 = criterion(outputs[0].squeeze(), targets[:, 1].squeeze())
-                loss4 = criterion(outputs[1].squeeze(), targets[:, 3].squeeze())
-                loss6 = criterion(outputs[2].squeeze(), targets[:, 5].squeeze())
-                loss8 = criterion(outputs[3].squeeze(), targets[:, 7].squeeze())
+                loss = criterion(outputs.squeeze(), targets[:, 1].squeeze())
+                # loss4 = criterion(outputs[1].squeeze(), targets[:, 3].squeeze())
+                # loss6 = criterion(outputs[2].squeeze(), targets[:, 5].squeeze())
+                # loss8 = criterion(outputs[3].squeeze(), targets[:, 7].squeeze())
 
-                loss = loss2+loss4+loss6+loss8
+                # loss = loss2+loss4+loss6+loss8
 
                 if i % 500 == 0:
                     print('Epoch: {}, Test Loss: {}'.format(epoch, loss))

@@ -1,9 +1,9 @@
 library(reticulate)
 library(magrittr)
 library(ggplot2)
-use_condaenv("gee", conda = "/home/colin/miniconda3/bin/conda")
-source_python('/mnt/e/PycharmProjects/CRDM/crdm/utils/ReadPickle.py')
-source('https://raw.githubusercontent.com/colinbrust/CRDM/develop/crdm/R/PlotTheme.R')
+use_condaenv("gee", conda = "/opt/miniconda3/bin/conda")
+source_python('~/projects/DroughtCast/dc/utils/ReadPickle.py')
+source('https://raw.githubusercontent.com/colinbrust/DroughtCast/develop/dc/R/PlotTheme.R')
 
 strip_text = function(x) {
   
@@ -39,7 +39,7 @@ read_file <- function(f) {
 
 plot_all <- function(f_dir='/mnt/e/PycharmProjects/CRDM/data/model_results/weekly_results') {
   
-  f_dir %>%
+  '~/projects/DroughtCast/data/test4' %>%
     list.files(full.names = T, pattern = 'err.p') %>%
     lapply(read_file) %>%
     dplyr::bind_rows() %>%
@@ -47,14 +47,13 @@ plot_all <- function(f_dir='/mnt/e/PycharmProjects/CRDM/data/model_results/weekl
     dplyr::mutate(batch = factor(batch),
                   hiddenSize = factor(hiddenSize),
                   nWeeks = factor(nWeeks),
-                  numLayers = factor(numLayers)) -> a
-    
-    a %>%
+                  numLayers = factor(numLayers)) %>%
      ggplot(aes(x=rowid, y=value, color=set)) + 
      geom_line() +
      facet_wrap(~leadTime) + 
      labs(x='Epoch', y='Cross-Entropy Loss', color='# Month\nHistory') + 
      plot_theme()
+    
 }
 
 

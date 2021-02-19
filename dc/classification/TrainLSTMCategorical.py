@@ -49,122 +49,148 @@ class LSTM(nn.Module):
             nn.Linear(1024, 512),
             nn.BatchNorm1d(512),
             nn.ReLU(),
-            nn.Dropout(0.5)
+            nn.Dropout(0.5),
+            nn.Linear(512, 256),
+            nn.BatchNorm1d(256),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(256, 128),
+            nn.BatchNorm1d(128),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(128, 64),
+            nn.BatchNorm1d(64),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(64, 32),
+            nn.BatchNorm1d(32),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(32, 16),
+            nn.BatchNorm1d(16),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(16, 8),
+            nn.BatchNorm1d(8),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(8, self.output_size),
+            nn.Sigmoid()
         )
 
-        # Make separate layers to predict drought at different intervals
-        self.preds2 = nn.Sequential(
-            nn.Linear(512, 256),
-            nn.BatchNorm1d(256),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(256, 128),
-            nn.BatchNorm1d(128),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(128, 64),
-            nn.BatchNorm1d(64),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(64, 32),
-            nn.BatchNorm1d(32),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(32, 16),
-            nn.BatchNorm1d(16),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(16, 8),
-            nn.BatchNorm1d(8),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(8, self.output_size),
-            nn.Sigmoid()
-        )
-        self.preds4 = nn.Sequential(
-            nn.Linear(512, 256),
-            nn.BatchNorm1d(256),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(256, 128),
-            nn.BatchNorm1d(128),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(128, 64),
-            nn.BatchNorm1d(64),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(64, 32),
-            nn.BatchNorm1d(32),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(32, 16),
-            nn.BatchNorm1d(16),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(16, 8),
-            nn.BatchNorm1d(8),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(8, self.output_size),
-            nn.Sigmoid()
-        )
-        self.preds6 = nn.Sequential(
-            nn.Linear(512, 256),
-            nn.BatchNorm1d(256),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(256, 128),
-            nn.BatchNorm1d(128),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(128, 64),
-            nn.BatchNorm1d(64),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(64, 32),
-            nn.BatchNorm1d(32),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(32, 16),
-            nn.BatchNorm1d(16),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(16, 8),
-            nn.BatchNorm1d(8),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(8, self.output_size),
-            nn.Sigmoid()
-        )
-        self.preds8 = nn.Sequential(
-            nn.Linear(512, 256),
-            nn.BatchNorm1d(256),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(256, 128),
-            nn.BatchNorm1d(128),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(128, 64),
-            nn.BatchNorm1d(64),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(64, 32),
-            nn.BatchNorm1d(32),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(32, 16),
-            nn.BatchNorm1d(16),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(16, 8),
-            nn.BatchNorm1d(8),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(8, self.output_size),
-            nn.Sigmoid()
-        )
+        # # Make separate layers to predict drought at different intervals
+        # self.preds2 = nn.Sequential(
+        #     nn.Linear(512, 256),
+        #     nn.BatchNorm1d(256),
+        #     nn.ReLU(),
+        #     nn.Dropout(0.5),
+        #     nn.Linear(256, 128),
+        #     nn.BatchNorm1d(128),
+        #     nn.ReLU(),
+        #     nn.Dropout(0.5),
+        #     nn.Linear(128, 64),
+        #     nn.BatchNorm1d(64),
+        #     nn.ReLU(),
+        #     nn.Dropout(0.5),
+        #     nn.Linear(64, 32),
+        #     nn.BatchNorm1d(32),
+        #     nn.ReLU(),
+        #     nn.Dropout(0.5),
+        #     nn.Linear(32, 16),
+        #     nn.BatchNorm1d(16),
+        #     nn.ReLU(),
+        #     nn.Dropout(0.5),
+        #     nn.Linear(16, 8),
+        #     nn.BatchNorm1d(8),
+        #     nn.ReLU(),
+        #     nn.Dropout(0.5),
+        #     nn.Linear(8, self.output_size),
+        #     nn.Sigmoid()
+        # )
+        # self.preds4 = nn.Sequential(
+        #     nn.Linear(512, 256),
+        #     nn.BatchNorm1d(256),
+        #     nn.ReLU(),
+        #     nn.Dropout(0.5),
+        #     nn.Linear(256, 128),
+        #     nn.BatchNorm1d(128),
+        #     nn.ReLU(),
+        #     nn.Dropout(0.5),
+        #     nn.Linear(128, 64),
+        #     nn.BatchNorm1d(64),
+        #     nn.ReLU(),
+        #     nn.Dropout(0.5),
+        #     nn.Linear(64, 32),
+        #     nn.BatchNorm1d(32),
+        #     nn.ReLU(),
+        #     nn.Dropout(0.5),
+        #     nn.Linear(32, 16),
+        #     nn.BatchNorm1d(16),
+        #     nn.ReLU(),
+        #     nn.Dropout(0.5),
+        #     nn.Linear(16, 8),
+        #     nn.BatchNorm1d(8),
+        #     nn.ReLU(),
+        #     nn.Dropout(0.5),
+        #     nn.Linear(8, self.output_size),
+        #     nn.Sigmoid()
+        # )
+        # self.preds6 = nn.Sequential(
+        #     nn.Linear(512, 256),
+        #     nn.BatchNorm1d(256),
+        #     nn.ReLU(),
+        #     nn.Dropout(0.5),
+        #     nn.Linear(256, 128),
+        #     nn.BatchNorm1d(128),
+        #     nn.ReLU(),
+        #     nn.Dropout(0.5),
+        #     nn.Linear(128, 64),
+        #     nn.BatchNorm1d(64),
+        #     nn.ReLU(),
+        #     nn.Dropout(0.5),
+        #     nn.Linear(64, 32),
+        #     nn.BatchNorm1d(32),
+        #     nn.ReLU(),
+        #     nn.Dropout(0.5),
+        #     nn.Linear(32, 16),
+        #     nn.BatchNorm1d(16),
+        #     nn.ReLU(),
+        #     nn.Dropout(0.5),
+        #     nn.Linear(16, 8),
+        #     nn.BatchNorm1d(8),
+        #     nn.ReLU(),
+        #     nn.Dropout(0.5),
+        #     nn.Linear(8, self.output_size),
+        #     nn.Sigmoid()
+        # )
+        # self.preds8 = nn.Sequential(
+        #     nn.Linear(512, 256),
+        #     nn.BatchNorm1d(256),
+        #     nn.ReLU(),
+        #     nn.Dropout(0.5),
+        #     nn.Linear(256, 128),
+        #     nn.BatchNorm1d(128),
+        #     nn.ReLU(),
+        #     nn.Dropout(0.5),
+        #     nn.Linear(128, 64),
+        #     nn.BatchNorm1d(64),
+        #     nn.ReLU(),
+        #     nn.Dropout(0.5),
+        #     nn.Linear(64, 32),
+        #     nn.BatchNorm1d(32),
+        #     nn.ReLU(),
+        #     nn.Dropout(0.5),
+        #     nn.Linear(32, 16),
+        #     nn.BatchNorm1d(16),
+        #     nn.ReLU(),
+        #     nn.Dropout(0.5),
+        #     nn.Linear(16, 8),
+        #     nn.BatchNorm1d(8),
+        #     nn.ReLU(),
+        #     nn.Dropout(0.5),
+        #     nn.Linear(8, self.output_size),
+        #     nn.Sigmoid()
+        # )
 
     # Function to initialize hidden and cell states of LSTM
     def init_state(self):
@@ -186,8 +212,8 @@ class LSTM(nn.Module):
         preds = self.classifier(lstm_and_const)
 
         # Make predictions at different timescales
-        preds2, preds4, preds6, preds8 = self.preds2(preds), self.preds4(preds), self.preds6(preds), self.preds8(preds)
-        return [preds2, preds4, preds6, preds8], week_state, month_state
+        # preds2, preds4, preds6, preds8 = self.preds2(preds), self.preds4(preds), self.preds6(preds), self.preds8(preds)
+        return preds, week_state, month_state
 
 
 def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
@@ -282,12 +308,15 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
                 week_h, month_h = week_h.detach(), month_h.detach()
                 week_c, month_c = week_c.detach(), month_c.detach()
 
-                loss2 = criterion(outputs[0], targets[:, 1])
-                loss4 = criterion(outputs[1], targets[:, 3])
-                loss6 = criterion(outputs[2], targets[:, 5])
-                loss8 = criterion(outputs[3], targets[:, 7])
+                print(outputs[:5])
+                print(targets[:, 1][:5])
 
-                loss = loss2 + loss4 + loss6 + loss8
+                loss = criterion(outputs, targets[:, 1])
+                # loss4 = criterion(outputs[1], targets[:, 3])
+                # loss6 = criterion(outputs[2], targets[:, 5])
+                # loss8 = criterion(outputs[3], targets[:, 7])
+
+                # loss = loss2 + loss4 + loss6 + loss8
                 # print(loss)
 
                 # Compute the loss and step the optimizer
@@ -334,12 +363,12 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
                 week_h, month_h = week_h.detach(), month_h.detach()
                 week_c, month_c = week_c.detach(), week_c.detach()
 
-                loss2 = criterion(outputs[0], targets[:, 1])
-                loss4 = criterion(outputs[1], targets[:, 3])
-                loss6 = criterion(outputs[2], targets[:, 5])
-                loss8 = criterion(outputs[3], targets[:, 7])
+                loss = criterion(outputs, targets[:, 1])
+                # loss4 = criterion(outputs[1], targets[:, 3])
+                # loss6 = criterion(outputs[2], targets[:, 5])
+                # loss8 = criterion(outputs[3], targets[:, 7])
 
-                loss = loss2 + loss4 + loss6 + loss8
+                # loss = loss2 + loss4 + loss6 + loss8
 
                 if i % 500 == 0:
                     print('Epoch: {}, Test Loss: {}'.format(epoch, loss))

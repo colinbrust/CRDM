@@ -1,3 +1,4 @@
+import argparse
 from dc.fetch.DownloadFile import download_file
 import os
 import datetime as dt
@@ -39,7 +40,16 @@ def fetch_l4sm(download_dir, dataset):
 
 
 if __name__ == '__main__':
-    fetch_l4sm('/mnt/e/PycharmProjects/CRDM/data/raw/l4c/ncdf', dataset='l4c')
+
+    parser = argparse.ArgumentParser(description='Download SMAP Data')
+    parser.add_argument('-od', '--out_dir', type=str, default='.', help='directory to write data to.')
+    parser.add_argument('--l4c', dest='l4c', action='store_true', help='Whether to download L4C or L4SM data.')
+    parser.add_argument('--no-l4c', dest='l4c', action='store_false', help='Whether to download L4C or L4SM data.')
+    parser.set_defaults(l4c=True)
+
+    args = parser.parse_args()
+
+    fetch_l4sm(args.out_dir, dataset=args.l4c)
 
 
 # # from FetchMissing import FetchMissing

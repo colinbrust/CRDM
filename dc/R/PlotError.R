@@ -50,8 +50,7 @@ plot_all <- function(f_dir='/mnt/e/PycharmProjects/CRDM/data/model_results/weekl
                   numLayers = factor(numLayers)) -> a
     
     a %>%
-    dplyr::filter(set == 'test') %>% 
-    ggplot(aes(x=rowid, y=value, color=numLayers)) + 
+     ggplot(aes(x=rowid, y=value, color=set)) + 
      geom_line() +
      facet_wrap(~leadTime) + 
      labs(x='Epoch', y='Cross-Entropy Loss', color='# Month\nHistory') + 

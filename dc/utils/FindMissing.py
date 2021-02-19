@@ -1,4 +1,4 @@
-from crdm.utils.ImportantVars import WEEKLY_VARS
+from dc.utils.ImportantVars import WEEKLY_VARS
 import os
 from pathlib import Path
 from typing import List

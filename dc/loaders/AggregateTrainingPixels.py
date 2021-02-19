@@ -2,9 +2,9 @@ import numpy as np
 import pickle
 import glob
 import os
-from crdm.loaders.Aggregate import Aggregate
-from crdm.utils.ImportantVars import LENGTH, WEEKLY_VARS, MONTHLY_VARS
-from crdm.utils.ParseFileNames import parse_fname
+from dc.loaders.Aggregate import Aggregate
+from dc.utils.ImportantVars import LENGTH, WEEKLY_VARS, MONTHLY_VARS
+from dc.utils.ParseFileNames import parse_fname
 
 
 # make list of tuples where elem[0] is the sequence of features and elem[1] is the output class
@@ -50,22 +50,18 @@ class PremakeTrainingPixels(Aggregate):
         constants = np.take(constants, indices, axis=1)
 
         # Add day of year for target image.
-        target_doy = self.target_date.timetuple().tm_yday
-        target_doy = target_doy * 0.001
-        target_doy = np.ones_like(constants[0]) * target_doy
+        target_doy = [x.timetuple().tm_yday for x in self.target_dates]
+        target_doy = [(2*(x - 1)/(366 - 1)) - 1 for x in target_doy]
+        target_doy = np.take(target_doy, [1, 3, 5, 7])
+        target_doy = np.array([np.ones_like(constants[0]) * x for x in target_doy])
 
         # Add day of year for image guess date.
         guess_doy = self.guess_date.timetuple().tm_yday
-        guess_doy = guess_doy * 0.001
+        guess_doy = (2*(guess_doy - 1)/(366 - 1)) - 1
         guess_doy = np.ones_like(constants[0]) * guess_doy
 
-        day_diff = self._get_day_diff()
-        day_diff = day_diff * 0.001
-        day_diff = np.ones_like(constants[0]) * day_diff
-
-        constants = np.concatenate((constants, target_doy[np.newaxis]))
+        constants = np.concatenate((constants, target_doy))
         constants = np.concatenate((constants, guess_doy[np.newaxis]))
-        constants = np.concatenate((constants, day_diff[np.newaxis]))
 
         try:
             if self.kwargs['init']:

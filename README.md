@@ -43,3 +43,4 @@ As the project grows and nears completion, a more refined installation method wi
     - `TrainLSTMContinuous.py` treats USDM drought as a continuous variable.
 - `utils/ModelToMap.py` creates DroughtCast predictions once the model is trained. 
 - The `R` module has various functions for plotting model predictions and model error. 
+

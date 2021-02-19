@@ -1,5 +1,5 @@
 from abc import ABC
-from crdm.loaders.AssertComplete import assert_complete
+from dc.loaders.AssertComplete import assert_complete
 import datetime as dt
 import dateutil.relativedelta as rd
 import os

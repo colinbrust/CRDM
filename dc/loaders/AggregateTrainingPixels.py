@@ -2,9 +2,9 @@ import numpy as np
 import pickle
 import glob
 import os
-from crdm.loaders.Aggregate import Aggregate
-from crdm.utils.ImportantVars import LENGTH, WEEKLY_VARS, MONTHLY_VARS
-from crdm.utils.ParseFileNames import parse_fname
+from dc.loaders.Aggregate import Aggregate
+from dc.utils.ImportantVars import LENGTH, WEEKLY_VARS, MONTHLY_VARS
+from dc.utils.ParseFileNames import parse_fname
 
 
 # make list of tuples where elem[0] is the sequence of features and elem[1] is the output class

@@ -1,7 +1,7 @@
 import argparse
-from crdm.classification.TrainLSTMCategorical import train_lstm as cat_train
-from crdm.classification.TrainLSTMContinuous import train_lstm as con_train
-from crdm.utils.MakeLSTMPixelTS import make_lstm_pixel_ts
+from dc.classification.TrainLSTMCategorical import train_lstm as cat_train
+from dc.classification.TrainLSTMContinuous import train_lstm as con_train
+from dc.utils.MakeLSTMPixelTS import make_lstm_pixel_ts
 import os
 import pickle
 

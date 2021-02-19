@@ -1,6 +1,6 @@
 import argparse
-from crdm.loaders.AggregateTrainingPixels import PremakeTrainingPixels
-from crdm.utils.ImportantVars import LENGTH
+from dc.loaders.AggregateTrainingPixels import PremakeTrainingPixels
+from dc.utils.ImportantVars import LENGTH
 import glob
 import numpy as np
 import os

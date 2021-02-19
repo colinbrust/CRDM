@@ -1,5 +1,5 @@
-from crdm.utils.ParseFileNames import parse_fname
-from crdm.utils.ImportantVars import WEEKLY_VARS, MONTHLY_VARS
+from dc.utils.ParseFileNames import parse_fname
+from dc.utils.ImportantVars import WEEKLY_VARS, MONTHLY_VARS
 from torch.utils.data import Dataset
 import numpy as np
 import torch

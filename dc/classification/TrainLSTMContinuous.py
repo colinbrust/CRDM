@@ -1,8 +1,8 @@
 import argparse
 from collections import Counter
-from crdm.loaders.PixelLoader import PixelLoader
-from crdm.utils.ImportantVars import MONTHLY_VARS, WEEKLY_VARS
-from crdm.utils.ParseFileNames import parse_fname
+from dc.loaders.PixelLoader import PixelLoader
+from dc.utils.ImportantVars import MONTHLY_VARS, WEEKLY_VARS
+from dc.utils.ParseFileNames import parse_fname
 import os
 import torch
 from torch import nn
@@ -15,18 +15,8 @@ import pickle
 
 
 class LSTM(nn.Module):
-    def __init__(self, monthly_size: int = 1, weekly_size: int = 1, hidden_size: int = 64, output_size: int = 6,
-                 batch_size: int = 64, const_size: int = 8, cuda: bool = False, num_layers: int = 1):
-        """
-        monthly_size: number of monthly features to train model on.
-        weekly_size: number of weekly features to train model on.
-        hidden_size: dimension of hidden state matrix for LSTM.
-        output_size: number of classes the model will predict.
-        batch_size: batch size to train model on.
-        const_size: number of constant input features.
-        cuda: whether or not to train model on GPU.
-        num_layers: how many LSTM layers to use.
-        """
+    def __init__(self, monthly_size=1, weekly_size=1, hidden_size=64, output_size=6,
+                 batch_size=64, const_size=8, cuda=False, num_layers=1):
         super().__init__()
 
         self.num_layers = num_layers
@@ -36,162 +26,88 @@ class LSTM(nn.Module):
         self.weekly_size = weekly_size
         self.output_size = output_size
 
-        # Make weekly and monthly LSTMs for different temporal resolutions
-        self.weekly_lstm = nn.LSTM(weekly_size, self.hidden_size, num_layers=num_layers, dropout=0.5)
-        self.monthly_lstm = nn.LSTM(monthly_size, self.hidden_size, num_layers=num_layers, dropout=0.5)
+        self.weekly_lstm = nn.LSTM(weekly_size, self.hidden_size, num_layers=num_layers)
+        self.monthly_lstm = nn.LSTM(monthly_size, self.hidden_size, num_layers=num_layers)
 
-        # Classifier that concatenates LSTMs and constants, feeds through a neural net, and makes prediction.
+        # Downscale to output size
         self.classifier = nn.Sequential(
-            nn.Linear(2 * hidden_size + const_size, 1024),
+            nn.Linear(2*hidden_size + const_size, 1024),
             nn.BatchNorm1d(1024),
             nn.ReLU(),
             nn.Dropout(0.5),
             nn.Linear(1024, 512),
             nn.BatchNorm1d(512),
             nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(512, 256),
+            nn.BatchNorm1d(256),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(256, 128),
+            nn.BatchNorm1d(128),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(128, 64),
+            nn.BatchNorm1d(64),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(64, 32),
+            nn.BatchNorm1d(32),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(32, 16),
+            nn.BatchNorm1d(16),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(16, 8),
+            nn.BatchNorm1d(8),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(8, 4),
+            nn.BatchNorm1d(4),
+            nn.ReLU(),
             nn.Dropout(0.5)
         )
 
-        # Make separate layers to predict drought at different intervals
         self.preds2 = nn.Sequential(
-            nn.Linear(512, 256),
-            nn.BatchNorm1d(256),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(256, 128),
-            nn.BatchNorm1d(128),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(128, 64),
-            nn.BatchNorm1d(64),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(64, 32),
-            nn.BatchNorm1d(32),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(32, 16),
-            nn.BatchNorm1d(16),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(16, 8),
-            nn.BatchNorm1d(8),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(8, self.output_size),
-            nn.Sigmoid()
+            nn.Linear(4, self.output_size),
+            nn.ReLU()
         )
         self.preds4 = nn.Sequential(
-            nn.Linear(512, 256),
-            nn.BatchNorm1d(256),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(256, 128),
-            nn.BatchNorm1d(128),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(128, 64),
-            nn.BatchNorm1d(64),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(64, 32),
-            nn.BatchNorm1d(32),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(32, 16),
-            nn.BatchNorm1d(16),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(16, 8),
-            nn.BatchNorm1d(8),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(8, self.output_size),
-            nn.Sigmoid()
+            nn.Linear(4, self.output_size),
+            nn.ReLU()
         )
         self.preds6 = nn.Sequential(
-            nn.Linear(512, 256),
-            nn.BatchNorm1d(256),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(256, 128),
-            nn.BatchNorm1d(128),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(128, 64),
-            nn.BatchNorm1d(64),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(64, 32),
-            nn.BatchNorm1d(32),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(32, 16),
-            nn.BatchNorm1d(16),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(16, 8),
-            nn.BatchNorm1d(8),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(8, self.output_size),
-            nn.Sigmoid()
+            nn.Linear(4, self.output_size),
+            nn.ReLU()
         )
         self.preds8 = nn.Sequential(
-            nn.Linear(512, 256),
-            nn.BatchNorm1d(256),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(256, 128),
-            nn.BatchNorm1d(128),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(128, 64),
-            nn.BatchNorm1d(64),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(64, 32),
-            nn.BatchNorm1d(32),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(32, 16),
-            nn.BatchNorm1d(16),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(16, 8),
-            nn.BatchNorm1d(8),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(8, self.output_size),
-            nn.Sigmoid()
+            nn.Linear(4, self.output_size),
+            nn.ReLU()
         )
 
-    # Function to initialize hidden and cell states of LSTM
     def init_state(self):
         # This is what we'll initialise our hidden state as
         return (torch.zeros(self.num_layers, self.batch_size, self.hidden_size, device=self.device),
                 torch.zeros(self.num_layers, self.batch_size, self.hidden_size, device=self.device))
 
-    # Run the LSTM forward
     def forward(self, weekly_seq, monthly_seq, constants, prev_week_state, prev_month_state):
+        # Run the LSTM forward
 
-        # Run LSTMs forward
         week_out, week_state = self.weekly_lstm(weekly_seq, prev_week_state)
         month_out, month_state = self.monthly_lstm(monthly_seq, prev_month_state)
 
-        # Concatenate LSTMs with constants
         lstm_and_const = torch.cat((week_out[-1], month_out[-1], constants), dim=1)
-
-        # Run the classifier forward
         preds = self.classifier(lstm_and_const)
 
-        # Make predictions at different timescales
         preds2, preds4, preds6, preds8 = self.preds2(preds), self.preds4(preds), self.preds6(preds), self.preds8(preds)
+
         return [preds2, preds4, preds6, preds8], week_state, month_state
 
 
 def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
                hidden_size=64, cuda=False, init=True, num_layers=1, stateful=False):
+
     device = 'cuda:0' if torch.cuda.is_available() and cuda else 'cpu'
     info = parse_fname(const_f)
 
@@ -207,10 +123,11 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
     test_loader = DataLoader(dataset=loader, batch_size=batch_size, sampler=test_sampler)
 
     const_size = loader[0]['const'].shape[-1]
+    print('Constant size: {}'.format(const_size))
 
     weekly_size = len(WEEKLY_VARS) + 1 if init else len(WEEKLY_VARS)
     # Define model, loss and optimizer.
-    model = LSTM(weekly_size=weekly_size, monthly_size=len(MONTHLY_VARS), hidden_size=hidden_size, output_size=6,
+    model = LSTM(weekly_size=weekly_size, monthly_size=len(MONTHLY_VARS), hidden_size=hidden_size, output_size=1,
                  batch_size=batch_size, const_size=const_size, cuda=cuda, num_layers=num_layers)
 
     model.to(device)
@@ -219,15 +136,9 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
         print('Using GPU')
         model.cuda()
 
-    targets = np.memmap(target_f, dtype='float32', mode='r')
-    counts = list(Counter(targets).values())
-    # weights = torch.Tensor([0.2436, 0.9333, 0.9502, 0.9051, 0.9750, 0.9929]).type(
-    #     torch.cuda.FloatTensor if (cuda and torch.cuda.is_available()) else torch.FloatTensor)
-    weights = torch.Tensor([1 - (x / sum(counts)) for x in counts]).type(
-        torch.cuda.FloatTensor if (cuda and torch.cuda.is_available()) else torch.FloatTensor)
-    criterion = nn.CrossEntropyLoss(weight=weights)
+    criterion = nn.MSELoss()
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-2)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
     scheduler = ReduceLROnPlateau(optimizer, mode='min', patience=2, threshold=1e-4, verbose=True)
 
     prev_best_loss = np.inf
@@ -251,7 +162,7 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
         if stateful:
             week_h, week_c = model.init_state()
             month_h, month_c = model.init_state()
-            print('Im stateful')
+
         # Loop over each subset of data
         for i, item in enumerate(train_loader, 1):
 
@@ -267,28 +178,26 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
 
                 mon = mon.type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor)
                 week = week.type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor)
-                const = const.type(
-                    torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor)
+                const = const.type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor)
 
                 # Zero out the optimizer's gradient buffer
                 optimizer.zero_grad()
 
                 # Make prediction with model
-                outputs, (week_h, week_c), (month_h, month_c) = model(week, mon, const, (week_h, week_c),
-                                                                      (month_h, month_c))
-                # outputs = outputs.type(torch.cuda.FloatTensor if cuda else torch.FloatTensor)
-                targets = (item['target'] * 5).type(torch.cuda.LongTensor if cuda else torch.LongTensor)
-
+                outputs, (week_h, week_c), (month_h, month_c) = model(week, mon, const, (week_h, week_c), (month_h, month_c))
+                targets = item['target'].type(torch.cuda.FloatTensor if cuda else torch.FloatTensor)
+                
                 week_h, month_h = week_h.detach(), month_h.detach()
-                week_c, month_c = week_c.detach(), month_c.detach()
+                week_c, month_c = week_c.detach(), week_c.detach()
 
-                loss2 = criterion(outputs[0], targets[:, 1])
-                loss4 = criterion(outputs[1], targets[:, 3])
-                loss6 = criterion(outputs[2], targets[:, 5])
-                loss8 = criterion(outputs[3], targets[:, 7])
+                print('model: {} \n true: {}\n\n'.format(outputs[0].squeeze()[:5], targets[:, 1].squeeze()[:5]))
+                
+                loss2 = criterion(outputs[0].squeeze(), targets[:, 1].squeeze())
+                loss4 = criterion(outputs[1].squeeze(), targets[:, 3].squeeze())
+                loss6 = criterion(outputs[2].squeeze(), targets[:, 5].squeeze())
+                loss8 = criterion(outputs[3].squeeze(), targets[:, 7].squeeze())
 
-                loss = loss2 + loss4 + loss6 + loss8
-                # print(loss)
+                loss = loss2+loss4+loss6+loss8
 
                 # Compute the loss and step the optimizer
                 loss.backward()
@@ -322,24 +231,22 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
 
                 mon = mon.type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor)
                 week = week.type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor)
-                const = const.type(
-                    torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor)
+                const = const.type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor)
 
                 # Run model on test set
-                outputs, (week_h, week_c), (month_h, month_c) = model(week, mon, const, (week_h, week_c),
-                                                                      (month_h, month_c))
+                outputs, (week_h, week_c), (month_h, month_c) = model(week, mon, const, (week_h, week_c), (month_h, month_c))
                 # outputs = outputs.type(torch.cuda.FloatTensor if cuda else torch.FloatTensor)
-                targets = (item['target'] * 5).type(torch.cuda.LongTensor if cuda else torch.LongTensor)
+                targets = item['target'].type(torch.cuda.FloatTensor if cuda else torch.FloatTensor)
 
                 week_h, month_h = week_h.detach(), month_h.detach()
-                week_c, month_c = week_c.detach(), week_c.detach()
+                week_c, month_c = week_c.detach(), month_c.detach()
 
-                loss2 = criterion(outputs[0], targets[:, 1])
-                loss4 = criterion(outputs[1], targets[:, 3])
-                loss6 = criterion(outputs[2], targets[:, 5])
-                loss8 = criterion(outputs[3], targets[:, 7])
+                loss2 = criterion(outputs[0].squeeze(), targets[:, 1].squeeze())
+                loss4 = criterion(outputs[1].squeeze(), targets[:, 3].squeeze())
+                loss6 = criterion(outputs[2].squeeze(), targets[:, 5].squeeze())
+                loss8 = criterion(outputs[3].squeeze(), targets[:, 7].squeeze())
 
-                loss = loss2 + loss4 + loss6 + loss8
+                loss = loss2+loss4+loss6+loss8
 
                 if i % 500 == 0:
                     print('Epoch: {}, Test Loss: {}'.format(epoch, loss))
@@ -406,14 +313,12 @@ if __name__ == '__main__':
     if args.search:
         for layers in [1, 2, 3, 4]:
             train_lstm(const_f=const_f, mon_f=mon_f, week_f=week_f, target_f=target_f, epochs=args.epochs,
-                       batch_size=args.batch_size, hidden_size=args.hidden_size, cuda=args.cuda, init=init,
-                       num_layers=layers, stateful=args.state)
+                       batch_size=args.batch_size, hidden_size=args.hidden_size, cuda=args.cuda, init=init, num_layers=layers)
 
     else:
         try:
             assert 'batch_size' in args and 'hidden_size' in args
             train_lstm(const_f=const_f, mon_f=mon_f, week_f=week_f, target_f=target_f, epochs=args.epochs,
-                       batch_size=args.batch_size, hidden_size=args.hidden_size, cuda=args.cuda, init=init,
-                       num_layers=args.num_layers, stateful=args.state)
+                       batch_size=args.batch_size, hidden_size=args.hidden_size, cuda=args.cuda, init=init, num_layers=args.num_layers)
         except AssertionError as e:
             print('-bs and -hs flags must be used when you are not using the search option.')

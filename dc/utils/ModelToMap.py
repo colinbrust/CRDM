@@ -4,10 +4,10 @@ import os
 import glob
 import matplotlib.pyplot as plt
 import numpy as np
-from crdm.classification.TrainLSTMCategorical import LSTM
-from crdm.loaders.AggregateAllPixels import AggregateAllPixles
-from crdm.utils.ImportantVars import DIMS, LENGTH, MONTHLY_VARS, WEEKLY_VARS
-from crdm.utils.ParseFileNames import parse_fname
+from dc.classification.TrainLSTMCategorical import LSTM
+from dc.loaders.AggregateAllPixels import AggregateAllPixles
+from dc.utils.ImportantVars import DIMS, LENGTH, MONTHLY_VARS, WEEKLY_VARS
+from dc.utils.ParseFileNames import parse_fname
 import rasterio as rio
 
 

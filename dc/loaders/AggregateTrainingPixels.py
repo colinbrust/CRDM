@@ -81,6 +81,5 @@ class PremakeTrainingPixels(Aggregate):
             # Scale between -1 and 1
             drought = 2 * drought / 5 - 1
             weeklys = np.concatenate((weeklys, drought[np.newaxis]))
-
         return weeklys, monthlys, constants
 

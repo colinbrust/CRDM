@@ -33,13 +33,13 @@ def make_lstm_pixel_ts(target_dir, in_features, size, n_weeks, out_dir, rm_years
             agg = PremakeTrainingPixels(targets=target, in_features=in_features, n_weeks=n_weeks,
                                         indices=indices, memmap=True, init=init)
             print(target[0])
-
+         
             # Make monthly, constant, and target arrays
             weeklys, monthlys, consts = agg.premake_features()
 
             imgs = np.array([np.memmap(x, 'int8', 'c') for x in target])
             imgs = np.take(imgs, indices, axis=1)
-
+            
             weeklys_out.append(weeklys)
             monthlys_out.append(monthlys)
             consts_out.append(consts)

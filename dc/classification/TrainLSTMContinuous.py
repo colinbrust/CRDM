@@ -192,7 +192,6 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64,
                 week_h, month_h = week_h.detach(), month_h.detach()
                 week_c, month_c = week_c.detach(), week_c.detach()
 
-                print('model: {} \n true: {}\n\n'.format(outputs[0].squeeze()[:5], targets[:, 1].squeeze()[:5]))
                 
                 loss = criterion(outputs.squeeze(), targets[:, 1].squeeze())
                 # loss4 = criterion(outputs[1].squeeze(), targets[:, 3].squeeze())

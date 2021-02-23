@@ -55,7 +55,11 @@ class LSTM(nn.Module):
             nn.BatchNorm1d(16),
             nn.ReLU(),
             nn.Dropout(0.25),
-            nn.Linear(16, output_size),
+            nn.Linear(16, 8),
+            nn.BatchNorm1d(8),
+            nn.ReLU(),
+            nn.Dropout(0.25),
+            nn.Linear(8, output_size),
             nn.ReLU()
         )
 
@@ -103,7 +107,7 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidde
 
     weekly_size = len(WEEKLY_VARS) + 1 if init else len(WEEKLY_VARS)
     # Define model, loss and optimizer.
-    model = LSTM(weekly_size=weekly_size, monthly_size=len(MONTHLY_VARS), hidden_size=hidden_size, output_size=6,
+    model = LSTM(weekly_size=weekly_size, monthly_size=len(MONTHLY_VARS), hidden_size=hidden_size, output_size=1,
                  batch_size=batch_size, const_size=const_size, cuda=cuda)
 
     model.to(device)
@@ -113,11 +117,7 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidde
         model.cuda()
 
     # Provide relative frequency weights to use in loss function.
-    targets = np.memmap(target_f, dtype='int8', mode='r')
-    counts = list(Counter(targets).values())
-    weights = torch.Tensor([1 - (x / sum(counts)) for x in counts]).type(
-        torch.cuda.FloatTensor if (cuda and torch.cuda.is_available()) else torch.FloatTensor)
-    criterion = nn.CrossEntropyLoss(weight=weights)
+    criterion = nn.MSELoss()
     lr = 1e-3
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     scheduler = ReduceLROnPlateau(optimizer, mode='min', patience=3, threshold=1e-4, verbose=True)
@@ -159,13 +159,16 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidde
 
                 # Make prediction with model
                 outputs, (week_h, week_c), (month_h, month_c) = model(week, mon, const, (week_h, week_c), (month_h, month_c))
+                outputs = outputs.squeeze()
+
 
                 week_h, month_h = week_h.detach(), month_h.detach()
                 week_c, month_c = week_c.detach(), week_c.detach()
                 # Compute the loss and step the optimizer
+
                 loss = criterion(
                     outputs.type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor),
-                    item['target'].type(torch.cuda.LongTensor if (torch.cuda.is_available() and cuda) else torch.LongTensor)
+                    (item['target']/5).type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor)
                 )
                 loss.backward()
                 optimizer.step()

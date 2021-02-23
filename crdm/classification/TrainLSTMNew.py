@@ -75,15 +75,8 @@ class LSTM(nn.Module):
         return preds, week_state, month_state
 
 
-def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=64, cuda=False, init=True):
-    # const_f ='/mnt/e/PycharmProjects/CRDM/data/premade/featType-constant_trainingType-pixelPremade_nWeeks-25_leadTime-6_size-20000_rmFeatures-True.dat'
-    # mon_f = '/mnt/e/PycharmProjects/CRDM/data/premade/featType-monthly_trainingType-pixelPremade_nWeeks-25_leadTime-6_size-20000_rmFeatures-True.dat'
-    # target_f = '/mnt/e/PycharmProjects/CRDM/data/premade/featType-target_trainingType-pixelPremade_nWeeks-25_leadTime-6_size-20000_rmFeatures-True.dat'
-    # week_f = '/mnt/e/PycharmProjects/CRDM/data/premade/featType-weekly_trainingType-pixelPremade_nWeeks-25_leadTime-6_size-20000_rmFeatures-True.dat'
-    #
-    # epochs = 10
-    # batch_size = 512
-    # hidden_size = 512
+def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=64, cuda=False, init=True, continuous=False):
+    
     device = 'cuda:0' if torch.cuda.is_available() and cuda else 'cpu'
     info = parse_fname(const_f)
     lead_time = info['leadTime']
@@ -100,8 +93,9 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidde
     test_loader = DataLoader(dataset=loader, batch_size=batch_size, sampler=test_sampler)
 
     const_size = loader[0]['const'].shape[-1]
-
     weekly_size = len(WEEKLY_VARS) + 1 if init else len(WEEKLY_VARS)
+    
+    output_size = 1 if continuous else 6
     # Define model, loss and optimizer.
     model = LSTM(weekly_size=weekly_size, monthly_size=len(MONTHLY_VARS), hidden_size=hidden_size, output_size=6,
                  batch_size=batch_size, const_size=const_size, cuda=cuda)
@@ -117,8 +111,10 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidde
     counts = list(Counter(targets).values())
     weights = torch.Tensor([1 - (x / sum(counts)) for x in counts]).type(
         torch.cuda.FloatTensor if (cuda and torch.cuda.is_available()) else torch.FloatTensor)
-    criterion = nn.CrossEntropyLoss(weight=weights)
-    lr = 1e-3
+    criterion = nn.MSELoss() if continuous else nn.CrossEntropyLoss(weight=weights)
+    
+    # Setup model optimizer
+    lr = 3e-4
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     scheduler = ReduceLROnPlateau(optimizer, mode='min', patience=3, threshold=1e-4, verbose=True)
 
@@ -129,6 +125,12 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidde
         epochs, batch_size, info['nWeeks'], hidden_size, lead_time, info['rmYears'], info['init'])
     out_name_err = 'epochs-{}_batch-{}_nMonths-{}_hiddenSize-{}_leadTime-{}_remove-{}_init-{}_fType-err.p'.format(
         epochs, batch_size, info['nWeeks'], hidden_size, lead_time, info['rmYears'], info['init'])
+    
+
+    if continuous: 
+        dt = torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor
+    else:
+        dt = torch.cuda.LongTensor if (torch.cuda.is_available() and cuda) else torch.LongTensor
 
     for epoch in range(epochs):
         total_loss = 0
@@ -163,10 +165,11 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidde
                 week_h, month_h = week_h.detach(), month_h.detach()
                 week_c, month_c = week_c.detach(), week_c.detach()
                 # Compute the loss and step the optimizer
-                loss = criterion(
-                    outputs.type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor),
-                    item['target'].type(torch.cuda.LongTensor if (torch.cuda.is_available() and cuda) else torch.LongTensor)
-                )
+                
+                target = item['target']/5 if continuous else item['target']
+
+                loss = criterion(outputs.type(dt), target.type(dt))
+
                 loss.backward()
                 optimizer.step()
 
@@ -201,10 +204,10 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidde
 
                 # Run model on test set
                 outputs, (week_h, week_c), (month_h, month_c) = model(week, mon, const, (week_h, week_c), (month_h, month_c))
-                loss = criterion(
-                    outputs.type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor),
-                    item['target'].type(torch.cuda.LongTensor if (torch.cuda.is_available() and cuda) else torch.LongTensor)
-                )
+
+                target = item['target']/5 if continuous else item['target']
+
+                loss = criterion(outputs.type(dt), target.type(dt))
 
                 if i % 500 == 0:
                     print('Epoch: {}, Test Loss: {}'.format(epoch, loss.item()))

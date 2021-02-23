@@ -30,7 +30,7 @@ def make_lstm_pixel_ts(target_dir, in_features, lead_time, size, n_weeks, out_di
             weeklys, monthlys, consts = agg.premake_features()
             target = np.memmap(target, 'int8', 'c')
             target = target[indices]
-
+            
             weeklys_out.append(weeklys)
             monthlys_out.append(monthlys)
             consts_out.append(consts)

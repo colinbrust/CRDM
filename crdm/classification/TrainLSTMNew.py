@@ -65,8 +65,8 @@ class LSTM(nn.Module):
                 torch.zeros(1, self.batch_size, self.hidden_size, device=self.device))
 
     def forward(self, weekly_seq, monthly_seq, constants, prev_week_state, prev_month_state):
-        # Run the LSTM forward
 
+        # Run the LSTM forward
         week_out, week_state = self.weekly_lstm(weekly_seq, prev_week_state)
         month_out, month_state = self.monthly_lstm(monthly_seq, prev_month_state)
 
@@ -167,6 +167,7 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidde
                 # Compute the loss and step the optimizer
                 
                 target = item['target']/5 if continuous else item['target']
+                outputs = outputs.squeeze()
 
                 loss = criterion(outputs.type(dt), target.type(dt))
 
@@ -206,6 +207,7 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidde
                 outputs, (week_h, week_c), (month_h, month_c) = model(week, mon, const, (week_h, week_c), (month_h, month_c))
 
                 target = item['target']/5 if continuous else item['target']
+                outputs = outputs.squeeze()
 
                 loss = criterion(outputs.type(dt), target.type(dt))
 

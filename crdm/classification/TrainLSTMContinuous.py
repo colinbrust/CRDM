@@ -57,19 +57,7 @@ class LSTM(nn.Module):
             nn.BatchNorm1d(16),
             nn.ReLU(),
             nn.Dropout(0.25),
-            nn.Linear(16, 8),
-            nn.BatchNorm1d(8),
-            nn.ReLU(),
-            nn.Dropout(0.25),
-            nn.Linear(8, 4),
-            nn.BatchNorm1d(4),
-            nn.ReLU(),
-            nn.Dropout(0.25),
-            nn.Linear(4, 2),
-            nn.BatchNorm1d(2),
-            nn.ReLU(),
-            nn.Dropout(0.25),
-            nn.Linear(2, output_size),
+            nn.Linear(16, output_size),
             nn.ReLU()
         )
 
@@ -121,7 +109,7 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidde
 
     # Provide relative frequency weights to use in loss function.
     criterion = nn.MSELoss()
-    lr = 1e-3
+    lr = 3e-4
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     scheduler = ReduceLROnPlateau(optimizer, mode='min', patience=3, threshold=1e-4, verbose=True)
 
@@ -132,6 +120,8 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidde
         epochs, batch_size, info['nWeeks'], hidden_size, lead_time, info['rmYears'], info['init'])
     out_name_err = 'epochs-{}_batch-{}_nMonths-{}_hiddenSize-{}_leadTime-{}_remove-{}_init-{}_fType-err.p'.format(
         epochs, batch_size, info['nWeeks'], hidden_size, lead_time, info['rmYears'], info['init'])
+
+    dt = torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor
 
     for epoch in range(epochs):
         total_loss = 0
@@ -167,16 +157,17 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidde
 
                 week_h, month_h = week_h.detach(), month_h.detach()
                 week_c, month_c = week_c.detach(), week_c.detach()
+                
                 # Compute the loss and step the optimizer
+                target = item['target']/5 
+                outputs = outputs.squeeze()
 
-                loss = criterion(
-                    outputs.type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor),
-                    (item['target']/5).type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor)
-                )
+                loss = criterion(outputs.type(dt), target.type(dt))
+
                 loss.backward()
                 optimizer.step()
 
-                if i % 500 == 0:
+                if i % 250 == 0:
                     print('Epoch: {}, Train Loss: {}'.format(epoch, loss.item()))
 
                 # Store loss info
@@ -207,12 +198,13 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidde
 
                 # Run model on test set
                 outputs, (week_h, week_c), (month_h, month_c) = model(week, mon, const, (week_h, week_c), (month_h, month_c))
-                loss = criterion(
-                    outputs.type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor),
-                    item['target'].type(torch.cuda.LongTensor if (torch.cuda.is_available() and cuda) else torch.LongTensor)
-                )
 
-                if i % 500 == 0:
+                target = item['target']/5 
+                outputs = outputs.squeeze()
+
+                loss = criterion(outputs.type(dt), target.type(dt))
+                    
+                if i % 250 == 0:
                     print('Epoch: {}, Test Loss: {}'.format(epoch, loss.item()))
 
                 # Save loss info

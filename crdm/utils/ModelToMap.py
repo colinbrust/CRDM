@@ -4,7 +4,7 @@ import os
 import glob
 import matplotlib.pyplot as plt
 import numpy as np
-from crdm.classification.TrainLSTMNew import LSTM
+from crdm.classification.TrainLSTMContinuous import LSTM
 from crdm.loaders.AggregateAllPixels import AggregateAllPixles
 from crdm.utils.ImportantVars import DIMS, LENGTH, MONTHLY_VARS, WEEKLY_VARS
 from crdm.utils.ParseFileNames import parse_fname
@@ -20,7 +20,7 @@ def make_model(mod_f, init, cuda, continuous):
     # make model from hyperparams and load trained parameters.
     model = LSTM(weekly_size=weekly_size, monthly_size=len(MONTHLY_VARS),
                  hidden_size=int(info['hiddenSize']), output_size=out_size,
-                 batch_size=int(info['batch']), const_size=const_size, cuda=cuda, num_layers=int(info['numLayers']))
+                 batch_size=int(info['batch']), const_size=const_size, cuda=cuda)
 
     model.load_state_dict(torch.load(mod_f)) if cuda and torch.cuda.is_available() else model.load_state_dict(
         torch.load(mod_f, map_location=torch.device('cpu')))
@@ -34,8 +34,10 @@ def make_model(mod_f, init, cuda, continuous):
 def get_pred_true_arrays(model, mod_f, target, in_features, init, cuda, continuous):
     # Get hyperparameters from filename
     info = parse_fname(mod_f)
-    stateful, batch, nWeeks = bool(info['stateful']), int(info['batch']), int(info['nWeeks'])
-    data = AggregateAllPixles(targets=target, in_features=in_features, n_weeks=nWeeks, init=init)
+    batch, nWeeks = int(info['batch']), int(info['nMonths'])
+    data = AggregateAllPixles(target=target[0], lead_time=2,  in_features=in_features, n_weeks=nWeeks, init=init)
+    
+    stateful = False
 
     weeklys, monthlys, constants = data.premake_features()
 
@@ -75,11 +77,11 @@ def get_pred_true_arrays(model, mod_f, target, in_features, init, cuda, continuo
             week_h, month_h = week_h.detach(), month_h.detach()
             week_c, month_c = week_c.detach(), month_c.detach()
 
+
         if continuous:
-            preds = [x.cpu().detach().numpy() if cuda else x.detach().numpy() for x in preds]
+            preds = preds.cpu().detach().numpy()
         else:
-            preds = [np.argmax(x.cpu().detach().numpy(), axis=1) if cuda else np.argmax(x.detach().numpy(), axis=1) for
-                     x in preds]
+            preds = np.argmax(preds.cpu().detach().numpy(), axis=1)
 
         all_preds.append(preds)
 
@@ -101,17 +103,17 @@ def get_pred_true_arrays(model, mod_f, target, in_features, init, cuda, continuo
     )
 
     if continuous:
-        preds = [x.cpu().detach().numpy() if cuda else x.detach().numpy() for x in preds]
+        preds = preds.cpu().detach().numpy()
     else:
-        preds = [np.argmax(x.cpu().detach().numpy(), axis=1) if cuda else np.argmax(x.detach().numpy(), axis=1) for x in
-                 preds]
+        preds = np.argmax(preds.cpu().detach().numpy(), axis=1)
+            
 
     fill = LENGTH - (len(all_preds) * batch)
-    fill = [x[-fill:] for x in preds]
+    fill = preds[-fill:]
 
     all_preds.append(fill)
 
-    out = np.concatenate([*all_preds], axis=1)
+    out = np.concatenate([*all_preds])
     out = out.astype('float32') if continuous else out.astype('int8')
 
     return out
@@ -126,13 +128,13 @@ def save_arrays(out_dir, out, target, continuous):
         driver='GTiff',
         height=DIMS[0],
         width=DIMS[1],
-        count=4,
+        count=1,
         dtype=dt,
         transform=rio.Affine(9000.0, 0.0, -12048530.45, 0.0, -9000.0, 5568540.83),
         crs='+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs'
     )
 
-    [out_dst.write(x.reshape(DIMS), i) for i, x in enumerate(out, 1)]
+    out_dst.write(np.expand_dims(out.reshape(DIMS), axis=0))
     out_dst.close()
 
 
@@ -153,6 +155,7 @@ def save_all_preds(target_dir, in_features, mod_f, out_dir, remove, init, cuda, 
 
     for f in targets:
         try:
+            print(f)
             out = get_pred_true_arrays(model, mod_f, f, in_features, init, cuda, continuous)
             save_arrays(out_dir, out, f, continuous)
         except AssertionError as e:

@@ -32,9 +32,11 @@ class LSTM(nn.Module):
             nn.Linear(2*hidden_size + const_size, 1024),
             nn.BatchNorm1d(1024),
             nn.ReLU(),
+            nn.Dropout(0.25),
             nn.Linear(1024, 512),
             nn.BatchNorm1d(512),
             nn.ReLU(),
+            nn.Dropout(0.25),
             nn.Linear(512, 256),
             nn.BatchNorm1d(256),
             nn.ReLU(),
@@ -59,7 +61,15 @@ class LSTM(nn.Module):
             nn.BatchNorm1d(8),
             nn.ReLU(),
             nn.Dropout(0.25),
-            nn.Linear(8, output_size),
+            nn.Linear(8, 4),
+            nn.BatchNorm1d(4),
+            nn.ReLU(),
+            nn.Dropout(0.25),
+            nn.Linear(4, 2),
+            nn.BatchNorm1d(2),
+            nn.ReLU(),
+            nn.Dropout(0.25),
+            nn.Linear(2, output_size),
             nn.ReLU()
         )
 
@@ -69,8 +79,8 @@ class LSTM(nn.Module):
                 torch.zeros(1, self.batch_size, self.hidden_size, device=self.device))
 
     def forward(self, weekly_seq, monthly_seq, constants, prev_week_state, prev_month_state):
-        # Run the LSTM forward
 
+        # Run the LSTM forward
         week_out, week_state = self.weekly_lstm(weekly_seq, prev_week_state)
         month_out, month_state = self.monthly_lstm(monthly_seq, prev_month_state)
 
@@ -80,14 +90,7 @@ class LSTM(nn.Module):
 
 
 def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=64, cuda=False, init=True):
-    # const_f ='/mnt/e/PycharmProjects/CRDM/data/premade/featType-constant_trainingType-pixelPremade_nWeeks-25_leadTime-6_size-20000_rmFeatures-True.dat'
-    # mon_f = '/mnt/e/PycharmProjects/CRDM/data/premade/featType-monthly_trainingType-pixelPremade_nWeeks-25_leadTime-6_size-20000_rmFeatures-True.dat'
-    # target_f = '/mnt/e/PycharmProjects/CRDM/data/premade/featType-target_trainingType-pixelPremade_nWeeks-25_leadTime-6_size-20000_rmFeatures-True.dat'
-    # week_f = '/mnt/e/PycharmProjects/CRDM/data/premade/featType-weekly_trainingType-pixelPremade_nWeeks-25_leadTime-6_size-20000_rmFeatures-True.dat'
-    #
-    # epochs = 10
-    # batch_size = 512
-    # hidden_size = 512
+
     device = 'cuda:0' if torch.cuda.is_available() and cuda else 'cpu'
     info = parse_fname(const_f)
     lead_time = info['leadTime']
@@ -280,3 +283,4 @@ if __name__ == '__main__':
                        epochs=args.epochs, batch_size=args.batch_size, hidden_size=args.hidden_size, cuda=args.cuda, init=init)
         except AssertionError as e:
             print('-bs and -hs flags must be used when you are not using the search option.')
+

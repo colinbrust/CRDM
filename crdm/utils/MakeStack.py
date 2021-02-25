@@ -21,6 +21,7 @@ def make_temporal_stack(data_dir, out_dir, variable):
         var_list = ['lc']
 
     var_list = ['_' + x + '.dat' for x in var_list]
+    var_list = sorted(var_list)
 
     dates = sorted(get_valid_dates(data_dir, variable))
     files = [x.as_posix() for x in Path(data_dir).glob('*.dat')]
@@ -46,6 +47,7 @@ def make_temporal_stack(data_dir, out_dir, variable):
 
     out_arr = np.array(arr_stack)
     out_dict = {'dates': dates,
+                'variables': var_list,
                 'shp': out_arr.shape}
 
     with open(os.path.join(out_dir, variable+'_info.dat'), 'wb') as pick:

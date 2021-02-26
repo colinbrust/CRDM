@@ -1,6 +1,6 @@
 import argparse
 from crdm.utils.GetValidDates import get_valid_dates
-from crdm.utils.ImportantVars import MONTHLY_VARS, WEEKLY_VARS, DIMS, LENGTH
+from crdm.utils.ImportantVars import MONTHLY_VARS, WEEKLY_VARS, LENGTH
 import numpy as np
 import os
 from pathlib import Path

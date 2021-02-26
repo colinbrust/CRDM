@@ -5,18 +5,21 @@ import numpy as np
 import os
 import pickle
 import torch
+from torch.utils.data import Dataset
 
 
-class DataStack(object):
+class DataStack(Dataset):
 
-    def __init__(self, data_dir, n_weeks=20, train=True, lead_time=None, cuda=True):
+    def __init__(self, data_dir, n_weeks=20, train=True, lead_time=9999, cuda=True, num_samples=10000):
 
         assert train in ['train', 'test', 'all'], "Argument 'train' must be one of 'train', 'test', or 'all'."
         self.data_dir = data_dir
         self.n_weeks = n_weeks
+        self.n_months = n_weeks // 4
         self.train = train
         self.lead_time = lead_time
         self.cuda = cuda
+        self.num_samples = num_samples
 
         self.weekly, self.weekly_info = self.read('weekly')
         self.monthly, self.monthly_info = self.read('monthly')
@@ -82,7 +85,7 @@ class DataStack(object):
 
             lead_time = ((i % 4) + 1) * 2
 
-            if self.lead_time is not None and lead_time != self.lead_time:
+            if self.lead_time != 9999 and lead_time != self.lead_time:
                 continue
 
             target_date = self.add_date_string([target_date], False, False)[0]
@@ -93,6 +96,7 @@ class DataStack(object):
                 weekly_idx = [self.weekly_dates.index(x) for x in weekly_candidates]
 
                 monthly_candidates = sorted(list(set([x[:6] + '01' for x in weekly_candidates])))
+                monthly_candidates = monthly_candidates[-self.n_months:]
                 monthly_idx = [self.monthly_dates.index(x) for x in monthly_candidates]
 
                 annual_candidates = list(set([x[:4] + '0101' for x in weekly_candidates]))[0]
@@ -127,26 +131,40 @@ class DataStack(object):
 
     def __getitem__(self, idx):
 
-        # TODO: Include preceeding drought information, better way to include more pixels when iterating through
-        # TODO: Speed test this bad boy.
-        indices = test.indices[idx]
-        index = np.random.randint(0, LENGTH, 1)
+        batch = len(idx)
+        idx = np.random.randint(0, len(self.indices), 1)
+        indices = self.indices[idx[0]]
+        samples = np.random.randint(0, LENGTH, batch)
 
-        weekly = np.take(test.weekly, indices=indices['weekly'], axis=0)
-        monthly = np.take(test.monthly, indices=indices['monthly'], axis=0)
-        annual = np.take(test.annual, indices=indices['annual'], axis=0)
-        target = np.take(test.target, indices=indices['target'], axis=0)
+        weekly = np.take(self.weekly, indices=indices['weekly'], axis=0)
+        weekly = np.take(weekly, indices=samples, axis=-1)
 
-        # TODO: Add annual to constants.
 
-        dt = torch.cuda.FloatTensor if self.cuda else torch.FloatTensor
+        monthly = np.take(self.monthly, indices=indices['monthly'], axis=0)
+        monthly = np.take(monthly, indices=samples, axis=-1)
+
+        target = np.take(self.target, indices=indices['target'], axis=0)
+        target = np.take(target, indices=samples, axis=-1).squeeze()
+
+        # Append annual data to constants
+        annual = np.take(self.annual, indices=indices['annual'], axis=0)
+        annual = np.take(annual, indices=samples, axis=-1)
+        annual = np.expand_dims(annual, axis=0)
+        const = np.take(self.constant, indices=samples, axis=-1)
+
+        const = np.concatenate((const, annual))
+        lead_time = indices['lead_time']/8
+        lead_time = np.ones_like(const[0]) * lead_time
+        const = np.vstack((const, lead_time))
+
+        dtype = torch.cuda.FloatTensor if self.cuda else torch.FloatTensor
 
         return {
-            'const': dt(self.constant[..., index].squeeze()),
-            'mon': dt(monthly[..., index].squeeze()),
-            'week': dt(weekly[..., index].squeeze()),
-            'target': dt(s)
+            'const': dtype(const).squeeze(),
+            'mon': dtype(monthly).squeeze(),
+            'week': dtype(weekly).squeeze(),
+            'target': dtype(target).squeeze()
         }
 
     def __len__(self):
-        return len(self.indices)
+        return self.num_samples

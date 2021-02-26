@@ -20,6 +20,8 @@ class LSTM(nn.Module):
         super().__init__()
 
         self.hidden_size = hidden_size
+
+        print(self.hidden_size)
         self.device = 'cuda:0' if torch.cuda.is_available() and cuda else 'cpu'
         self.batch_size = batch_size
         self.weekly_size = weekly_size
@@ -82,29 +84,30 @@ def train_lstm(data_dir, epochs=50, batch_size=64, hidden_size=64, cuda=False, i
     device = 'cuda:0' if torch.cuda.is_available() and cuda else 'cpu'
 
     # Make data loader
-    train_loader = DataStack(
-        data_dir=data_dir, n_weeks=n_weeks, train='train', cuda=cuda, lead_time=lead_time, num_samples=1000
+    train_stack = DataStack(
+        data_dir=data_dir, n_weeks=n_weeks, train='train', cuda=cuda, lead_time=lead_time, num_samples=batch_size*1000
     )
 
-    test_loader = DataStack(
-        data_dir=data_dir, n_weeks=n_weeks, train='test', cuda=cuda, lead_time=lead_time, num_samples=500
+    test_stack = DataStack(
+        data_dir=data_dir, n_weeks=n_weeks, train='test', cuda=cuda, lead_time=lead_time, num_samples=batch_size*500
     )
 
     # Split into training and test sets
     train_sampler = torch.utils.data.sampler.BatchSampler(
-        torch.utils.data.sampler.RandomSampler(train_loader),
+        torch.utils.data.sampler.RandomSampler(train_stack),
         batch_size=batch_size,
         drop_last=False)
 
     test_sampler = torch.utils.data.sampler.BatchSampler(
-        torch.utils.data.sampler.RandomSampler(test_loader),
+        torch.utils.data.sampler.RandomSampler(test_stack),
         batch_size=batch_size,
         drop_last=False)
 
-    train_loader = DataLoader(dataset=train_loader, sampler=train_sampler)
-    test_loader = DataLoader(dataset=test_loader, sampler=test_sampler)
+    train_loader = DataLoader(dataset=train_stack, sampler=train_sampler)
+    test_loader = DataLoader(dataset=test_stack, sampler=test_sampler)
 
-    const_size = test_loader[[0]]['const'].shape[0]
+    test = train_stack[[0]]
+    const_size = test_stack[[0]]['const'].shape[0]
 
     weekly_size = len(WEEKLY_VARS)
     # Define model, loss and optimizer.
@@ -148,14 +151,11 @@ def train_lstm(data_dir, epochs=50, batch_size=64, hidden_size=64, cuda=False, i
                 month_h, month_c = model.init_state()
 
                 # time, batch, features
-                mon = item['mon'].permute(1, 0, 2)
-                print(mon.shape)
+                mon = item['mon'].squeeze().permute(0, 2, 1)
                 # time, batch, features
-                week = item['week'].permute(1, 0, 2)
-                print(week.shape)
+                week = item['week'].squeeze().permute(0, 2, 1)
                 # batch, features
-                const = item['const'].permute(0, 1)
-                print(const.shape)
+                const = item['const'].squeeze().permute(1, 0)
 
                 # Zero out the optimizer's gradient buffer
                 optimizer.zero_grad()
@@ -164,17 +164,15 @@ def train_lstm(data_dir, epochs=50, batch_size=64, hidden_size=64, cuda=False, i
 
                 # Make prediction with model
                 outputs, (week_h, week_c), (month_h, month_c) = model(week, mon, const, (week_h, week_c), (month_h, month_c))
-                outputs = outputs.squeeze()
 
                 week_h, month_h = week_h.detach(), month_h.detach()
                 week_c, month_c = week_c.detach(), week_c.detach()
                 
                 # Compute the loss and step the optimizer
-                target = item['target']/5 
+                target = item['target'].squeeze()/5 
                 outputs = outputs.squeeze()
 
                 loss = criterion(outputs, target)
-
                 loss.backward()
                 optimizer.step()
 
@@ -199,14 +197,16 @@ def train_lstm(data_dir, epochs=50, batch_size=64, hidden_size=64, cuda=False, i
                 week_h, week_c = model.init_state()
                 month_h, month_c = model.init_state()
 
-                mon = item['mon'].permute(1, 0, 2)
-                week = item['week'].permute(1, 0, 2)
-                const = item['const'].permute(0, 1)
 
-                # Run model on test set
+                # time, batch, features
+                mon = item['mon'].squeeze().permute(0, 2, 1)
+                # time, batch, features
+                week = item['week'].squeeze().permute(0, 2, 1)
+                # batch, features
+                const = item['const'].squeeze().permute(1, 0)
                 outputs, (week_h, week_c), (month_h, month_c) = model(week, mon, const, (week_h, week_c), (month_h, month_c))
 
-                target = item['target']/5 
+                target = item['target'].squeeze()/5 
                 outputs = outputs.squeeze()
 
                 loss = criterion(outputs, target)
@@ -245,7 +245,7 @@ if __name__ == '__main__':
     parser.add_argument('-e', '--epochs', type=int, default=25, help='Number of epochs.')
     parser.add_argument('-bs', '--batch_size', type=int, help='Batch size to train model with.')
     parser.add_argument('-hs', '--hidden_size', type=int, help='LSTM hidden dimension size.')
-    parser.add_argument('-lt', '--lead_time', type=str, help='Lead time to use. Use 9999 to train model with all lead times.')
+    parser.add_argument('-lt', '--lead_time', type=int, help='Lead time to use. Use 9999 to train model with all lead times.')
     parser.add_argument('--cuda', dest='cuda', action='store_true',
                         help='Train model on GPU.')
     parser.add_argument('--no-cuda', dest='cuda', action='store_false',
@@ -258,5 +258,5 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    train_lstm(epochs=args.epochs, batch_size=args.batch_size, hidden_size=args.hidden_size, cuda=args.cuda, init=True,
+    train_lstm(data_dir=args.data_dir, epochs=args.epochs, batch_size=args.batch_size, hidden_size=args.hidden_size, cuda=args.cuda, init=True,
                lead_time=args.lead_time, n_weeks=25)

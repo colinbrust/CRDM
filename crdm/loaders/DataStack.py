@@ -40,11 +40,11 @@ class DataStack(Dataset):
             pass
 
         self.indices = self.build_indices()
-
+    
     def read(self, variable):
         dat = os.path.join(self.data_dir, variable+'.dat')
         info = os.path.join(self.data_dir, variable+'_info.dat')
-
+        
         with open(info, 'rb') as pick:
             info = pickle.load(pick)
 
@@ -79,7 +79,6 @@ class DataStack(Dataset):
         possible_dates = self.add_date_string(self.target_dates, False, True)
 
         for i in range(len(possible_dates)*4):
-
             target_date = self.target_dates[i // 4]
             target_idx = self.target_dates.index(target_date)
 
@@ -133,6 +132,7 @@ class DataStack(Dataset):
 
         batch = len(idx)
         idx = np.random.randint(0, len(self.indices), 1)
+        
         indices = self.indices[idx[0]]
         samples = np.random.randint(0, LENGTH, batch)
 

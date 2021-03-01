@@ -31,6 +31,7 @@ def make_lstm_pixel_ts(target_dir, in_features, lead_time, size, n_weeks, out_di
             target = np.memmap(target, 'int8', 'c')
             target = target[indices]
             
+            assert consts.shape == (20, 16384)
             weeklys_out.append(weeklys)
             monthlys_out.append(monthlys)
             consts_out.append(consts)

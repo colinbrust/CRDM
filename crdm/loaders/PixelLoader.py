@@ -12,7 +12,7 @@ class PixelLoader(Dataset):
         info = parse_fname(constant)
 
         const_shape = np.memmap(constant, dtype='float32', mode='r').size
-        num_consts = 9
+        num_consts = 20
         num_samples = int(const_shape/num_consts)
         nMonths = int(info['nWeeks'])//4
 

@@ -13,7 +13,7 @@ import rasterio as rio
 
 def make_model(mod_f, init, cuda, continuous):
     info = parse_fname(mod_f)
-    const_size = 9
+    const_size = 20
     out_size = 1 if continuous else 6
 
     weekly_size = len(WEEKLY_VARS) + 1 if init else len(WEEKLY_VARS)

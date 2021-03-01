@@ -252,15 +252,13 @@ if __name__ == '__main__':
     parser.add_argument('-e', '--epochs', type=int, default=25, help='Number of epochs.')
     parser.add_argument('-bs', '--batch_size', type=int, help='Batch size to train model with.')
     parser.add_argument('-hs', '--hidden_size', type=int, help='LSTM hidden dimension size.')
-    parser.add_argument('--search', dest='search', action='store_true',
-                        help='Perform gridsearch for hyperparameter selection.')
-    parser.add_argument('--no-search', dest='search', action='store_false',
-                        help='Do not perform gridsearch for hyperparameter selection.')
+    parser.add_argument('-mf', '--model_file', type=str, default=None, help='Location of pretrained model pickle.')
+    parser.add_argument('-rr', '--retrain_run', type=int, default=None, help='Number of times model has been retrained')
+
     parser.add_argument('--cuda', dest='cuda', action='store_true',
                         help='Train model on GPU.')
     parser.add_argument('--no-cuda', dest='cuda', action='store_false',
                         help='Train model on CPU. ')
-    parser.set_defaults(search=False)
     parser.set_defaults(cuda=False)
 
     args = parser.parse_args()
@@ -274,4 +272,5 @@ if __name__ == '__main__':
     target_f = os.path.join(os.path.dirname(args.pickle_f), pick['featType-target'])
 
     train_lstm(const_f=const_f, mon_f=mon_f, week_f=week_f, target_f=target_f,
-               epochs=args.epochs, batch_size=args.batch_size, hidden_size=args.hidden_size, cuda=args.cuda)
+               epochs=args.epochs, batch_size=args.batch_size, hidden_size=args.hidden_size,
+               cuda=args.cuda, mod_f=args.model_file, retrain_run=args.retrain_run)

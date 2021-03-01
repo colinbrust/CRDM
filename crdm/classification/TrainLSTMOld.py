@@ -76,13 +76,14 @@ class LSTM(nn.Module):
         return preds, week_state, month_state
 
 
-def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=64, cuda=False, init=True):
+def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=64, cuda=False, mod_f=None,
+               retrain_run=None):
     device = 'cuda:0' if torch.cuda.is_available() and cuda else 'cpu'
     info = parse_fname(const_f)
     lead_time = info['leadTime']
 
     # Make data loader
-    loader = PixelLoader(const_f, week_f, mon_f, target_f, info['init'])
+    loader = PixelLoader(const_f, week_f, mon_f, target_f, True)
 
     # Split into training and test sets
     train, test = train_test_split([x for x in range(len(loader))], test_size=0.25)
@@ -94,10 +95,19 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidde
 
     const_size = loader[0]['const'].shape[-1]
 
-    weekly_size = len(WEEKLY_VARS) + 1 if init else len(WEEKLY_VARS)
+    weekly_size = len(WEEKLY_VARS) + 1
     # Define model, loss and optimizer.
-    model = LSTM(weekly_size=weekly_size, monthly_size=len(MONTHLY_VARS), hidden_size=hidden_size, output_size=1,
-                 batch_size=batch_size, const_size=const_size, cuda=cuda)
+
+    if mod_f is not None:
+        model = LSTM(weekly_size=weekly_size, monthly_size=len(MONTHLY_VARS), hidden_size=hidden_size, output_size=1,
+                     batch_size=batch_size, const_size=const_size, cuda=cuda)
+
+        model.load_state_dict(torch.load(mod_f)) if cuda and torch.cuda.is_available() else model.load_state_dict(
+            torch.load(mod_f, map_location=torch.device('cpu')))
+
+    else:
+        model = LSTM(weekly_size=weekly_size, monthly_size=len(MONTHLY_VARS), hidden_size=hidden_size, output_size=1,
+                     batch_size=batch_size, const_size=const_size, cuda=cuda)
 
     model.to(device)
 
@@ -114,10 +124,14 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidde
     prev_best_loss = 1e6
     err_out = {}
 
-    out_name_mod = 'epochs-{}_batch-{}_nMonths-{}_hiddenSize-{}_leadTime-{}_remove-{}_init-{}_fType-model.p'.format(
-        epochs, batch_size, info['nWeeks'], hidden_size, lead_time, info['rmYears'], info['init'])
-    out_name_err = 'epochs-{}_batch-{}_nMonths-{}_hiddenSize-{}_leadTime-{}_remove-{}_init-{}_fType-err.p'.format(
-        epochs, batch_size, info['nWeeks'], hidden_size, lead_time, info['rmYears'], info['init'])
+    if mod_f is not None:
+        assert retrain_run is not None, 'If you are retraining the model, you must specify which number rerun this is ' \
+                                        'using the -rr flag. '
+
+    out_name_mod = 'epochs-{}_batch-{}_nMonths-{}_hiddenSize-{}_leadTime-{}_remove-{}_init-{}_rr-{}_fType-model.p'.format(
+        epochs, batch_size, info['nWeeks'], hidden_size, lead_time, info['rmYears'], info['init'], retrain_run)
+    out_name_err = 'epochs-{}_batch-{}_nMonths-{}_hiddenSize-{}_leadTime-{}_remove-{}_init-{}_rr-{}_fType-err.p'.format(
+        epochs, batch_size, info['nWeeks'], hidden_size, lead_time, info['rmYears'], info['init'], retrain_run)
 
     dt = torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor
 
@@ -233,7 +247,6 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidde
 
 
 if __name__ == '__main__':
-
     parser = argparse.ArgumentParser(description='Train Drought Prediction Model')
     parser.add_argument('-p', '--pickle_f', type=str, help='File of memmap of constants.')
     parser.add_argument('-e', '--epochs', type=int, default=25, help='Number of epochs.')
@@ -260,20 +273,5 @@ if __name__ == '__main__':
     const_f = os.path.join(os.path.dirname(args.pickle_f), pick['featType-constant'])
     target_f = os.path.join(os.path.dirname(args.pickle_f), pick['featType-target'])
 
-    info = parse_fname(week_f)
-    init = info['init']
-
-    if args.search:
-        for hidden in [32, 64, 128, 256, 512, 1024]:
-            for batch in [256, 512, 1024]:
-                train_lstm(const_f=const_f, mon_f=mon_f, week_f=week_f, target_f=target_f,
-                           epochs=args.epochs, batch_size=batch, hidden_size=hidden, cuda=args.cuda, init=init)
-
-    else:
-        try:
-            assert 'batch_size' in args and 'hidden_size' in args
-            train_lstm(const_f=const_f, mon_f=mon_f, week_f=week_f, target_f=target_f,
-                       epochs=args.epochs, batch_size=args.batch_size, hidden_size=args.hidden_size, cuda=args.cuda,
-                       init=init)
-        except AssertionError as e:
-            print('-bs and -hs flags must be used when you are not using the search option.')
+    train_lstm(const_f=const_f, mon_f=mon_f, week_f=week_f, target_f=target_f,
+               epochs=args.epochs, batch_size=args.batch_size, hidden_size=args.hidden_size, cuda=args.cuda)

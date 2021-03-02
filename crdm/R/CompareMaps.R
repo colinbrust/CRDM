@@ -86,7 +86,7 @@ df <- purrr::map2(
     
     x %$%
       purrr::map2(f_name, lead_time, raster_to_tibble) %>% 
-      dplyr::bind_rows()%>% 
+      dplyr::bind_rows() %>% 
       plot_single_day(day=day, states=states) 
   })
   
@@ -202,3 +202,8 @@ save_all <- function(f_dir='/mnt/e/PycharmProjects/CRDM/data/model_results/weekl
   parallel::mclapply(patterns, plot_single_date, f_list = f_list, out_dir = out_dir, 
          template = template, states = states, mc.cores = 10)
 }
+
+
+
+old_names = list.files('./data/in_features/weekly_mem', full.names = T, pattern = 'VOD') 
+new_names = stringr::str_replace(old_names, '_VOD.dat', '_vod.dat')

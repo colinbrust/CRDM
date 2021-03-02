@@ -77,7 +77,7 @@ class LSTM(nn.Module):
 
 
 def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=64, cuda=False, mod_f=None,
-               retrain_run=None):
+               retrain_run=0):
     device = 'cuda:0' if torch.cuda.is_available() and cuda else 'cpu'
     info = parse_fname(const_f)
     lead_time = info['leadTime']
@@ -125,8 +125,8 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidde
     err_out = {}
 
     if mod_f is not None:
-        assert retrain_run is not None, 'If you are retraining the model, you must specify which number rerun this is ' \
-                                        'using the -rr flag. '
+        assert retrain_run != 0, 'If you are retraining the model, you must specify which number rerun this is ' \
+                                  'using the -rr flag. '
 
     out_name_mod = 'epochs-{}_batch-{}_nMonths-{}_hiddenSize-{}_leadTime-{}_remove-{}_init-{}_rr-{}_fType-model.p'.format(
         epochs, batch_size, info['nWeeks'], hidden_size, lead_time, info['rmYears'], info['init'], retrain_run)
@@ -253,7 +253,7 @@ if __name__ == '__main__':
     parser.add_argument('-bs', '--batch_size', type=int, help='Batch size to train model with.')
     parser.add_argument('-hs', '--hidden_size', type=int, help='LSTM hidden dimension size.')
     parser.add_argument('-mf', '--model_file', type=str, default=None, help='Location of pretrained model pickle.')
-    parser.add_argument('-rr', '--retrain_run', type=int, default=None, help='Number of times model has been retrained')
+    parser.add_argument('-rr', '--retrain_run', type=int, default=0, help='Number of times model has been retrained')
 
     parser.add_argument('--cuda', dest='cuda', action='store_true',
                         help='Train model on GPU.')

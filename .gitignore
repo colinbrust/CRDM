@@ -26,3 +26,4 @@ var/
 *.egg
 *.DS_Store
 .Rproj.user/*
+.Rproj.user

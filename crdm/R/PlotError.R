@@ -23,18 +23,19 @@ read_file <- function(f) {
     dplyr::mutate(f = basename(f)) %>%
     tidyr::separate(
       f,
-      c('modelType', 'epochs', 'batch', 'nWeeks', 'hiddenSize', 
-        'leadTime', 'rmFeatures', 'fType'), 
+      c('epochs', 'batch', 'nWeeks', 'hiddenSize', 
+        'leadTime', 'rmFeatures', 'init', 'rerun', 'fType'), 
       sep='_'
     ) %>%
     dplyr::select(-dplyr::starts_with('drop')) %>%
     dplyr::mutate_at(
-      c('epochs', 'batch', 'nWeeks', 'hiddenSize', 'leadTime'),
+      c('epochs', 'batch', 'nWeeks', 'hiddenSize', 'leadTime', 'rerun'),
       strip_text
-    )
+    ) %>%
+    dplyr::mutate(rowid = rowid + (epochs * rerun))
 }
 
-plot_all <- function(f_dir='~/projects/CRDM/data/drought/model_results/') {
+plot_all <- function(f_dir='~/projects/DroughtCast/data/model_results/') {
   
   f_dir %>%
     list.files(full.names = T, pattern = 'err.p') %>%
@@ -44,10 +45,11 @@ plot_all <- function(f_dir='~/projects/CRDM/data/drought/model_results/') {
     dplyr::mutate(batch = factor(batch),
                   hiddenSize = factor(hiddenSize),
                   nWeeks = factor(nWeeks)) %>%
+    dplyr::filter(epochs != 20) %>% 
     ggplot(aes(x=rowid, y=value, color=set)) + 
      geom_line() +
-     facet_wrap(~hiddenSize) + 
-     labs(x='Epoch', y='Cross-Entropy Loss', color='# Month\nHistory') + 
+     facet_wrap(~leadTime) + 
+     labs(x='Epoch', y='MSE Loss', color='# Month\nHistory') + 
      plot_theme()
 }
 

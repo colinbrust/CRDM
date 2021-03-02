@@ -4,26 +4,28 @@ import os
 import glob
 import matplotlib.pyplot as plt
 import numpy as np
-from crdm.classification.TrainLSTMContinuous import LSTM
+from crdm.classification.TrainLSTMOld import LSTM
 from crdm.loaders.AggregateAllPixels import AggregateAllPixles
 from crdm.utils.ImportantVars import DIMS, LENGTH, MONTHLY_VARS, WEEKLY_VARS
 from crdm.utils.ParseFileNames import parse_fname
 import rasterio as rio
 
+CONST_SIZE = 20
+OUT_SIZE = 1
 
-def make_model(mod_f, init, cuda, continuous):
+def make_model(mod_f, cuda, bs):
     info = parse_fname(mod_f)
-    const_size = 20
-    out_size = 1 if continuous else 6
 
-    weekly_size = len(WEEKLY_VARS) + 1 if init else len(WEEKLY_VARS)
+    weekly_size = len(WEEKLY_VARS) + 1
+
     # make model from hyperparams and load trained parameters.
     model = LSTM(weekly_size=weekly_size, monthly_size=len(MONTHLY_VARS),
-                 hidden_size=int(info['hiddenSize']), output_size=out_size,
-                 batch_size=int(info['batch']), const_size=const_size, cuda=cuda)
+                 hidden_size=int(info['hiddenSize']), output_size=OUT_SIZE,
+                 batch_size=bs, const_size=CONST_SIZE, cuda=cuda)
 
     model.load_state_dict(torch.load(mod_f)) if cuda and torch.cuda.is_available() else model.load_state_dict(
         torch.load(mod_f, map_location=torch.device('cpu')))
+
     device = torch.device('cuda:0' if torch.cuda.is_available() else "cpu")
     model.to(device)
     model.eval()
@@ -106,7 +108,6 @@ def get_pred_true_arrays(model, mod_f, target, in_features, init, cuda, continuo
         preds = preds.cpu().detach().numpy()
     else:
         preds = np.argmax(preds.cpu().detach().numpy(), axis=1)
-            
 
     fill = LENGTH - (len(all_preds) * batch)
     fill = preds[-fill:]

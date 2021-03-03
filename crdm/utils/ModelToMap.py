@@ -140,7 +140,7 @@ def save_arrays(out_dir, out, target, continuous):
 
 
 def save_all_preds(target_dir, in_features, mod_f, out_dir, remove, init, cuda, continuous):
-    model = make_model(mod_f, init, cuda, continuous=continuous)
+    model = make_model(mod_f, cuda, 1024)
 
     targets_tmp = sorted(glob.glob(os.path.join(target_dir, '*.dat')))
     targets = []

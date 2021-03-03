@@ -16,7 +16,7 @@ class PixelLoader(Dataset):
         num_samples = int(const_shape/num_consts)
         nMonths = int(info['nWeeks'])//4
 
-        weekly_size = len(WEEKLY_VARS) + 1 if init == 'True' else len(WEEKLY_VARS)
+        weekly_size = len(WEEKLY_VARS) + 1 
 
         self.constant = np.memmap(constant, dtype='float32', mode='c', shape=(num_samples, num_consts))
 

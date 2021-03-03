@@ -34,7 +34,6 @@ def get_error(model, mod_f, target, in_features, cuda, var_type, idx):
     err_out = []
 
     for i in range(len(batch_indices) - 1):
-
         week_batch = weeklys[batch_indices[i]: batch_indices[i + 1]].swapaxes(0, 1)
         mon_batch = monthlys[batch_indices[i]: batch_indices[i + 1]].swapaxes(0, 1)
         const_batch = constants[batch_indices[i]: batch_indices[i + 1]]
@@ -46,13 +45,15 @@ def get_error(model, mod_f, target, in_features, cuda, var_type, idx):
             new = week_batch[..., idx]
             new[new != -1.5] = np.random.uniform(-1, 1, len(new[new != -1.5]))
             week_batch[..., idx] = new
+            week_batch = torch.cuda.FloatTensor(week_batch) if cuda else torch.FloatTensor(week_batch)
         elif var_type == 'monthly':
             new = mon_batch[..., idx]
             new[new != -1.5] = np.random.uniform(-1, 1, len(new[new != -1.5]))
             mon_batch[..., idx] = new
+            mon_batch = torch.cuda.FloatTensor(mon_batch) if cuda else torch.FloatTensor(mon_batch)
         else:
             pass
-
+        
         week_h, week_c = model.init_state()
         month_h, month_c = model.init_state()
 
@@ -66,8 +67,8 @@ def get_error(model, mod_f, target, in_features, cuda, var_type, idx):
             (week_h, week_c), (month_h, month_c)
         )
 
-        loss = criterion(preds, target_batch)
-        err_out.append(loss)
+        loss = criterion(preds.squeeze(), target_batch.squeeze())
+        err_out.append(loss.item())
 
     return err_out
 

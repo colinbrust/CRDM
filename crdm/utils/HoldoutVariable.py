@@ -26,21 +26,22 @@ def get_error(model, mod_f, target, in_features, cuda, var_type, idx):
     constants = constants.swapaxes(0, 1)
     monthlys = monthlys.swapaxes(2, 0)
     weeklys = weeklys.swapaxes(2, 0)
-    target = np.memmap(target, dtype='int8')/5
+    # target = np.memmap(target, dtype='int8')/5
 
     batch_indices = [x for x in range(0, LENGTH, batch)]
 
-    criterion = nn.MSELoss()
-    err_out = []
+    # criterion = nn.MSELoss()
+    # err_out = []
 
     for i in range(len(batch_indices) - 1):
         week_batch = weeklys[batch_indices[i]: batch_indices[i + 1]].swapaxes(0, 1)
         mon_batch = monthlys[batch_indices[i]: batch_indices[i + 1]].swapaxes(0, 1)
         const_batch = constants[batch_indices[i]: batch_indices[i + 1]]
-        target_batch = target[batch_indices[i]: batch_indices[i + 1]]
-        target_batch = torch.cuda.FloatTensor(target_batch) if cuda else torch.FloatTensor(target_batch)
+        # target_batch = target[batch_indices[i]: batch_indices[i + 1]]
+        # target_batch = torch.cuda.FloatTensor(target_batch) if cuda else torch.FloatTensor(target_batch)
 
         # Replace non-NA values with a random value ranging from -1 to 1.
+        '''
         if var_type == 'weekly':
             new = week_batch[..., idx]
             new[new != -1.5] = np.random.uniform(-1, 1, len(new[new != -1.5]))
@@ -53,7 +54,7 @@ def get_error(model, mod_f, target, in_features, cuda, var_type, idx):
             mon_batch = torch.cuda.FloatTensor(mon_batch) if cuda else torch.FloatTensor(mon_batch)
         else:
             pass
-        
+        '''
         week_h, week_c = model.init_state()
         month_h, month_c = model.init_state()
 
@@ -66,16 +67,18 @@ def get_error(model, mod_f, target, in_features, cuda, var_type, idx):
                 torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor),
             (week_h, week_c), (month_h, month_c)
         )
+        
+        preds = preds.cpu().detach().numpy()   
+        # loss = criterion(preds.squeeze(), target_batch.squeeze())
+        # loss = 0
+        # err_out.append(loss)
 
-        loss = criterion(preds.squeeze(), target_batch.squeeze())
-        err_out.append(loss.item())
-
-    return err_out
+    return preds
 
 
 def get_all_error(target_dir, in_features, mod_f, out_dir, cuda, bs):
     model = make_model(mod_f, cuda, bs)
-
+    print(model.device)
     targets_tmp = sorted(glob.glob(os.path.join(target_dir, '*.dat')))
     targets = [x for x in targets_tmp if '/2015' in x or '/2017' in x]
     weeklys = WEEKLY_VARS + ['USDM']

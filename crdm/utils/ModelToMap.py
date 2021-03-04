@@ -33,11 +33,11 @@ def make_model(mod_f, cuda, bs):
     return model
 
 
-def get_pred_true_arrays(model, mod_f, target, in_features, init, cuda, continuous):
+def get_pred_true_arrays(model, mod_f, target, in_features, init, cuda, continuous, lead_time):
     # Get hyperparameters from filename
     info = parse_fname(mod_f)
     batch, nWeeks = int(info['batch']), int(info['nMonths'])
-    data = AggregateAllPixles(target=target[0], lead_time=2,  in_features=in_features, n_weeks=nWeeks, init=init)
+    data = AggregateAllPixles(target=target[0], lead_time=lead_time,  in_features=in_features, n_weeks=nWeeks, init=init)
     
     stateful = False
 
@@ -139,7 +139,7 @@ def save_arrays(out_dir, out, target, continuous):
     out_dst.close()
 
 
-def save_all_preds(target_dir, in_features, mod_f, out_dir, remove, init, cuda, continuous):
+def save_all_preds(target_dir, in_features, mod_f, out_dir, remove, init, cuda, continuous, lead_time):
     model = make_model(mod_f, cuda, 1024)
 
     targets_tmp = sorted(glob.glob(os.path.join(target_dir, '*.dat')))
@@ -157,7 +157,7 @@ def save_all_preds(target_dir, in_features, mod_f, out_dir, remove, init, cuda, 
     for f in targets:
         try:
             print(f)
-            out = get_pred_true_arrays(model, mod_f, f, in_features, init, cuda, continuous)
+            out = get_pred_true_arrays(model, mod_f, f, in_features, init, cuda, continuous, lead_time)
             save_arrays(out_dir, out, f, continuous)
         except AssertionError as e:
             print(e, '\nSkipping this target')
@@ -170,24 +170,10 @@ if __name__ == '__main__':
     parser.add_argument('-td', '--target_dir', type=str, help='Directory containing memmaps of all target images.')
     parser.add_argument('-if', '--in_features', type=str, help='Directory contining all memmap input features.')
     parser.add_argument('-od', '--out_dir', type=str, help='Directory to write np arrays out to.')
-    parser.add_argument('--rm', dest='remove', action='store_true',
-                        help='Run model for only 2015 and 2017 (test years not used for training).')
-    parser.add_argument('--no-rm', dest='remove', action='store_false', help='Run model for all years.')
-    parser.set_defaults(remove=False)
-
-    parser.add_argument('--init', dest='init', action='store_true',
-                        help='Use initial drought condition as model input.')
-    parser.add_argument('--no-init', dest='init', action='store_false',
-                        help='Do not use initial drought condition as model input..')
-    parser.set_defaults(init=False)
-
-    parser.add_argument('--cont', dest='cont', action='store_true', help='Use model that predicts continuous drought.')
-    parser.add_argument('--no-cont', dest='cont', action='store_false',
-                        help='Use model that predicts categorical drought.')
-    parser.set_defaults(cont=False)
+    parser.add_argument('-lt', '--lead_time', type=int, help='Lead time in weeks.')
 
     cuda = True if torch.cuda.is_available() else False
     args = parser.parse_args()
 
     save_all_preds(mod_f=args.model_file, target_dir=args.target_dir, in_features=args.in_features,
-                   out_dir=args.out_dir, remove=args.remove, init=args.init, cuda=cuda, continuous=args.cont)
+                   out_dir=args.out_dir, remove=True, init=True, cuda=cuda, continuous=True, lead_time=args.lead_time)

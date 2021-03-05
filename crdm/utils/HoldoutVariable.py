@@ -133,7 +133,7 @@ def save_arrays(out_dir, out, target, continuous, var):
     dt = 'float32' if continuous else 'int8'
 
     out_dst = rio.open(
-        os.path.join(out_dir, os.path.basename(target).replace('_USDM.dat', var)+'.tif'),
+        os.path.join(out_dir, os.path.basename(target).replace('_USDM.dat', '_') + var + '.tif'),
         'w',
         driver='GTiff',
         height=DIMS[0],

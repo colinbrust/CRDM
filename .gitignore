@@ -27,3 +27,4 @@ var/
 *.DS_Store
 .Rproj.user/*
 .Rproj.user
+/scratch/

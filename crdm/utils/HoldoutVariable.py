@@ -16,7 +16,7 @@ OUT_SIZE = 1
 def make_model(mod_f, cuda, bs):
     info = parse_fname(mod_f)
 
-    weekly_size = len(WEEKLY_VARS) + 1
+    weekly_size = len(WEEKLY_VARS) + 4
 
     # make model from hyperparams and load trained parameters.
     model = LSTM(weekly_size=weekly_size, monthly_size=len(MONTHLY_VARS),

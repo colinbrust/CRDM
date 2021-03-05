@@ -49,18 +49,20 @@ class PremakeTrainingPixels(Aggregate):
         constants = np.array(constants)
         constants = np.take(constants, indices, axis=1)
 
-        # Add day of year for target image.
         target_doy = self.target_date.timetuple().tm_yday
-        target_doy = target_doy * 0.001
+        target_doy = (target_doy - 1) / (366 - 1)
+        target_doy_week = np.ones_like(weeklys[0]) * target_doy
         target_doy = np.ones_like(constants[0]) * target_doy
 
         # Add day of year for image guess date.
         guess_doy = self.guess_date.timetuple().tm_yday
-        guess_doy = guess_doy * 0.001
+        guess_doy = (guess_doy - 1) / (366 - 1)
+        guess_doy_week = np.ones_like(weeklys[0]) * guess_doy
         guess_doy = np.ones_like(constants[0]) * guess_doy
 
         day_diff = self._get_day_diff()
-        day_diff = day_diff * 0.001
+        day_diff = (day_diff - 7) / (84 - 7)
+        day_diff_week = np.ones_like(weeklys[0]) * day_diff
         day_diff = np.ones_like(constants[0]) * day_diff
 
         constants = np.concatenate((constants, target_doy[np.newaxis]))
@@ -85,6 +87,10 @@ class PremakeTrainingPixels(Aggregate):
             # Scale between -1 and 1
             drought = 2 * drought / 5 - 1
             weeklys = np.concatenate((weeklys, drought[np.newaxis]))
-        
+
+        weeklys = np.vstack((weeklys, target_doy_week[np.newaxis]))
+        weeklys = np.vstack((weeklys, guess_doy_week[np.newaxis]))
+        weeklys = np.vstack((weeklys, day_diff_week[np.newaxis]))
+
         return weeklys, monthlys, constants
 

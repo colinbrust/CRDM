@@ -7,7 +7,7 @@ import os
 import pickle
 
 
-def make_lstm_pixel_ts(target_dir, in_features, lead_time, size, n_weeks, out_dir, rm_years=False, init=True):
+def make_lstm_pixel_ts(target_dir, in_features, size, n_weeks, out_dir, rm_years=False, init=True):
 
     targets = glob.glob(os.path.join(target_dir, '*.dat'))
     targets = [x for x in targets if not ('/2015' in x or '/2017' in x)] if rm_years else targets
@@ -22,20 +22,23 @@ def make_lstm_pixel_ts(target_dir, in_features, lead_time, size, n_weeks, out_di
         try:
             # For each image, get new random indices so we don't overfit to certain locations
             indices = np.random.choice(LENGTH, size=size, replace=False)
-            agg = PremakeTrainingPixels(target=target, in_features=in_features, lead_time=lead_time, n_weeks=n_weeks,
-                                        indices=indices, memmap=True, init=init)
-            print(target)
 
-            # Make monthly, constant, and target arrays
-            weeklys, monthlys, consts = agg.premake_features()
-            target = np.memmap(target, 'int8', 'c')
-            target = target[indices]
-            
-            assert consts.shape == (20, 16384)
-            weeklys_out.append(weeklys)
-            monthlys_out.append(monthlys)
-            consts_out.append(consts)
-            targets_out.append(target)
+            for lead_time in [2, 4, 6, 8]:
+
+                agg = PremakeTrainingPixels(target=target, in_features=in_features, lead_time=lead_time, n_weeks=n_weeks,
+                                            indices=indices, memmap=True, init=init)
+                print(lead_time, target)
+
+                # Make monthly, constant, and target arrays
+                weeklys, monthlys, consts = agg.premake_features()
+                target = np.memmap(target, 'int8', 'c')
+                target = target[indices]
+
+                assert consts.shape == (20, 16384)
+                weeklys_out.append(weeklys)
+                monthlys_out.append(monthlys)
+                consts_out.append(consts)
+                targets_out.append(target)
 
         except AssertionError as e:
             print('{}\n Skipping {}'.format(e, target))

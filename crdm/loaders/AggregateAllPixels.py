@@ -73,4 +73,8 @@ class AggregateAllPixles(Aggregate):
             drought = 2 * drought / 5 - 1
             weeklys = np.concatenate((weeklys, drought[np.newaxis]))
 
+        weeklys = np.vstack((weeklys, target_doy_week[np.newaxis]))
+        weeklys = np.vstack((weeklys, guess_doy_week[np.newaxis]))
+        weeklys = np.vstack((weeklys, day_diff_week[np.newaxis]))
+
         return weeklys, monthlys, constants

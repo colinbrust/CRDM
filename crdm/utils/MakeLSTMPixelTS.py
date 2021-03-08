@@ -31,14 +31,14 @@ def make_lstm_pixel_ts(target_dir, in_features, size, n_weeks, out_dir, rm_years
 
                 # Make monthly, constant, and target arrays
                 weeklys, monthlys, consts = agg.premake_features()
-                target = np.memmap(target, 'int8', 'c')
-                target = target[indices]
+                target_arr = np.memmap(target, 'int8', 'c')
+                target_arr = target_arr[indices]
 
-                assert consts.shape == (20, 16384)
+                assert consts.shape == (20, size)
                 weeklys_out.append(weeklys)
                 monthlys_out.append(monthlys)
                 consts_out.append(consts)
-                targets_out.append(target)
+                targets_out.append(target_arr)
 
         except AssertionError as e:
             print('{}\n Skipping {}'.format(e, target))

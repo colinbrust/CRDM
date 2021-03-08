@@ -7,7 +7,7 @@ import pathlib
 from typing import List, Tuple
 
 
-class Aggregate(ABC):
+class AggregateSpatial(ABC):
     """
     Class for aggregating all images necessary to make predictions for a given USDM image.
     """
@@ -34,7 +34,6 @@ class Aggregate(ABC):
         self.weekly_dates, self.monthly_dates = self._get_date_list()
         self.annuals = self._get_annuals()
         self.weeklys = self._get_weeklys()
-        self.monthlys = self._get_monthlys()
         self.constants = self._get_constants()
         self.initial_drought = self._get_init_drought_status()
 
@@ -90,37 +89,32 @@ class Aggregate(ABC):
 
         return int(7 * self.lead_time)
 
-    def _get_monthlys(self) -> List[str]:
-        """
-        Get a list of monthly image paths to use to predict a given target. 
-        """
-        match = 'monthly_mem' if self.memmap else 'monthly'
-        suffix = '.dat' if self.memmap else '.tif'
-
-        p = os.path.join(self.in_features, match)
-        out = []
-        for x in self.monthly_dates:
-            x = [img for img in pathlib.Path(p).glob(x + '_*' + suffix)]
-            [out.append(str(y)) for y in x]
-
-        assert_complete(self.monthly_dates, out, weekly=False)
-        return sorted(out)
-
     def _get_weeklys(self) -> List[str]:
         """
         Get a list of weekly image paths to use to predict a given target.
         """
-        match = 'weekly_mem' if self.memmap else 'weekly'
+        week_match = 'weekly_mem' if self.memmap else 'weekly'
+        mon_match = 'monthly_mem' if self.memmap else 'monthly'
         suffix = '.dat' if self.memmap else '.tif'
 
-        p = os.path.join(self.in_features, match)
-        out = []
-        for x in self.weekly_dates:
-            x = [img for img in pathlib.Path(p).glob(x + '_*' + suffix)]
-            [out.append(str(y)) for y in x]
+        p_week = os.path.join(self.in_features, week_match)
+        p_mon = os.path.join(self.in_features, mon_match)
+        week_out = []
+        mon_out = []
 
-        assert_complete(self.weekly_dates, out, weekly=True)
-        return sorted(out)
+        for d in self.weekly_dates:
+
+            mon_date = d[:-2] + '01'
+            week_tmp = [img for img in pathlib.Path(p_week).glob(d + '_*' + suffix)]
+            mon_tmp = [img for img in pathlib.Path(p_mon).glob(mon_date + '_*' + suffix)]
+
+            [week_out.append(str(y)) for y in week_tmp]
+            [mon_out.append(str(y)) for y in mon_tmp]
+
+        assert_complete(self.monthly_dates, mon_out, weekly=False)
+        assert_complete(self.weekly_dates, week_out, weekly=True)
+
+        return sorted(week_out) + sorted(mon_out)
 
     def _get_annuals(self) -> List[str]:
         """

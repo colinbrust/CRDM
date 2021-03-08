@@ -35,7 +35,7 @@ read_file <- function(f) {
     dplyr::mutate(rowid = rowid + (epochs * rerun))
 }
 
-plot_all <- function(f_dir='~/projects/DroughtCast/data/model_results/') {
+plot_all <- function(f_dir='~/projects/DroughtCast/data/model_results/lt_all/') {
   
   f_dir %>%
     list.files(full.names = T, pattern = 'err.p') %>%

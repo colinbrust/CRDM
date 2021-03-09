@@ -6,10 +6,8 @@ Paper authors: Xingjian Shi, Zhourong Chen, Hao Wang, Dit-Yan Yeung, Wai-kin Won
 Paper: https://arxiv.org/pdf/1506.04214.pdf
 """
 
-import torch.nn as nn
+from torch import nn
 import torch
-from torch.functional import F
-from torch.autograd import Variable
 
 
 class ConvLSTMCell(nn.Module):
@@ -123,6 +121,27 @@ class ConvLSTM(nn.Module):
 
         self.cell_list = nn.ModuleList(cell_list)
 
+        self.classifier = nn.Sequential(
+            nn.Conv2d(self.hidden_dim[-1], 64, kernel_size=3, padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.Dropout2d(0.25),
+            nn.Conv2d(64, 32, kernel_size=3, padding=1),
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+            nn.Dropout2d(0.25),
+            nn.Conv2d(32, 16, kernel_size=3, padding=1),
+            nn.BatchNorm2d(16),
+            nn.ReLU(),
+            nn.Dropout2d(0.25),
+            nn.Conv2d(16, 8, kernel_size=3, padding=1),
+            nn.BatchNorm2d(8),
+            nn.ReLU(),
+            nn.Dropout2d(0.25),
+            nn.Conv2d(8, 1, kernel_size=3, padding=1),
+            nn.ReLU()
+        )
+
     def forward(self, input_tensor, hidden_state=None):
         """
         Parameters
@@ -172,10 +191,13 @@ class ConvLSTM(nn.Module):
             last_state_list.append([h, c])
 
         if not self.return_all_layers:
+
             layer_output_list = layer_output_list[-1:]
             last_state_list = last_state_list[-1:]
 
-        return last_state_list, layer_output_list
+        lstm_out = layer_output_list[-1][:, -1, :, :, :]
+        out = self.classifier(lstm_out)
+        return out
 
     def _init_hidden(self, batch_size, image_size):
         init_states = []

@@ -93,7 +93,7 @@ class UNet(nn.Module):
         factor = 2 if bilinear else 1
 
         # Do additional downscaling if we have more than 128 input features
-        mid_channels = 128 if n_channels > 128 else n_channels
+        mid_channels = 256 if n_channels > 128 else n_channels
         self.inc = DoubleConv(n_channels, 64, mid_channels=mid_channels)
         self.down1 = Down(64, 128)
         self.down2 = Down(128, 256)

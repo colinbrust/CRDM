@@ -1,27 +1,21 @@
 import numpy as np
-import pickle
-import glob
-import os
 from crdm.loaders.AggregateConvLSTM import AggregateSpatial
-from crdm.utils.ImportantVars import WEEKLY_VARS, MONTHLY_VARS
 
 
-# TODO: Make an 'AggregatePixel' class that both this class and the 'AggregateTrainingPixels' inherit from to minimize code duplication.
-# make list of tuples where elem[0] is the sequence of features and elem[1] is the output class
-# make nxm array for input to LSTM where n is a variable and m is the sequence length (12 months)
-# Have a dense layer after the end of the LSTM that incorporates the constant information that doesn't change with time
+# TODO: Make an 'AggregatePixel' class that both this class and the 'AggregateTrainingPixels' inherit from to
+#  minimize code duplication.
 class AggregateAllSpatial(AggregateSpatial):
 
     def premake_features(self) -> np.array:
 
         weeklys = sorted(self.weeklys)
         weeklys = np.array([np.memmap(x, 'float32', 'r') for x in weeklys])
-        print(weeklys.shape)
 
         drought = np.array([np.memmap(x, 'int8', 'r') for x in self.initial_drought])
         # Scale between -1 and 1
         drought = 2 * drought / 5 - 1
-        weeklys = np.concatenate((weeklys, drought[np.newaxis]))
+
+        weeklys = np.concatenate((weeklys, drought))
 
         # dim = variable x location
         constants = [np.memmap(x, 'float32', 'c') for x in [*self.constants, *self.annuals]]
@@ -44,8 +38,6 @@ class AggregateAllSpatial(AggregateSpatial):
         constants = np.concatenate((constants, target_doy[np.newaxis]))
         constants = np.concatenate((constants, guess_doy[np.newaxis]))
         constants = np.concatenate((constants, day_diff[np.newaxis]))
-
-        constants = np.array([constants] * self.n_weeks).swapaxes(0, 1)
 
         weeklys = np.vstack((constants, weeklys))
 

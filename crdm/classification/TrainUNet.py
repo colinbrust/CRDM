@@ -1,6 +1,6 @@
 import argparse
-from crdm.loaders.LoaderConvLSTM import CroppedLoader
-from crdm.classification.ConvLSTM import ConvLSTM
+from crdm.loaders.LoaderUNet import CroppedLoader
+from crdm.classification.UNet import UNet
 import pickle
 import torch
 from torch.utils.data import DataLoader
@@ -8,15 +8,15 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch import nn
 
 
-def train_model(target_dir, in_features, epochs=50, batch_size=64, hidden_size=64, n_weeks=25):
+def train_model(target_dir, in_features, epochs=50, batch_size=64, n_weeks=25):
 
     test_loader = CroppedLoader(target_dir=target_dir, in_features=in_features,
                                 batch_size=batch_size, n_weeks=n_weeks,
-                                cuda=torch.cuda.is_available(), test=True, crop_size=16)
+                                cuda=torch.cuda.is_available(), test=True, crop_size=32)
 
     train_loader = CroppedLoader(target_dir=target_dir, in_features=in_features,
                                  batch_size=batch_size, n_weeks=n_weeks,
-                                 cuda=torch.cuda.is_available(), test=False, crop_size=16)
+                                 cuda=torch.cuda.is_available(), test=False, crop_size=32)
 
     sample_dims = test_loader[0][0].shape
 
@@ -34,8 +34,7 @@ def train_model(target_dir, in_features, epochs=50, batch_size=64, hidden_size=6
     test_loader = DataLoader(dataset=test_loader, sampler=test_sampler)
 
     # Define model, loss and optimizer.
-    model = ConvLSTM(input_dim=sample_dims[2], hidden_dim=[64], kernel_size=(3, 3), num_layers=1,
-                     batch_first=True, bias=True, return_all_layers=False)
+    model = UNet(n_channels=sample_dims[1], n_classes=1)
 
     if torch.cuda.is_available():
         print('Using GPU')
@@ -123,13 +122,12 @@ if __name__ == '__main__':
     parser.add_argument('-if', '--in_features', type=str, help='Directory containing training features.')
     parser.add_argument('-e', '--epochs', type=int, default=25, help='Number of epochs.')
     parser.add_argument('-bs', '--batch_size', type=int, help='Batch size to train model with.')
-    parser.add_argument('-hs', '--hidden_size', type=int, help='LSTM hidden dimension size.')
 
     parser.set_defaults(batch_size=1024)
-    parser.set_defaults(hidden_size=1024)
+
 
     args = parser.parse_args()
 
     train_model(target_dir=args.target_dir, in_features=args.in_features, epochs=args.epochs,
-                batch_size=args.batch_size, hidden_size=args.hidden_size, n_weeks=25)
+                batch_size=args.batch_size, n_weeks=25)
 

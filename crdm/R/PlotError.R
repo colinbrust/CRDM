@@ -43,10 +43,9 @@ plot_all <- function(f_dir='~/projects/DroughtCast/data/model_results/lt_all/') 
     list.files(full.names = T, pattern = 'err.p') %>%
     lapply(read_file) %>%
     dplyr::bind_rows() %>%
-    dplyr::group_by(rerun) %>% 
-    dplyr::mutate(epochs = max(rowid))
-  
-  
+    dplyr::arrange(rerun, rowid) %>%
+    dplyr::select(-rowid) %>% 
+    tibble::rowid_to_column() %>% 
     tidyr::pivot_longer(c(train, test), names_to='set') %>%
     dplyr::mutate(batch = factor(batch),
                   hiddenSize = factor(hiddenSize),

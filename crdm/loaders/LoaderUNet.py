@@ -1,4 +1,4 @@
-from crdm.loaders.ReadConvLSTM import AggregateAllSpatial
+from crdm.loaders.ReadUNet import AggregateAllSpatial
 from crdm.utils.ImportantVars import DIMS
 import glob
 from itertools import cycle
@@ -24,7 +24,7 @@ class CroppedLoader(Dataset):
             for lead_time in [2, 4, 6, 8]:
                 try:
                     print('{} for {} week lead time'.format(target, lead_time))
-                    pixels = AggregateAllSpatial(target, in_features, lead_time=lead_time, n_weeks=25, memmap=True)
+                    pixels = AggregateAllSpatial(target, in_features, lead_time=lead_time, n_weeks=n_weeks, memmap=True)
                     pix_list.append(pixels)
                 except AssertionError as e:
                     print('{} - Skipping {} for {} week lead time.'.format(e, target, lead_time))
@@ -48,8 +48,8 @@ class CroppedLoader(Dataset):
 
         pixels = next(self.pix_list)
         features = pixels.premake_features()
-        n_features, n_weeks, size = features.shape
-        features = features.reshape(n_features, n_weeks, *DIMS)
+        n_features, size = features.shape
+        features = features.reshape(n_features, *DIMS)
         out = []
         target_out = []
 
@@ -59,14 +59,13 @@ class CroppedLoader(Dataset):
             x = np.random.randint(0, DIMS[1] - 32)
             y = np.random.randint(0, DIMS[0] - 32)
 
-            tmp = features[:, :, y:y + self.crop_size, x:x + self.crop_size]
+            tmp = features[:, y:y + self.crop_size, x:x + self.crop_size]
             target_tmp = target[y:y + self.crop_size, x:x + self.crop_size]
 
             out.append(tmp)
             target_out.append(target_tmp)
 
-        crop = np.array(out)
-        features = crop.swapaxes(1, 2)
+        features = np.array(out)
 
         targets = np.array(target_out)
 

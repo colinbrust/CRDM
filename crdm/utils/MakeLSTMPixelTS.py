@@ -1,5 +1,5 @@
 import argparse
-from crdm.loaders.TrainingLSTM import PremakeTrainingPixels
+from crdm.loaders.ReadLSTM import PremakeTrainingPixels
 from crdm.utils.ImportantVars import LENGTH
 import glob
 import numpy as np

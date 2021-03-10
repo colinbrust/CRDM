@@ -9,8 +9,8 @@ strip_text = function(x) {
   
   x %>%
     stringr::str_split('-') %>%
-    lapply(magrittr::extract, -1) %>% 
-    as.numeric()
+    lapply(magrittr::extract, -1) %>%
+    unlist()
 }
 
 read_file <- function(f) {
@@ -23,16 +23,18 @@ read_file <- function(f) {
     dplyr::mutate(f = basename(f)) %>%
     tidyr::separate(
       f,
-      c('epochs', 'batch', 'nWeeks', 'hiddenSize', 
-        'leadTime', 'rmFeatures', 'init', 'rerun', 'fType'), 
+      c('epochs', 'batch', 'nWeeks', 'hiddenSize', 'leadTime',
+        'rmFeatures', 'init', 'rerun', 'fType'), 
       sep='_'
     ) %>%
     dplyr::select(-dplyr::starts_with('drop')) %>%
     dplyr::mutate_at(
-      c('epochs', 'batch', 'nWeeks', 'hiddenSize', 'leadTime', 'rerun'),
-      strip_text
+      c('epochs', 'batch', 'nWeeks', 'hiddenSize', 'leadTime', 
+        'rmFeatures', 'init', 'rerun', 'fType'), strip_text
     ) %>%
-    dplyr::mutate(rowid = rowid + (epochs * rerun))
+    dplyr::mutate_at(
+      c('epochs', 'batch', 'nWeeks', 'hiddenSize', 'rerun'), as.numeric
+    ) 
 }
 
 plot_all <- function(f_dir='~/projects/DroughtCast/data/model_results/lt_all/') {
@@ -41,15 +43,17 @@ plot_all <- function(f_dir='~/projects/DroughtCast/data/model_results/lt_all/') 
     list.files(full.names = T, pattern = 'err.p') %>%
     lapply(read_file) %>%
     dplyr::bind_rows() %>%
+    dplyr::group_by(rerun) %>% 
+    dplyr::mutate(epochs = max(rowid))
+  
+  
     tidyr::pivot_longer(c(train, test), names_to='set') %>%
     dplyr::mutate(batch = factor(batch),
                   hiddenSize = factor(hiddenSize),
                   nWeeks = factor(nWeeks)) %>%
-    dplyr::filter(epochs != 20) %>% 
     ggplot(aes(x=rowid, y=value, color=set)) + 
      geom_line() +
-     facet_wrap(~leadTime) + 
-     labs(x='Epoch', y='MSE Loss', color='# Month\nHistory') + 
+     labs(x='Epoch', y='MSE Loss', color='Train/Test Set') + 
      plot_theme()
 }
 

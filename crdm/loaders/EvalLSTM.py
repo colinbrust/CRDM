@@ -2,7 +2,7 @@ import numpy as np
 import pickle
 import glob
 import os
-from crdm.loaders.Aggregate import Aggregate
+from crdm.loaders.AggregateLSTM import Aggregate
 from crdm.utils.ImportantVars import WEEKLY_VARS, MONTHLY_VARS
 
 

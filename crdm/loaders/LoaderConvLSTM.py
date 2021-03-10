@@ -1,4 +1,4 @@
-from crdm.loaders.AggregateAllSpatial import AggregateAllSpatial
+from crdm.loaders.TrainingConvLSTM import AggregateAllSpatial
 from crdm.utils.ImportantVars import DIMS
 import glob
 from itertools import cycle

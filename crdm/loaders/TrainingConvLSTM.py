@@ -2,7 +2,7 @@ import numpy as np
 import pickle
 import glob
 import os
-from crdm.loaders.AggregateSpatial import AggregateSpatial
+from crdm.loaders.AggregateConvLSTM import AggregateSpatial
 from crdm.utils.ImportantVars import WEEKLY_VARS, MONTHLY_VARS
 
 # TODO: Make an 'AggregatePixel' class that both this class and the 'AggregateTrainingPixels' inherit from to minimize code duplication.

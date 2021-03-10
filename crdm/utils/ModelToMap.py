@@ -4,8 +4,8 @@ import os
 import glob
 import matplotlib.pyplot as plt
 import numpy as np
-from crdm.classification.TrainLSTMOld import LSTM
-from crdm.loaders.AggregateAllPixels import AggregateAllPixles
+from crdm.classification.TrainLSTM import LSTM
+from crdm.loaders.EvalLSTM import AggregateAllPixles
 from crdm.utils.ImportantVars import DIMS, LENGTH, MONTHLY_VARS, WEEKLY_VARS
 from crdm.utils.ParseFileNames import parse_fname
 import rasterio as rio

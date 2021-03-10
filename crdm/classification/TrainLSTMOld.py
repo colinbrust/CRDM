@@ -83,7 +83,7 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidde
     lead_time = info['leadTime']
 
     # Make data loader
-    loader = PixelLoader(const_f, week_f, mon_f, target_f, True)
+    loader = PixelLoader(const_f, week_f, mon_f, target_f)
 
     # Split into training and test sets
     train, test = train_test_split([x for x in range(len(loader))], test_size=0.25)
@@ -95,7 +95,7 @@ def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidde
 
     const_size = loader[0]['const'].shape[-1]
 
-    weekly_size = len(WEEKLY_VARS) + 1
+    weekly_size = len(WEEKLY_VARS) + 4
     # Define model, loss and optimizer.
 
     if mod_f is not None:

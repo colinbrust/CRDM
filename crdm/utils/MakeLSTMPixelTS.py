@@ -33,7 +33,11 @@ def make_lstm_pixel_ts(target_dir, in_features, size, n_weeks, out_dir, rm_years
                 weeklys, monthlys, consts = agg.premake_features()
                 target_arr = np.memmap(target, 'int8', 'c')
                 target_arr = target_arr[indices]
+<<<<<<< Updated upstream
 
+=======
+                
+>>>>>>> Stashed changes
                 assert consts.shape == (20, size)
                 weeklys_out.append(weeklys)
                 monthlys_out.append(monthlys)

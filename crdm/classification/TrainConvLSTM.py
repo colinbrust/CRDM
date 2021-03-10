@@ -12,11 +12,11 @@ def train_model(target_dir, in_features, epochs=50, batch_size=64, hidden_size=6
 
     test_loader = CroppedLoader(target_dir=target_dir, in_features=in_features,
                                 batch_size=batch_size, n_weeks=n_weeks,
-                                cuda=torch.cuda.is_available(), test=True)
+                                cuda=torch.cuda.is_available(), test=True, crop_size=16)
 
     train_loader = CroppedLoader(target_dir=target_dir, in_features=in_features,
                                  batch_size=batch_size, n_weeks=n_weeks,
-                                 cuda=torch.cuda.is_available(), test=False)
+                                 cuda=torch.cuda.is_available(), test=False, crop_size=16)
 
     sample_dims = test_loader[0][0].shape
 
@@ -66,14 +66,12 @@ def train_model(target_dir, in_features, epochs=50, batch_size=64, hidden_size=6
         for i, item in enumerate(train_loader, 1):
 
             features, target = item[0].squeeze(), item[1].squeeze()
-
             # Zero out the optimizer's gradient buffer
             optimizer.zero_grad()
 
             # Make prediction with model
             outputs = model(features)
             outputs = outputs.squeeze()
-
             # Compute the loss and step the optimizer
             loss = criterion(outputs, target)
             loss.backward()
@@ -91,9 +89,6 @@ def train_model(target_dir, in_features, epochs=50, batch_size=64, hidden_size=6
 
             features, target = item[0].squeeze(), item[1].squeeze()
 
-            # Zero out the optimizer's gradient buffer
-            optimizer.zero_grad()
-
             # Make prediction with model
             outputs = model(features)
             outputs = outputs.squeeze()
@@ -101,7 +96,7 @@ def train_model(target_dir, in_features, epochs=50, batch_size=64, hidden_size=6
             # Compute the loss and step the optimizer
             loss = criterion(outputs, target)
 
-            print('Epoch: {}, Train Loss: {}'.format(epoch, loss.item()))
+            print('Epoch: {}, Test Loss: {}'.format(epoch, loss.item()))
 
             # Save loss info
             total_loss += loss.item()

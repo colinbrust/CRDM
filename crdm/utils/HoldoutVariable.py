@@ -129,11 +129,11 @@ def get_pred_true_arrays(model, mod_f, target, in_features, init, cuda, continuo
     return out
 
 
-def save_arrays(out_dir, out, target, continuous, var):
+def save_arrays(out_dir, out, target, continuous, var, lead_time):
     dt = 'float32' if continuous else 'int8'
 
     out_dst = rio.open(
-        os.path.join(out_dir, os.path.basename(target).replace('_USDM.dat', '_') + var + '.tif'),
+        os.path.join(out_dir, os.path.basename(target).replace('_USDM.dat', '_') + var + '_' + str(lead_time) + '.tif'),
         'w',
         driver='GTiff',
         height=DIMS[0],
@@ -148,7 +148,7 @@ def save_arrays(out_dir, out, target, continuous, var):
     out_dst.close()
 
 
-def save_all_preds(target_dir, in_features, mod_f, out_dir, remove, init, cuda, continuous, lead_time):
+def save_all_preds(target_dir, in_features, mod_f, out_dir, remove, init, cuda, continuous, full=False):
     model = make_model(mod_f, cuda, 1024)
 
     targets_tmp = sorted(glob.glob(os.path.join(target_dir, '*.dat')))
@@ -156,20 +156,25 @@ def save_all_preds(target_dir, in_features, mod_f, out_dir, remove, init, cuda, 
     
     weeklys = WEEKLY_VARS + ['USDM']
     
-    for f in targets:
-        print(f)
-        out = get_pred_true_arrays(model, mod_f, f, in_features, True, True, True, 'full', None, lead_time)
-        save_arrays(out_dir, out, f, True, 'full')
-        
-        for idx, var in enumerate(weeklys):
-            print('{} - Holding out {}'.format(f, var))
-            out = get_pred_true_arrays(model, mod_f, f, in_features, True, True, True, 'weekly', idx, lead_time)
-            save_arrays(out_dir, out, f, True, var)
 
-        for idx, var in enumerate(MONTHLY_VARS):
-            print('{} - Holding out {}'.format(f, var))
-            out = get_pred_true_arrays(model, mod_f, f, in_features, True, True, True, 'monthly', idx, lead_time)
-            save_arrays(out_dir, out, f, True, var)
+    for f in targets:
+        for lead_time in [2, 4, 6, 8]:
+
+            print('{} - Holding out {} - Lead Time {}'.format(f, 'full', lead_time))
+            out = get_pred_true_arrays(model, mod_f, f, in_features, True, True, True, 'full', None, lead_time)
+            save_arrays(out_dir, out, f, True, 'full', lead_time)
+            
+
+            if not full:
+                for idx, var in enumerate(weeklys):
+                    print('{} - Holding out {} - Lead Time {}'.format(f, var, lead_time))
+                    out = get_pred_true_arrays(model, mod_f, f, in_features, True, True, True, 'weekly', idx, lead_time)
+                    save_arrays(out_dir, out, f, True, var, lead_time)
+
+                for idx, var in enumerate(MONTHLY_VARS):
+                    print('{} - Holding out {} - Lead Time {}'.format(f, var, lead_time))
+                    out = get_pred_true_arrays(model, mod_f, f, in_features, True, True, True, 'monthly', idx, lead_time)
+                    save_arrays(out_dir, out, f, True, var, lead_time)
     
 
 if __name__ == '__main__':
@@ -180,10 +185,12 @@ if __name__ == '__main__':
     parser.add_argument('-td', '--target_dir', type=str, help='Directory containing memmaps of all target images.')
     parser.add_argument('-if', '--in_features', type=str, help='Directory contining all memmap input features.')
     parser.add_argument('-od', '--out_dir', type=str, help='Directory to write np arrays out to.')
-    parser.add_argument('-lt', '--lead_time', type=int, help='Lead time in weeks')
+    parser.add_argument('--full', dest='full', action='store_true', help='Only run full model. Dont holdout variables.')
+    parser.add_argument('--no-full', dest='full', action='store_false', help='Holdout all model variables.')
 
+    parser.set_defaults(full=False)
     cuda = True if torch.cuda.is_available() else False
     args = parser.parse_args()
 
     save_all_preds(mod_f=args.model_file, target_dir=args.target_dir, in_features=args.in_features,
-                   out_dir=args.out_dir, remove=True, init=True, cuda=cuda, continuous=True, lead_time=args.lead_time)
+                   out_dir=args.out_dir, remove=True, init=True, cuda=cuda, continuous=True, full=args.full)

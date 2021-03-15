@@ -17,7 +17,7 @@ class CroppedLoader(Dataset):
             self.targets = [x for x in self.targets if ('/2007' in x or '/2015' in x or '/2017' in x)]
         else:
             self.targets = [x for x in self.targets if not ('/2007' in x or '/2015' in x or '/2017' in x)]
-        self.targets = self.targets[95:100]
+        # self.targets = self.targets[90:105]
         pix_list = []
 
         for target in self.targets:

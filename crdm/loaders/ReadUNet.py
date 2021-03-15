@@ -10,7 +10,6 @@ class AggregateAllSpatial(AggregateSpatial):
 
         weeklys = sorted(self.weeklys)
         weeklys = np.array([np.memmap(x, 'float32', 'r') for x in weeklys])
-
         drought = np.array([np.memmap(x, 'int8', 'r') for x in self.initial_drought])
         # Scale between -1 and 1
         drought = 2 * drought / 5 - 1
@@ -20,7 +19,6 @@ class AggregateAllSpatial(AggregateSpatial):
         # dim = variable x location
         constants = [np.memmap(x, 'float32', 'c') for x in [*self.constants, *self.annuals]]
         constants = np.array(constants)
-
         # Add day of year for target image.
         target_doy = self.target_date.timetuple().tm_yday
         target_doy = (target_doy - 1) / (366 - 1)

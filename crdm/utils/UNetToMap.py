@@ -17,7 +17,6 @@ def make_pad(arr, crop_size):
 
     row_pad = int(np.ceil(DIMS[0]/crop_size) * crop_size - DIMS[0])
     col_pad = int(np.ceil(DIMS[1]/crop_size) * crop_size - DIMS[1])
-
     pad = ((0, 0), (row_pad, 0), (col_pad, 0))
     out = np.pad(arr, pad_width=pad, mode='constant', constant_values=-1.5)
 
@@ -39,7 +38,7 @@ def make_model(mod_f, cuda, n_channels):
     return model
 
 
-def get_pred_true_arrays(model, mod_f, target, in_features, lead_time):
+def get_pred_true_arrays(model, mod_f, target, in_features, lead_time, dt):
 
     # Get hyperparameters from filename
     info = parse_fname(mod_f)
@@ -47,7 +46,7 @@ def get_pred_true_arrays(model, mod_f, target, in_features, lead_time):
     data = AggregateAllSpatial(target=target, lead_time=lead_time, in_features=in_features, n_weeks=nWeeks)
 
     weeklys = data.premake_features()
-
+    weeklys = weeklys.reshape(weeklys.shape[0], *DIMS)
     # Pad with no-data values so we get a clean image for a given crop size.
     row_pad, col_pad, weeklys = make_pad(weeklys, CROP_SIZE)
 
@@ -59,33 +58,37 @@ def get_pred_true_arrays(model, mod_f, target, in_features, lead_time):
 
     arr_out = []
 
-    for c1, c2 in zip(col_indices[0::2], col_indices[1::2]):
+    for col in range(len(col_indices) - 1):    
         col_stack = []
-
-        for r1, r2 in zip(row_indices[0::2], row_indices[1::2]):
-
-            arr = weeklys[:, r1:r2, c1:c2]
+        for row in range(len(row_indices) - 1):
+            
+            arr = weeklys[:, row_indices[row]:row_indices[row+1], col_indices[col]:col_indices[col+1]]
+            arr = dt(arr)
+            arr = torch.unsqueeze(arr, 0)
+            
             out = model(arr)
             out = out.cpu().detach().numpy()
-
+            out = out.squeeze()
             col_stack.append(out)
 
-        col_stack = np.array(col_stack)
+        col_stack = np.vstack(col_stack)
         arr_out.append(col_stack)
 
-    out = np.array(arr_out)
-
+    out = np.hstack(arr_out)
     # Remove padding
     out = out[row_pad:, col_pad:]
+    
     out = out.astype('float32')
-
+    print(out.shape)
     return out
 
 
 def save_arrays(out_dir, out, target):
 
+    out_name = os.path.join(out_dir, os.path.basename(target).replace('_USDM.dat', '_preds.tif'))
+    print(out_name)
     out_dst = rio.open(
-        os.path.join(out_dir, os.path.basename(target[0]).replace('_USDM.dat', '_preds.tif')),
+        out_name,
         'w',
         driver='GTiff',
         height=DIMS[0],
@@ -108,15 +111,17 @@ def save_all_preds(target_dir, in_features, mod_f, out_dir, remove, cuda, lead_t
     if remove:
         targets = [x for x in targets if ('/2007' in x or '/2015' in x or '/2017' in x)]
 
-    dat = AggregateAllSpatial(targets[100], in_features, lead_time=lead_time, n_weeks=info['nMonths'])
-    dat = dat.premake_features()
+    dat = AggregateAllSpatial(targets[50], in_features, lead_time=lead_time, n_weeks=int(info['nMonths']))
 
+    dat = dat.premake_features()
     model = make_model(mod_f, cuda, dat.shape[0])
+    
+    dt = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 
     for f in targets:
         try:
             print(f)
-            out = get_pred_true_arrays(model, mod_f, f, in_features, cuda, lead_time)
+            out = get_pred_true_arrays(model, mod_f, f, in_features, lead_time, dt)
             save_arrays(out_dir, out, f)
         except AssertionError as e:
             print(e, '\nSkipping this target')

@@ -49,10 +49,10 @@ def train_model(target_dir, in_features, epochs=50, batch_size=64, n_weeks=25):
     prev_best_loss = 1e6
     err_out = {}
 
-    out_name_mod = 'epochs-{}_batch-{}_nMonths-{}_hiddenSize-{}_fType-model.p'.format(
-        epochs, batch_size, n_weeks, hidden_size)
-    out_name_err = 'epochs-{}_batch-{}_nMonths-{}_hiddenSize-{}_fType-err.p'.format(
-        epochs, batch_size, n_weeks, hidden_size)
+    out_name_mod = 'epochs-{}_batch-{}_nMonths-{}_fType-model.p'.format(
+        epochs, batch_size, n_weeks)
+    out_name_err = 'epochs-{}_batch-{}_nMonths-{}_fType-err.p'.format(
+        epochs, batch_size, n_weeks)
 
     for epoch in range(epochs):
         total_loss = 0

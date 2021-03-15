@@ -28,10 +28,10 @@ raster_to_tibble <- function(f, lead_time) {
   
 }
 
-plot_single_day <- function(dat, day,  states) {
+plot_single_day <- function(dat, day,  states, out_dir) {
   
   caption <- paste('Prediction for', day, 'USDM Drought')
-  
+  print(caption)
   out_dat <- dat %>%
     dplyr::mutate(
       val = ifelse(lead_time == -1, val, val * 5),
@@ -66,10 +66,16 @@ plot_single_day <- function(dat, day,  states) {
     facet_wrap(~lead_time, nrow = 3) + 
     labs(title=caption) + 
     plot_theme() 
+  
+  
+  out_name = file.path(out_dir, paste0(day, '.png'))
+  ggsave(out_name, fig, width = 220, height = 195, units = 'mm',
+         dpi = 300)
+  
 }
 
 
-save_all_maps <- function(pred_dir, true_dir, err) {
+save_all_maps <- function(pred_dir, true_dir, out_dir, err) {
   
   states <- urbnmapr::get_urbn_map(sf = TRUE) %>% 
     dplyr::filter(state_abbv != 'AK', state_abbv != 'HI') %>%
@@ -85,6 +91,7 @@ save_all_maps <- function(pred_dir, true_dir, err) {
     df %>% 
       split(.$date) %>%
       Filter(function(x) NROW(x)  == 5, .) %>%
+      tail(30) %>% 
       lapply(function(x) {
         
         day <- unique(x$date)
@@ -92,10 +99,8 @@ save_all_maps <- function(pred_dir, true_dir, err) {
         x %$%
           purrr::map2(f_path, lead_time, raster_to_tibble) %>% 
           dplyr::bind_rows() %>% 
-          plot_single_day(day=day, states=states) 
-      }) -> test
+          plot_single_day(day=day, states=states, out_dir=out_dir) 
+      }) 
   }
 }
 
-ggsave(out_name, fig, width = 220, height = 195, units = 'mm',
-       dpi = 300)

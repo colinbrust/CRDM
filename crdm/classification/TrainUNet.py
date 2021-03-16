@@ -12,11 +12,11 @@ def train_model(target_dir, in_features, epochs=50, batch_size=64, n_weeks=25):
 
     test_loader = CroppedLoader(target_dir=target_dir, in_features=in_features,
                                 batch_size=batch_size, n_weeks=n_weeks,
-                                cuda=torch.cuda.is_available(), test=True, crop_size=32)
+                                cuda=torch.cuda.is_available(), test=True, crop_size=16)
 
     train_loader = CroppedLoader(target_dir=target_dir, in_features=in_features,
                                  batch_size=batch_size, n_weeks=n_weeks,
-                                 cuda=torch.cuda.is_available(), test=False, crop_size=32)
+                                 cuda=torch.cuda.is_available(), test=False, crop_size=16)
 
     sample_dims = test_loader[0][0].shape
 
@@ -39,7 +39,7 @@ def train_model(target_dir, in_features, epochs=50, batch_size=64, n_weeks=25):
     if torch.cuda.is_available():
         print('Using GPU')
         model.cuda()
-
+    
     # Provide relative frequency weights to use in loss function.
     criterion = nn.MSELoss()
     lr = 3e-4

@@ -2,25 +2,27 @@ import argparse
 import torch
 import os
 import glob
-import matplotlib.pyplot as plt
 import numpy as np
 from crdm.classification.UNet import UNet
 from crdm.loaders.ReadUNet import AggregateAllSpatial
-from crdm.utils.ImportantVars import DIMS, LENGTH
+from crdm.utils.ImportantVars import DIMS
 from crdm.utils.ParseFileNames import parse_fname
 import rasterio as rio
 
 CROP_SIZE = 32
 
-
 def make_pad(arr, crop_size):
 
     row_pad = int(np.ceil(DIMS[0]/crop_size) * crop_size - DIMS[0])
     col_pad = int(np.ceil(DIMS[1]/crop_size) * crop_size - DIMS[1])
-    pad = ((0, 0), (row_pad, 0), (col_pad, 0))
-    out = np.pad(arr, pad_width=pad, mode='constant', constant_values=-1.5)
 
-    return row_pad, col_pad, out
+    prev_pad = ((0, 0), (row_pad, 0), (col_pad, 0))
+    post_pad = ((0, 0), (0, row_pad), (0, col_pad))
+
+    prev_out = np.pad(arr, pad_width=prev_pad, mode='constant', constant_values=-1.5)
+    post_out = np.pad(arr, pad_width=post_pad, mode='constant', constant_values=-1.5)
+
+    return row_pad, col_pad, prev_out, post_out
 
 
 def make_model(mod_f, cuda, n_channels):
@@ -48,38 +50,42 @@ def get_pred_true_arrays(model, mod_f, target, in_features, lead_time, dt):
     weeklys = data.premake_features()
     weeklys = weeklys.reshape(weeklys.shape[0], *DIMS)
     # Pad with no-data values so we get a clean image for a given crop size.
-    row_pad, col_pad, weeklys = make_pad(weeklys, CROP_SIZE)
+    row_pad, col_pad, prev_weeklys, post_weeklys = make_pad(weeklys, CROP_SIZE)
 
     nrow = weeklys.shape[1]
     ncol = weeklys.shape[2]
 
-    col_indices = [x for x in range(0, ncol+1, CROP_SIZE)]
-    row_indices = [x for x in range(0, nrow+1, CROP_SIZE)]
+    col_indices = [x for x in range(0, ncol + 1, CROP_SIZE)]
+    row_indices = [x for x in range(0, nrow + 1, CROP_SIZE)]
 
-    arr_out = []
+    prev_arr_out, post_arr_out = [], []
 
-    for col in range(len(col_indices) - 1):    
-        col_stack = []
+    for col in range(len(col_indices) - 1):
+        prev_col_stack, post_col_stack = [], []
         for row in range(len(row_indices) - 1):
-            
-            arr = weeklys[:, row_indices[row]:row_indices[row+1], col_indices[col]:col_indices[col+1]]
-            arr = dt(arr)
-            arr = torch.unsqueeze(arr, 0)
-            
-            out = model(arr)
-            out = out.cpu().detach().numpy()
-            out = out.squeeze()
-            col_stack.append(out)
+            prev_arr = prev_weeklys[:, row_indices[row]:row_indices[row+1], col_indices[col]:col_indices[col+1]]
+            post_arr = post_weeklys[:, row_indices[row]:row_indices[row+1], col_indices[col]:col_indices[col+1]]
 
-        col_stack = np.vstack(col_stack)
-        arr_out.append(col_stack)
+            prev_arr, post_arr = dt(prev_arr), dt(post_arr)
+            prev_arr, post_arr = torch.unsqueeze(prev_arr, 0), torch.unsqueeze(post_arr, 0)
 
-    out = np.hstack(arr_out)
+            prev_out, post_out = model(prev_arr), model(post_arr)
+            prev_out, post_out = prev_out.cpu().detach().numpy(), post_out.cpu().detach().numpy()
+            prev_out, post_out = prev_out.squeeze(), post_out.squeeze()
+
+            prev_col_stack.append(prev_out)
+            post_col_stack.append(post_out)
+
+        prev_col_stack, post_col_stack = np.vstack(prev_col_stack), np.vstack(post_col_stack)
+        prev_arr_out.append(prev_col_stack)
+        post_arr_out.append(post_col_stack)
+
+    prev_out, post_out = np.hstack(prev_arr_out), np.hstack(post_arr_out)
+    out = np.maximum(prev_out, post_out)
     # Remove padding
     out = out[row_pad:, col_pad:]
     
     out = out.astype('float32')
-    print(out.shape)
     return out
 
 

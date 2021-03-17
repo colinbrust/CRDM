@@ -37,7 +37,7 @@ read_file <- function(f) {
     ) 
 }
 
-plot_all <- function(f_dir='~/projects/DroughtCast/data/model_results/unet/') {
+plot_all <- function(f_dir='~/projects/DroughtCast/data/model_results/unet/crop16/') {
   
   f_dir %>%
     list.files(full.names = T, pattern = 'err.p') %>%

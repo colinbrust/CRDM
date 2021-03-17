@@ -2,19 +2,20 @@ import argparse
 import torch
 import os
 import glob
+import matplotlib.pyplot as plt
 import numpy as np
 from crdm.classification.UNet import UNet
 from crdm.loaders.ReadUNet import AggregateAllSpatial
-from crdm.utils.ImportantVars import DIMS
+from crdm.utils.ImportantVars import DIMS, LENGTH
 from crdm.utils.ParseFileNames import parse_fname
 import rasterio as rio
 
 CROP_SIZE = 32
 
-def make_pad(arr, crop_size):
 
-    row_pad = int(np.ceil(DIMS[0]/crop_size) * crop_size - DIMS[0])
-    col_pad = int(np.ceil(DIMS[1]/crop_size) * crop_size - DIMS[1])
+def make_pad(arr, crop_size):
+    row_pad = int(np.ceil(DIMS[0] / crop_size) * crop_size - DIMS[0])
+    col_pad = int(np.ceil(DIMS[1] / crop_size) * crop_size - DIMS[1])
 
     prev_pad = ((0, 0), (row_pad, 0), (col_pad, 0))
     post_pad = ((0, 0), (0, row_pad), (0, col_pad))
@@ -26,7 +27,6 @@ def make_pad(arr, crop_size):
 
 
 def make_model(mod_f, cuda, n_channels):
-
     # make model from hyperparams and load trained parameters.
     model = UNet(n_channels=n_channels, n_classes=1)
 
@@ -40,8 +40,7 @@ def make_model(mod_f, cuda, n_channels):
     return model
 
 
-def get_pred_true_arrays(model, mod_f, target, in_features, lead_time, dt):
-
+def get_pred_true_arrays(model, mod_f, target, in_features, lead_time, dt, prev):
     # Get hyperparameters from filename
     info = parse_fname(mod_f)
     batch, nWeeks = int(info['batch']), int(info['nMonths'])
@@ -52,45 +51,41 @@ def get_pred_true_arrays(model, mod_f, target, in_features, lead_time, dt):
     # Pad with no-data values so we get a clean image for a given crop size.
     row_pad, col_pad, prev_weeklys, post_weeklys = make_pad(weeklys, CROP_SIZE)
 
+    weeklys = prev_weeklys if prev else post_weeklys
+
     nrow = weeklys.shape[1]
     ncol = weeklys.shape[2]
 
     col_indices = [x for x in range(0, ncol + 1, CROP_SIZE)]
     row_indices = [x for x in range(0, nrow + 1, CROP_SIZE)]
 
-    prev_arr_out, post_arr_out = [], []
+    arr_out = []
 
     for col in range(len(col_indices) - 1):
-        prev_col_stack, post_col_stack = [], []
+        col_stack = []
         for row in range(len(row_indices) - 1):
-            prev_arr = prev_weeklys[:, row_indices[row]:row_indices[row+1], col_indices[col]:col_indices[col+1]]
-            post_arr = post_weeklys[:, row_indices[row]:row_indices[row+1], col_indices[col]:col_indices[col+1]]
+            arr = weeklys[:, row_indices[row]:row_indices[row + 1], col_indices[col]:col_indices[col + 1]]
+            arr = dt(arr)
+            arr = torch.unsqueeze(arr, 0)
 
-            prev_arr, post_arr = dt(prev_arr), dt(post_arr)
-            prev_arr, post_arr = torch.unsqueeze(prev_arr, 0), torch.unsqueeze(post_arr, 0)
+            out = model(arr)
+            out = out.cpu().detach().numpy()
+            out = out.squeeze()
+            col_stack.append(out)
 
-            prev_out, post_out = model(prev_arr), model(post_arr)
-            prev_out, post_out = prev_out.cpu().detach().numpy(), post_out.cpu().detach().numpy()
-            prev_out, post_out = prev_out.squeeze(), post_out.squeeze()
+        col_stack = np.vstack(col_stack)
+        arr_out.append(col_stack)
 
-            prev_col_stack.append(prev_out)
-            post_col_stack.append(post_out)
-
-        prev_col_stack, post_col_stack = np.vstack(prev_col_stack), np.vstack(post_col_stack)
-        prev_arr_out.append(prev_col_stack)
-        post_arr_out.append(post_col_stack)
-
-    prev_out, post_out = np.hstack(prev_arr_out), np.hstack(post_arr_out)
-    out = np.maximum(prev_out, post_out)
+    out = np.hstack(arr_out)
     # Remove padding
     out = out[row_pad:, col_pad:]
-    
+
     out = out.astype('float32')
+
     return out
 
 
 def save_arrays(out_dir, out, target):
-
     out_name = os.path.join(out_dir, os.path.basename(target).replace('_USDM.dat', '_preds.tif'))
     print(out_name)
     out_dst = rio.open(
@@ -110,7 +105,6 @@ def save_arrays(out_dir, out, target):
 
 
 def save_all_preds(target_dir, in_features, mod_f, out_dir, remove, cuda, lead_time):
-
     info = parse_fname(mod_f)
 
     targets = sorted(glob.glob(os.path.join(target_dir, '*.dat')))
@@ -121,13 +115,15 @@ def save_all_preds(target_dir, in_features, mod_f, out_dir, remove, cuda, lead_t
 
     dat = dat.premake_features()
     model = make_model(mod_f, cuda, dat.shape[0])
-    
+
     dt = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 
     for f in targets:
         try:
             print(f)
-            out = get_pred_true_arrays(model, mod_f, f, in_features, lead_time, dt)
+            out1 = get_pred_true_arrays(model, mod_f, f, in_features, lead_time, dt, True)
+            out2 = get_pred_true_arrays(model, mod_f, f, in_features, lead_time, dt, False)
+            out = np.maximum(out1, out2)
             save_arrays(out_dir, out, f)
         except AssertionError as e:
             print(e, '\nSkipping this target')

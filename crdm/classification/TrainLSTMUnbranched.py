@@ -57,6 +57,8 @@ def train_lstm(target_dir, in_features, n_weeks, epochs=50, batch_size=64, hidde
     out_name_err = 'epochs-{}_batch-{}nWeeks-{}_hiddenSize-{}_fType-err.p'.format(
         epochs, batch_size, n_weeks, hidden_size)
 
+    week_h, week_c = model.init_state()
+
     for epoch in range(epochs):
         total_loss = 0
         train_loss = []
@@ -71,7 +73,7 @@ def train_lstm(target_dir, in_features, n_weeks, epochs=50, batch_size=64, hidde
             optimizer.zero_grad()
 
             # Make prediction with model
-            outputs = model(features)
+            outputs, _, _ = model(features, (week_h, week_c))
             outputs = outputs.squeeze()
             # Compute the loss and step the optimizer
             loss = criterion(outputs, target)
@@ -90,7 +92,7 @@ def train_lstm(target_dir, in_features, n_weeks, epochs=50, batch_size=64, hidde
             features, target = item[0].squeeze(), item[1].squeeze()
 
             # Make prediction with model
-            outputs = model(features)
+            outputs, _, _ = model(features, (week_h, week_c))
             outputs = outputs.squeeze()
 
             # Compute the loss and step the optimizer

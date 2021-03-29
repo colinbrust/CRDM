@@ -14,6 +14,8 @@ raster_to_fst(f_dir = '~/Box/school/Data/drought/in_features/monthly',
 }
 
 
+
+
 tdf %<>% `names<-`(as.character(1:ncol(.)))
 
 

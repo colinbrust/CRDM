@@ -56,8 +56,8 @@ class CroppedLoader(Dataset):
         target = np.memmap(pixels.target, dtype='int8', shape=DIMS, mode='c')
 
         for i in range(self.batch_size):
-            x = np.random.randint(0, DIMS[1] - 32)
-            y = np.random.randint(0, DIMS[0] - 32)
+            x = np.random.randint(0, DIMS[1] - self.crop_size)
+            y = np.random.randint(0, DIMS[0] - self.crop_size)
 
             tmp = features[:, :, y:y + self.crop_size, x:x + self.crop_size]
             target_tmp = target[y:y + self.crop_size, x:x + self.crop_size]

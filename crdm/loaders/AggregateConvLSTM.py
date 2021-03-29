@@ -133,4 +133,7 @@ class AggregateSpatial(ABC):
         match = 'constant_mem' if self.memmap else 'constant'
 
         p = os.path.join(self.in_features, match)
-        return sorted([str(img) for img in pathlib.Path(p).iterdir()])
+        p = sorted([str(img) for img in pathlib.Path(p).iterdir()])
+        p = [x for x in p if 'elevation' in x]
+        return p
+

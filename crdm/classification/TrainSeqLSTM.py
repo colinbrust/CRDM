@@ -44,7 +44,7 @@ def train_model(target_dir, in_features, epochs=50, batch_size=64, hidden_size=6
     criterion = nn.MSELoss()
     lr = 3e-4
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    scheduler = ReduceLROnPlateau(optimizer, mode='min', patience=2, threshold=1e-5, verbose=True)
+    scheduler = ReduceLROnPlateau(optimizer, mode='min', patience=2, threshold=1e-5, verbose=True, factor=0.5)
 
     prev_best_loss = 1e6
     err_out = {}
@@ -64,13 +64,17 @@ def train_model(target_dir, in_features, epochs=50, batch_size=64, hidden_size=6
         # Loop over each subset of data
         for i, item in enumerate(train_loader, 1):
 
-            features, target = item[0].squeeze(), item[1].squeeze()
+            features, target, lead_time = item[0].squeeze(), item[1].squeeze(), item[2]
+            print(lead_time)
+
             # Zero out the optimizer's gradient buffer
             optimizer.zero_grad()
 
             # Make prediction with model
-            outputs = model(features)
+            outputs = model(features, 8)
             outputs = outputs.squeeze()
+            outputs = outputs[:, -lead_time, :, :]
+
             # Compute the loss and step the optimizer
             loss = criterion(outputs, target)
             loss.backward()
@@ -86,11 +90,12 @@ def train_model(target_dir, in_features, epochs=50, batch_size=64, hidden_size=6
 
         for i, item in enumerate(test_loader, 1):
 
-            features, target = item[0].squeeze(), item[1].squeeze()
+            features, target, lead_time = item[0].squeeze(), item[1].squeeze(), item[2]
 
             # Make prediction with model
-            outputs = model(features)
+            outputs = model(features, 8)
             outputs = outputs.squeeze()
+            outputs = outputs[:, -lead_time, :, :]
 
             # Compute the loss and step the optimizer
             loss = criterion(outputs, target)

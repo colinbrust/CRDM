@@ -14,7 +14,7 @@ class AggregateAllSpatial(AggregateSpatial):
     def make_pixel_stack(self):
         out = []
 
-        VARIABLES = ['pr', 'vpd', 'tmax']
+        VARIABLES = ['pr', 'vpd', 'tmmx']
 
         # Read one variable at a time so that tensors are all formatted the same for training.
         for v in VARIABLES:
@@ -30,12 +30,10 @@ class AggregateAllSpatial(AggregateSpatial):
     def premake_features(self) -> np.array:
 
         weeklys = self.make_pixel_stack()
-
         drought = np.array([np.memmap(x, 'int8', 'c') for x in self.initial_drought])
         # Scale between -1 and 1
         drought = 2 * drought / 5 - 1
         weeklys = np.concatenate((weeklys, drought[np.newaxis]))
-
         # dim = variable x location
         constants = [np.memmap(x, 'float32', 'c') for x in [*self.constants, *self.annuals]]
         constants = np.array(constants)
@@ -50,7 +48,6 @@ class AggregateAllSpatial(AggregateSpatial):
         day_diff = np.ones_like(constants[0]) * day_diff
 
         constants = np.concatenate((constants, target_doy[np.newaxis]))
-        constants = np.concatenate((constants, guess_doy[np.newaxis]))
         constants = np.concatenate((constants, day_diff[np.newaxis]))
 
         constants = np.array([constants] * self.n_weeks).swapaxes(0, 1)

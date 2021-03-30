@@ -1,4 +1,4 @@
-list.files('~/data/in', full.names = T) %>%
+list.files('~/Box/school/Data/drought/in_features/memmap/weekly_mem/', full.names = T) %>%
   tibble::tibble(fname = .) %>%
   dplyr::mutate(base = basename(fname)) %>%
   tidyr::separate(base, c('date', 'v'), sep = '_') %>%
@@ -9,7 +9,7 @@ list.files('~/data/in', full.names = T) %>%
 file.rename(a$fname, a$out)
 
 library(lubridate)
-list.files('~/Box/school/Data/drought/in_features/fst/monthly', full.names = T) %>%
+list.files('~/Box/school/Data/drought/in_features/memmap/monthly_mem', full.names = T) %>%
   tibble::tibble(fname = .) %>%
   dplyr::mutate(base = basename(fname)) %>%
   tidyr::separate(base, c('date', 'v'), sep = '_') %>%

@@ -1,92 +1,45 @@
-from crdm.classification.ConvLSTM import ConvLSTMCell
+from torch import nn
 import torch
-import torch.nn as nn
 
-# Credit to: https://github.com/holmdk/Video-Prediction-using-PyTorch/blob/master/models/seq2seq_ConvLSTM.py
-class SeqLSTM(nn.Module):
-    def __init__(self, nf, in_chan):
-        super(SeqLSTM, self).__init__()
 
-        """ ARCHITECTURE 
-        # Encoder (ConvLSTM)
-        # Encoder Vector (final hidden state of encoder)
-        # Decoder (ConvLSTM) - takes Encoder Vector as input
-        # Decoder (3D CNN) - produces regression predictions for our model
-        """
-        self.encoder_1_convlstm = ConvLSTMCell(input_dim=in_chan,
-                                               hidden_dim=nf,
-                                               kernel_size=(3, 3),
-                                               bias=True)
+class LSTM(nn.Module):
 
-        self.encoder_2_convlstm = ConvLSTMCell(input_dim=nf,
-                                               hidden_dim=nf,
-                                               kernel_size=(3, 3),
-                                               bias=True)
+    def __init__(self, size=23, hidden_size=64, output_size=6,
+                 batch_size=64, cuda=False):
+        super().__init__()
 
-        self.decoder_1_convlstm = ConvLSTMCell(input_dim=nf,  # nf + 1
-                                               hidden_dim=nf,
-                                               kernel_size=(3, 3),
-                                               bias=True)
+        self.hidden_size = hidden_size
+        self.device = 'cuda:0' if torch.cuda.is_available() and cuda else 'cpu'
+        self.batch_size = batch_size
+        self.size = size
 
-        self.decoder_2_convlstm = ConvLSTMCell(input_dim=nf,
-                                               hidden_dim=nf,
-                                               kernel_size=(3, 3),
-                                               bias=True)
+        self.encoder_lstm = nn.LSTM(size, self.hidden_size, num_layers=2)
+        self.decoder_lstm = nn.LSTM(self.hidden_size, self.hidden_size, num_layers=2)
 
-        self.decoder_CNN = nn.Conv3d(in_channels=nf,
-                                     out_channels=1,
-                                     kernel_size=(1, 3, 3),
-                                     padding=(0, 1, 1))
+        classifier = []
 
-    def autoencoder(self, x, seq_len, future_step, h_t, c_t, h_t2, c_t2, h_t3, c_t3, h_t4, c_t4):
+        sz = self.hidden_size
+        while sz > 32:
+            classifier.append(nn.Linear(sz, sz/2))
+            classifier.append(nn.BatchNorm1d(sz/2))
+            classifier.append(nn.ReLU())
+            classifier.append(nn.Dropout(0.25))
+            sz /= 2
 
-        outputs = []
+        classifier.append(nn.Linear(sz, 1))
+        classifier.append(nn.ReLU())
 
-        # encoder
-        for t in range(seq_len):
-            h_t, c_t = self.encoder_1_convlstm(input_tensor=x[:, t, :, :],
-                                               cur_state=[h_t, c_t])  # we could concat to provide skip conn here
-            h_t2, c_t2 = self.encoder_2_convlstm(input_tensor=h_t,
-                                                 cur_state=[h_t2, c_t2])  # we could concat to provide skip conn here
+        self.classifier = nn.Sequential(*classifier)
 
-        # encoder_vector
-        encoder_vector = h_t2
 
-        # decoder
-        for t in range(future_step):
-            h_t3, c_t3 = self.decoder_1_convlstm(input_tensor=encoder_vector,
-                                                 cur_state=[h_t3, c_t3])  # we could concat to provide skip conn here
-            h_t4, c_t4 = self.decoder_2_convlstm(input_tensor=h_t3,
-                                                 cur_state=[h_t4, c_t4])  # we could concat to provide skip conn here
-            encoder_vector = h_t4
-            outputs += [h_t4]  # predictions
 
-        outputs = torch.stack(outputs, 1)
-        outputs = outputs.permute(0, 2, 1, 3, 4)
-        outputs = self.decoder_CNN(outputs)
-        outputs = torch.nn.Sigmoid()(outputs)
+    def init_state(self):
+        # This is what we'll initialise our hidden state as
+        return (torch.zeros(1, self.batch_size, self.hidden_size, device=self.device),
+                torch.zeros(1, self.batch_size, self.hidden_size, device=self.device))
 
-        return outputs
-
-    def forward(self, x, future_seq=0, hidden_state=None):
-
-        """
-        Parameters
-        ----------
-        input_tensor:
-            5-D Tensor of shape (b, t, c, h, w)        #   batch, time, channel, height, width
-        """
-
-        # find size of different input dimensions
-        b, seq_len, _, h, w = x.size()
-
-        # initialize hidden states
-        h_t, c_t = self.encoder_1_convlstm.init_hidden(batch_size=b, image_size=(h, w))
-        h_t2, c_t2 = self.encoder_2_convlstm.init_hidden(batch_size=b, image_size=(h, w))
-        h_t3, c_t3 = self.decoder_1_convlstm.init_hidden(batch_size=b, image_size=(h, w))
-        h_t4, c_t4 = self.decoder_2_convlstm.init_hidden(batch_size=b, image_size=(h, w))
-        
-        # autoencoder forward
-        outputs = self.autoencoder(x, seq_len, future_seq, h_t, c_t, h_t2, c_t2, h_t3, c_t3, h_t4, c_t4)
-
-        return outputs
+    def forward(self, lstm_seq, prev_state):
+        # Run the LSTM forward
+        lstm_out, lstm_state = self.lstm(lstm_seq, prev_state)
+        preds = self.classifier(lstm_out)
+        return preds, lstm_state

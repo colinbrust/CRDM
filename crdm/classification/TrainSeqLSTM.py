@@ -1,6 +1,6 @@
 import argparse
 from crdm.loaders.LoaderConvLSTM import CroppedLoader
-from crdm.classification.SeqLSTM import SeqLSTM
+from crdm.classification.SeqConvLSTM import SeqLSTM
 import pickle
 import torch
 from torch.utils.data import DataLoader

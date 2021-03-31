@@ -1,6 +1,6 @@
 import argparse
 from crdm.loaders.LoaderConvLSTM import CroppedLoader
-from crdm.classification.ConvGRU import ConvGRU
+from crdm.classification.GRU import ConvGRU
 import pickle
 import torch
 from torch.utils.data import DataLoader
@@ -37,6 +37,7 @@ def train_model(target_dir, in_features, epochs=50, batch_size=64, hidden_size=6
     model = ConvGRU(input_size=(crop_size, crop_size),
                     input_dim=sample_dims[2],
                     kernel_size=(3, 3),
+                    hidden_dim=hidden_size,
                     num_layers=2,
                     dtype=torch.cuda.FloatTensor,
                     batch_first=True,
@@ -78,8 +79,8 @@ def train_model(target_dir, in_features, epochs=50, batch_size=64, hidden_size=6
 
             # Make prediction with model
             outputs = model(features)
-            print(outputs.shape)
             outputs = outputs.squeeze()
+            print(outputs.shape)
             outputs = outputs[:, -lead_time, :, :]
 
             # Compute the loss and step the optimizer
@@ -100,7 +101,7 @@ def train_model(target_dir, in_features, epochs=50, batch_size=64, hidden_size=6
             features, target, lead_time = item[0].squeeze(), item[1].squeeze(), item[2]
 
             # Make prediction with model
-            outputs = model(features, 8)
+            outputs = model(features)
             outputs = outputs.squeeze()
             outputs = outputs[:, -lead_time, :, :]
 

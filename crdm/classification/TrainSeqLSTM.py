@@ -65,22 +65,21 @@ def train_model(target_dir, in_features, epochs=50, batch_size=64, hidden_size=6
         for i, item in enumerate(train_loader, 1):
 
             features, target, lead_time = item[0].squeeze(), item[1].squeeze(), item[2]
-            print(lead_time)
-
+            print(features.shape)
             # Zero out the optimizer's gradient buffer
             optimizer.zero_grad()
 
             # Make prediction with model
-            outputs = model(features, 8)
+            outputs = model(features, lead_time)
             outputs = outputs.squeeze()
-            outputs = outputs[:, -lead_time, :, :]
+            outputs = outputs[:, -1, :, :]
 
             # Compute the loss and step the optimizer
             loss = criterion(outputs, target)
             loss.backward()
             optimizer.step()
-
-            print('Epoch: {}, Train Loss: {}'.format(epoch, loss.item()))
+            if i % 10 == 0:
+                print('Epoch: {}, Train Loss: {}'.format(epoch, loss.item()))
 
             # Store loss info
             train_loss.append(loss.item())
@@ -93,14 +92,14 @@ def train_model(target_dir, in_features, epochs=50, batch_size=64, hidden_size=6
             features, target, lead_time = item[0].squeeze(), item[1].squeeze(), item[2]
 
             # Make prediction with model
-            outputs = model(features, 8)
+            outputs = model(features, lead_time)
             outputs = outputs.squeeze()
-            outputs = outputs[:, -lead_time, :, :]
+            outputs = outputs[:, -1, :, :]
 
             # Compute the loss and step the optimizer
             loss = criterion(outputs, target)
-
-            print('Epoch: {}, Test Loss: {}'.format(epoch, loss.item()))
+            if i % 10 == 0:
+                print('Epoch: {}, Test Loss: {}'.format(epoch, loss.item()))
 
             # Save loss info
             total_loss += loss.item()

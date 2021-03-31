@@ -38,6 +38,8 @@ class SeqLSTM(nn.Module):
                                      kernel_size=(1, 3, 3),
                                      padding=(0, 1, 1))
 
+        self.drop = nn.Dropout3d(p=0.5)
+        
     def autoencoder(self, x, seq_len, future_step, h_t, c_t, h_t2, c_t2, h_t3, c_t3, h_t4, c_t4):
 
         outputs = []
@@ -45,9 +47,12 @@ class SeqLSTM(nn.Module):
         # encoder
         for t in range(seq_len):
             h_t, c_t = self.encoder_1_convlstm(input_tensor=x[:, t, :, :],
-                                               cur_state=[h_t, c_t])  # we could concat to provide skip conn here
+                                               cur_state=[h_t, c_t])
+            h_t = self.drop(h_t)
+
             h_t2, c_t2 = self.encoder_2_convlstm(input_tensor=h_t,
-                                                 cur_state=[h_t2, c_t2])  # we could concat to provide skip conn here
+                                                 cur_state=[h_t2, c_t2])
+            h_t2 = self.drop(h_t2)
 
         # encoder_vector
         encoder_vector = h_t2
@@ -55,9 +60,13 @@ class SeqLSTM(nn.Module):
         # decoder
         for t in range(future_step):
             h_t3, c_t3 = self.decoder_1_convlstm(input_tensor=encoder_vector,
-                                                 cur_state=[h_t3, c_t3])  # we could concat to provide skip conn here
+                                                 cur_state=[h_t3, c_t3])
+            h_t3 = self.drop(h_t3)
+
             h_t4, c_t4 = self.decoder_2_convlstm(input_tensor=h_t3,
-                                                 cur_state=[h_t4, c_t4])  # we could concat to provide skip conn here
+                                                 cur_state=[h_t4, c_t4])
+            h_t4 = self.drop(h_t4)
+
             encoder_vector = h_t4
             outputs += [h_t4]  # predictions
 

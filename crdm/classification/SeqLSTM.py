@@ -26,12 +26,11 @@ class LSTM(nn.Module):
             classifier.append(nn.Dropout(0.25))
             sz /= 2
 
+
         classifier.append(nn.Linear(sz, 1))
         classifier.append(nn.ReLU())
 
         self.classifier = nn.Sequential(*classifier)
-
-
 
     def init_state(self):
         # This is what we'll initialise our hidden state as

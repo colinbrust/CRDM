@@ -5,6 +5,8 @@ import torch
 from torch.utils.data import Dataset
 
 
+dtype = torch.cuda.FloatTensor
+
 class SmartLoader(Dataset):
 
     def __init__(self, feature_dir, train=True, max_lead_time=12, n_weeks=25, pixel=False, crop_size=16, feats=['*']):
@@ -23,6 +25,8 @@ class SmartLoader(Dataset):
 
         self.complete_ts = [list(range(x, x+max_lead_time)) for x in range(1, len(self.targets))]
         self.complete_ts = [x for x in self.complete_ts if all(y in self.indices for y in x)]
+        self.complete_ts = [x for x in self.complete_ts if x[0] >= self.n_weeks]
+        self.complete_ts = self.complete_ts * 512
 
     def pixel_loader(self, idx):
         idx_list = self.complete_ts[idx]
@@ -39,7 +43,7 @@ class SmartLoader(Dataset):
         feats = np.array(feats)
         targets = np.take(self.targets[idx_list], pixel, axis=-1)
 
-        return feats, targets
+        return dtype(feats), dtype(targets)
 
     def crop_loader(self, idx):
         idx_list = self.complete_ts[idx]
@@ -63,15 +67,13 @@ class SmartLoader(Dataset):
         return len(self.complete_ts)
 
     def __getitem__(self, idx):
-
-        # Edge case of IDX == 0
+        
         if self.pixel:
             return self.pixel_loader(idx)
         else:
-            arr = self.crop_loader(idx)
-            arr = torch.cuda.FloatTensor(arr)
-            arr = arr.permute(1, 0, 2, 3)
-            return arr
+            arr, targets = self.crop_loader(idx)
+            arr = np.transpose(arr, (1, 0, 2, 3))
+            return dtype(arr), dtype(targets)
 
 
 

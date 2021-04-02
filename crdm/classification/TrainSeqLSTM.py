@@ -8,8 +8,8 @@ from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch import nn
 
-FEATS = ['pr', 'vpd', 'tmmx', 'sm-rootzone', 'vapor']
-
+FEATS = ['pr', 'vpd', 'tmmx', 'sm-rootzone', 'vapor', 'ET', 'gpp', 'vs', 'vod', 'USDM']
+# FEATS = ['pr', 'USDM']
 
 def train_model(feature_dir, epochs=50, batch_size=64, hidden_size=64, n_weeks=25, max_lead_time=12, crop_size=16):
 
@@ -19,8 +19,8 @@ def train_model(feature_dir, epochs=50, batch_size=64, hidden_size=64, n_weeks=2
     train_loader = SmartLoader(feature_dir, train=True, max_lead_time=max_lead_time, n_weeks=n_weeks,
                                pixel=False, crop_size=crop_size, feats=FEATS)
 
-    train_loader = DataLoader(dataset=train_loader, batch_size=batch_size, shuffle=True)
-    test_loader = DataLoader(dataset=test_loader,  batch_size=batch_size, shuffle=True)
+    train_loader = DataLoader(dataset=train_loader, batch_size=batch_size, shuffle=True, drop_last=True)
+    test_loader = DataLoader(dataset=test_loader,  batch_size=batch_size, shuffle=True, drop_last=True)
 
     # Define model, loss and optimizer.
     model = SeqLSTM(nf=hidden_size, in_chan=len(FEATS))
@@ -62,22 +62,20 @@ def train_model(feature_dir, epochs=50, batch_size=64, hidden_size=64, n_weeks=2
         for i, item in enumerate(train_loader, 1):
 
             features, target = item[0], item[1]
-
             # Zero out the optimizer's gradient buffer
             optimizer.zero_grad()
 
             # Make prediction with model
 
-            outputs = model(features)
-            print(outputs.shape)
+            outputs = model(features, max_lead_time)
             outputs = outputs.squeeze()
-            outputs = outputs[:, -1, :, :]
+
 
             # Compute the loss and step the optimizer
             loss = criterion(outputs, target)
             loss.backward()
             optimizer.step()
-            if i % 10 == 0:
+            if i % 100 == 0:
                 print('Epoch: {}, Train Loss: {}'.format(epoch, loss.item()))
 
             # Store loss info
@@ -92,13 +90,12 @@ def train_model(feature_dir, epochs=50, batch_size=64, hidden_size=64, n_weeks=2
 
             # Make prediction with model
 
-            outputs = model(features)
+            outputs = model(features, max_lead_time)
             outputs = outputs.squeeze()
-            outputs = outputs[:, -1, :, :]
 
             # Compute the loss and step the optimizer
             loss = criterion(outputs, target)
-            if i % 10 == 0:
+            if i % 100 == 0:
                 print('Epoch: {}, Test Loss: {}'.format(epoch, loss.item()))
 
             # Save loss info
@@ -122,8 +119,7 @@ def train_model(feature_dir, epochs=50, batch_size=64, hidden_size=64, n_weeks=2
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train Drought Prediction Model')
-    parser.add_argument('-td', '--target_dir', type=str, help='Directory containing output classes.')
-    parser.add_argument('-if', '--in_features', type=str, help='Directory containing training features.')
+    parser.add_argument('-f', '--feature_dir', type=str, help='Directory containing training features.')
     parser.add_argument('-e', '--epochs', type=int, default=25, help='Number of epochs.')
     parser.add_argument('-bs', '--batch_size', type=int, default=64, help='Batch size to train model with.')
     parser.add_argument('-hs', '--hidden_size', type=int, default=64, help='LSTM hidden dimension size.')

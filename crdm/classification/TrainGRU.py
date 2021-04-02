@@ -80,9 +80,9 @@ def train_model(target_dir, in_features, epochs=50, batch_size=64, hidden_size=6
             # Make prediction with model
             outputs = model(features)
             outputs = outputs.squeeze()
-            print(outputs.shape)
             outputs = outputs[:, -lead_time, :, :]
-
+            outputs = outputs.squeeze()
+            print(outputs.shape)
             # Compute the loss and step the optimizer
             loss = criterion(outputs, target)
             loss.backward()
@@ -104,7 +104,7 @@ def train_model(target_dir, in_features, epochs=50, batch_size=64, hidden_size=6
             outputs = model(features)
             outputs = outputs.squeeze()
             outputs = outputs[:, -lead_time, :, :]
-
+            outputs = outputs.squeeze()
             # Compute the loss and step the optimizer
             loss = criterion(outputs, target)
 

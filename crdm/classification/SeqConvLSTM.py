@@ -2,9 +2,10 @@ from crdm.classification.ConvLSTM import ConvLSTMCell
 import torch
 import torch.nn as nn
 
+
 # Credit to: https://github.com/holmdk/Video-Prediction-using-PyTorch/blob/master/models/seq2seq_ConvLSTM.py
 class SeqLSTM(nn.Module):
-    def __init__(self, nf, in_chan):
+    def __init__(self, nf, in_chan, in_consts):
         super(SeqLSTM, self).__init__()
 
         """ ARCHITECTURE 
@@ -13,6 +14,7 @@ class SeqLSTM(nn.Module):
         # Decoder (ConvLSTM) - takes Encoder Vector as input
         # Decoder (3D CNN) - produces regression predictions for our model
         """
+
         self.encoder_1_convlstm = ConvLSTMCell(input_dim=in_chan,
                                                hidden_dim=nf,
                                                kernel_size=(3, 3),
@@ -37,6 +39,21 @@ class SeqLSTM(nn.Module):
                                      out_channels=1,
                                      kernel_size=(1, 3, 3),
                                      padding=(0, 1, 1))
+
+        self.constant_encoder = nn.Sequential(
+            nn.Conv2d(in_channels=in_consts,
+                      out_channels=16,
+                      kernel_size=(3, 3),
+                      padding=1),
+            nn.Conv2d(in_channels=16,
+                      out_channels=8,
+                      kernel_size=(3, 3),
+                      padding=1),
+            nn.Conv2d(in_channels=8,
+                      out_channels=1,
+                      kernel_size=(3, 3),
+                      padding=1)
+        )
 
         self.drop = nn.Dropout3d(p=0.5)
         
@@ -64,7 +81,6 @@ class SeqLSTM(nn.Module):
 
             h_t4, c_t4 = self.decoder_2_convlstm(input_tensor=h_t3D,
                                                  cur_state=[h_t4, c_t4])
-            # h_t4 = self.drop(h_t4)
 
             encoder_vector = h_t4
             outputs += [h_t4]  # predictions
@@ -77,7 +93,7 @@ class SeqLSTM(nn.Module):
 
         return outputs
 
-    def forward(self, x, future_seq=0, hidden_state=None):
+    def forward(self, x, const, future_seq=0, hidden_state=None):
 
         """
         Parameters
@@ -94,7 +110,10 @@ class SeqLSTM(nn.Module):
         h_t2, c_t2 = self.encoder_2_convlstm.init_hidden(batch_size=b, image_size=(h, w))
         h_t3, c_t3 = self.decoder_1_convlstm.init_hidden(batch_size=b, image_size=(h, w))
         h_t4, c_t4 = self.decoder_2_convlstm.init_hidden(batch_size=b, image_size=(h, w))
-        
+
+        encoded_constants = self.constant_encoder(const)
+        encoded_constants = encoded_constants.squeeze()
+
         # autoencoder forward
         outputs = self.autoencoder(x, seq_len, future_seq, h_t, c_t, h_t2, c_t2, h_t3, c_t3, h_t4, c_t4)
 

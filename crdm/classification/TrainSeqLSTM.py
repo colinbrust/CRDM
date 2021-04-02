@@ -11,6 +11,7 @@ from torch import nn
 FEATS = ['pr', 'vpd', 'tmmx', 'sm-rootzone', 'vapor', 'ET', 'gpp', 'vs', 'vod', 'USDM']
 # FEATS = ['pr', 'USDM']
 
+
 def train_model(feature_dir, epochs=50, batch_size=64, hidden_size=64, n_weeks=25, max_lead_time=12, crop_size=16):
 
     test_loader = SmartLoader(feature_dir, train=False, max_lead_time=max_lead_time, n_weeks=n_weeks,

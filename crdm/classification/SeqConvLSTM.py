@@ -117,11 +117,7 @@ class SeqLSTM(nn.Module):
         
         encoded_constants = self.constant_encoder(const)
         encoded_constants = encoded_constants.squeeze()
-        print(encoded_constants.shape)
-        encoded_constants = encoded_constants.unsqueeze(0).unsqueeze(1).unsqueeze(1).expand(-1, self.n_weeks, -1, -1, -1)
-
-        print(encoded_constants.shape)
-        print(x.shape)
+        encoded_constants = encoded_constants.unsqueeze(1).unsqueeze(1).expand(-1, self.n_weeks, -1, -1, -1)
 
         x = torch.cat((encoded_constants, x), dim=2)
 

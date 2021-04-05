@@ -4,13 +4,13 @@ from pathlib import Path
 from torch.utils.data import Dataset
 import torch
 
-dtype = torch.cuda.FloatTensor
+dtype = torch.FloatTensor
 
 
 class DroughtLoader(Dataset):
 
     def __init__(self, feature_dir, const_dir, train=True, max_lead_time=12,
-                 n_weeks=25, pixel=False, crop_size=16, feats=('pr', 'USDM')):
+                 n_weeks=25, pixel=False, crop_size=16, feats=('pr', 'USDM'), transform=None):
 
         p = Path(feature_dir)
         ps = [list(p.glob(x+'.dat'))[0] for x in feats] if feats[0] != '*' else list(p.glob('*.dat'))
@@ -24,6 +24,7 @@ class DroughtLoader(Dataset):
         self.pixel = pixel
         self.crop_size = crop_size
         self.const_dir = const_dir
+        self.transform = transform
 
         self.complete_ts = [list(range(x, x+max_lead_time)) for x in range(1, len(self.targets))]
         self.complete_ts = [x for x in self.complete_ts if all(y in self.indices for y in x)]
@@ -88,6 +89,10 @@ class DroughtLoader(Dataset):
         else:
             arr, consts, targets = self.crop_loader(idx)
             arr = np.transpose(arr, (1, 0, 2, 3))
+
+            if self.transform:
+                arr = self.transform(arr)
+
             return dtype(arr), dtype(consts), dtype(targets)
 
 

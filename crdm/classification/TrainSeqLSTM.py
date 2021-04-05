@@ -2,6 +2,7 @@ import argparse
 from crdm.loaders.DroughtLoader import DroughtLoader
 from crdm.classification.SeqConvLSTM import SeqLSTM
 from crdm.utils.MakeModelDir import make_model_dir
+from torchvision import transforms
 import os
 import pickle
 import torch
@@ -17,11 +18,17 @@ NUM_FEATS = 17
 
 def train_model(feature_dir, const_dir, epochs=50, batch_size=64, hidden_size=64, n_weeks=25, max_lead_time=12, crop_size=16, feats=FEATS):
 
-    test_loader = DroughtLoader(feature_dir, const_dir, train=False, max_lead_time=max_lead_time, n_weeks=n_weeks,
-                                pixel=False, crop_size=crop_size, feats=feats)
+    tsfm = transforms.Compose([
+        transforms.RandomRotation(180),
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomVerticalFlip(),
+        transforms.ToTensor()
+    ])
 
+    test_loader = DroughtLoader(feature_dir, const_dir, train=False, max_lead_time=max_lead_time, n_weeks=n_weeks,
+                                pixel=False, crop_size=crop_size, feats=feats, transform=None)
     train_loader = DroughtLoader(feature_dir, const_dir, train=True, max_lead_time=max_lead_time, n_weeks=n_weeks,
-                                 pixel=False, crop_size=crop_size, feats=feats)
+                                 pixel=False, crop_size=crop_size, feats=feats, transform=tsfm)
 
     train_loader = DataLoader(dataset=train_loader, batch_size=batch_size, shuffle=True, drop_last=True)
     test_loader = DataLoader(dataset=test_loader,  batch_size=batch_size, shuffle=True, drop_last=True)
@@ -74,7 +81,6 @@ def train_model(feature_dir, const_dir, epochs=50, batch_size=64, hidden_size=64
             # Make prediction with model
             outputs = model(features, consts, max_lead_time)
             outputs = outputs.squeeze()
-
 
             # Compute the loss and step the optimizer
             loss = criterion(outputs, target)
@@ -168,5 +174,5 @@ if __name__ == '__main__':
     else: 
         train_model(feature_dir=args.feature_dir, const_dir=args.const_dir, epochs=args.epochs,
                     batch_size=args.batch_size, hidden_size=args.hidden_size,
-                    n_weeks=args.n_weeks, max_lead_time=args.max_lead, crop_size=args.crop_size)
+                    n_weeks=args.n_weeks, max_lead_time=args.max_lead, crop_size=args.crop_size, feats=['*'])
 

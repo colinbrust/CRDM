@@ -4,7 +4,7 @@ from pathlib import Path
 from torch.utils.data import Dataset
 import torch
 
-dtype = torch.FloatTensor
+dtype = torch.cuda.FloatTensor
 
 
 class SmartLoader(Dataset):
@@ -28,7 +28,7 @@ class SmartLoader(Dataset):
         self.complete_ts = [list(range(x, x+max_lead_time)) for x in range(1, len(self.targets))]
         self.complete_ts = [x for x in self.complete_ts if all(y in self.indices for y in x)]
         self.complete_ts = [x for x in self.complete_ts if x[0] >= self.n_weeks]
-        self.complete_ts = self.complete_ts * 512
+        self.complete_ts = self.complete_ts * 512 
 
         self.consts = self._make_constants()
 

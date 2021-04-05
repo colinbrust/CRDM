@@ -5,7 +5,7 @@ import torch.nn as nn
 
 # Credit to: https://github.com/holmdk/Video-Prediction-using-PyTorch/blob/master/models/seq2seq_ConvLSTM.py
 class SeqLSTM(nn.Module):
-    def __init__(self, nf, in_chan, in_consts):
+    def __init__(self, nf, in_chan, in_consts, n_weeks):
         super(SeqLSTM, self).__init__()
 
         """ ARCHITECTURE 
@@ -15,6 +15,10 @@ class SeqLSTM(nn.Module):
         # Decoder (3D CNN) - produces regression predictions for our model
         """
 
+        # Add dimension for the encoded constants.
+        in_chan = in_chan + 1
+
+        self.n_weeks = n_weeks
         self.encoder_1_convlstm = ConvLSTMCell(input_dim=in_chan,
                                                hidden_dim=nf,
                                                kernel_size=(3, 3),
@@ -110,9 +114,12 @@ class SeqLSTM(nn.Module):
         h_t2, c_t2 = self.encoder_2_convlstm.init_hidden(batch_size=b, image_size=(h, w))
         h_t3, c_t3 = self.decoder_1_convlstm.init_hidden(batch_size=b, image_size=(h, w))
         h_t4, c_t4 = self.decoder_2_convlstm.init_hidden(batch_size=b, image_size=(h, w))
-
+        
         encoded_constants = self.constant_encoder(const)
         encoded_constants = encoded_constants.squeeze()
+        encoded_constants = encoded_constants.unsqueeze(1).unsqueeze(1).expand(-1, self.n_weeks, -1, -1, -1)
+
+        x = torch.cat((encoded_constants, x), dim=2)
 
         # autoencoder forward
         outputs = self.autoencoder(x, seq_len, future_seq, h_t, c_t, h_t2, c_t2, h_t3, c_t3, h_t4, c_t4)

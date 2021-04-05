@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 
 
-def save_arrays(target_dir, feature_dir, const_dir, out_dir, variable):
+def gather_features(target_dir, feature_dir, const_dir, out_dir, variable):
 
     targets = sorted(Path(target_dir).iterdir())
     fill = np.memmap(list(Path(const_dir).glob(variable+'*'))[0], dtype='float32')
@@ -43,5 +43,5 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     for variable in MONTHLY_VARS + WEEKLY_VARS:
-        save_arrays(args.target_dir, args.feature_dir, args.const_dir, args.out_dir, variable)
+        gather_features(args.target_dir, args.feature_dir, args.const_dir, args.out_dir, variable)
 

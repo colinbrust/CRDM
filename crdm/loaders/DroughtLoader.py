@@ -7,17 +7,17 @@ import torch
 dtype = torch.cuda.FloatTensor
 
 
-class SmartLoader(Dataset):
+class DroughtLoader(Dataset):
 
     def __init__(self, feature_dir, const_dir, train=True, max_lead_time=12,
-                 n_weeks=25, pixel=False, crop_size=16, feats=['*']):
+                 n_weeks=25, pixel=False, crop_size=16, feats=('pr', 'USDM')):
 
         p = Path(feature_dir)
         ps = [list(p.glob(x+'.dat'))[0] for x in feats] if feats[0] != '*' else list(p.glob('*.dat'))
 
         self.shp = STACK_SHP if pixel else (STACK_SHP[0], *DIMS)
         self.targets = np.memmap(str(list(p.glob('USDM.dat'))[0]), dtype='float32', shape=self.shp)
-        self.features = [np.memmap(x, dtype='float32', shape=self.shp) for x in ps]
+        self.features = [np.memmap(str(x), dtype='float32', shape=self.shp) for x in ps]
         self.indices = TRAIN_INDICES if train else TEST_INDICES
         self.max_lead_time = max_lead_time
         self.n_weeks = n_weeks

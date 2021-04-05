@@ -1,5 +1,5 @@
 import argparse
-from crdm.loaders.SmartLoader import SmartLoader
+from crdm.loaders.DroughtLoader import DroughtLoader
 from crdm.classification.SeqConvLSTM import SeqLSTM
 from crdm.utils.MakeModelDir import make_model_dir
 import os
@@ -17,11 +17,11 @@ NUM_FEATS = 17
 
 def train_model(feature_dir, const_dir, epochs=50, batch_size=64, hidden_size=64, n_weeks=25, max_lead_time=12, crop_size=16, feats=FEATS):
 
-    test_loader = SmartLoader(feature_dir, const_dir, train=False, max_lead_time=max_lead_time, n_weeks=n_weeks,
-                              pixel=False, crop_size=crop_size, feats=feats)
+    test_loader = DroughtLoader(feature_dir, const_dir, train=False, max_lead_time=max_lead_time, n_weeks=n_weeks,
+                                pixel=False, crop_size=crop_size, feats=feats)
 
-    train_loader = SmartLoader(feature_dir, const_dir, train=True, max_lead_time=max_lead_time, n_weeks=n_weeks,
-                               pixel=False, crop_size=crop_size, feats=feats)
+    train_loader = DroughtLoader(feature_dir, const_dir, train=True, max_lead_time=max_lead_time, n_weeks=n_weeks,
+                                 pixel=False, crop_size=crop_size, feats=feats)
 
     train_loader = DataLoader(dataset=train_loader, batch_size=batch_size, shuffle=True, drop_last=True)
     test_loader = DataLoader(dataset=test_loader,  batch_size=batch_size, shuffle=True, drop_last=True)
@@ -51,7 +51,7 @@ def train_model(feature_dir, const_dir, epochs=50, batch_size=64, hidden_size=64
                 'n_weeks': n_weeks,
                 'max_lead_time': max_lead_time,
                 'crop_size': crop_size,
-                'feats': FEATS,
+                'feats': feats,
                 'num_const': NUM_CONST}
 
     with open('metadata.p', 'wb') as f:

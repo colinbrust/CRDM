@@ -1,6 +1,7 @@
 from crdm.utils.ImportantVars import STACK_SHP, TRAIN_INDICES, TEST_INDICES, LENGTH, DIMS
 import numpy as np
 from pathlib import Path
+from scipy.ndimage import rotate
 from torch.utils.data import Dataset
 import torch
 
@@ -10,7 +11,7 @@ dtype = torch.FloatTensor
 class DroughtLoader(Dataset):
 
     def __init__(self, feature_dir, const_dir, train=True, max_lead_time=12,
-                 n_weeks=25, pixel=False, crop_size=16, feats=('pr', 'USDM'), transform=None):
+                 n_weeks=25, pixel=False, crop_size=16, feats=('pr', 'USDM')):
 
         p = Path(feature_dir)
         ps = [list(p.glob(x+'.dat'))[0] for x in feats] if feats[0] != '*' else list(p.glob('*.dat'))
@@ -24,12 +25,12 @@ class DroughtLoader(Dataset):
         self.pixel = pixel
         self.crop_size = crop_size
         self.const_dir = const_dir
-        self.transform = transform
+        self.transform = True if train else False
 
         self.complete_ts = [list(range(x, x+max_lead_time)) for x in range(1, len(self.targets))]
         self.complete_ts = [x for x in self.complete_ts if all(y in self.indices for y in x)]
         self.complete_ts = [x for x in self.complete_ts if x[0] >= self.n_weeks]
-        self.complete_ts = self.complete_ts * 512 
+        self.complete_ts = self.complete_ts * 512
 
         self.consts = self._make_constants()
 
@@ -74,10 +75,37 @@ class DroughtLoader(Dataset):
             feats.append(feature[feature_range, y:y+self.crop_size, x:x+self.crop_size])
 
         feats = np.array(feats)
-        targets = self.targets[idx_list, y:y+self.crop_size, x:x+self.crop_size]
+
+        lead_time = np.random.randint(0, 11, 1)
+        targets = self.targets[idx_list[lead_time], y:y+self.crop_size, x:x+self.crop_size]
         consts = self.consts[:, y:y+self.crop_size, x:x+self.crop_size]
 
-        return feats, consts, targets
+        return feats, consts, targets, lead_time
+
+    @staticmethod
+    def _transforms(feat, const, target):
+
+        tfm = np.random.choice(['none', 'rotate', 'ud', 'lr', 'lrud'])
+
+        if tfm == 'none':
+            pass
+        elif tfm == 'rotate':
+            print('rotating')
+            rotation = np.random.randint(-180, 180, 1)
+            feat = rotate(feat, axes=(-2, -1), angle=int(rotation), reshape=False, mode='constant', cval=-1.5)
+            const = rotate(const, axes=(-2, -1), angle=int(rotation), reshape=False, mode='constant', cval=-1.5)
+            target = rotate(target, axes=(-2, -1), angle=int(rotation), reshape=False, mode='constant', cval=0, )
+        elif tfm == 'ud':
+            print('ud flip')
+            feat, const, target = feat[:, :, ::-1, :], const[:, ::-1, :], target[:, ::-1, :]
+        elif tfm == 'lr':
+            print('lr flip')
+            feat, const, target = feat[:, :, :, ::-1], const[:, :, ::-1], target[:, :, ::-1]
+        else:
+            print('both flip')
+            feat, const, target = feat[:, :, ::-1, ::-1], const[:, ::-1, ::-1], target[:, ::-1, ::-1]
+
+        return feat, const, target
 
     def __len__(self):
         return len(self.complete_ts)
@@ -87,13 +115,13 @@ class DroughtLoader(Dataset):
         if self.pixel:
             return self.pixel_loader(idx)
         else:
-            arr, consts, targets = self.crop_loader(idx)
+            arr, consts, targets, lead_time = self.crop_loader(idx)
             arr = np.transpose(arr, (1, 0, 2, 3))
 
             if self.transform:
-                arr = self.transform(arr)
+                arr, consts, targets = self._transforms(arr, consts, targets)
 
-            return dtype(arr), dtype(consts), dtype(targets)
+            return dtype(arr), dtype(consts), dtype(targets), lead_time + 1
 
 
 

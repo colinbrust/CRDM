@@ -18,17 +18,10 @@ NUM_FEATS = 17
 
 def train_model(feature_dir, const_dir, epochs=50, batch_size=64, hidden_size=64, n_weeks=25, max_lead_time=12, crop_size=16, feats=FEATS):
 
-    tsfm = transforms.Compose([
-        transforms.RandomRotation(180),
-        transforms.RandomHorizontalFlip(),
-        transforms.RandomVerticalFlip(),
-        transforms.ToTensor()
-    ])
-
     test_loader = DroughtLoader(feature_dir, const_dir, train=False, max_lead_time=max_lead_time, n_weeks=n_weeks,
-                                pixel=False, crop_size=crop_size, feats=feats, transform=None)
+                                pixel=False, crop_size=crop_size, feats=feats)
     train_loader = DroughtLoader(feature_dir, const_dir, train=True, max_lead_time=max_lead_time, n_weeks=n_weeks,
-                                 pixel=False, crop_size=crop_size, feats=feats, transform=tsfm)
+                                 pixel=False, crop_size=crop_size, feats=feats)
 
     train_loader = DataLoader(dataset=train_loader, batch_size=batch_size, shuffle=True, drop_last=True)
     test_loader = DataLoader(dataset=test_loader,  batch_size=batch_size, shuffle=True, drop_last=True)
@@ -74,13 +67,15 @@ def train_model(feature_dir, const_dir, epochs=50, batch_size=64, hidden_size=64
         # Loop over each subset of data
         for i, item in enumerate(train_loader, 1):
 
-            features, consts, target = item[0], item[1], item[2]
+            features, consts, target, lead_time = item
             # Zero out the optimizer's gradient buffer
             optimizer.zero_grad()
 
             # Make prediction with model
-            outputs = model(features, consts, max_lead_time)
+            outputs = model(features, consts, lead_time)
             outputs = outputs.squeeze()
+            print(outputs.shape)
+            print(target.shape)
 
             # Compute the loss and step the optimizer
             loss = criterion(outputs, target)
@@ -97,11 +92,11 @@ def train_model(feature_dir, const_dir, epochs=50, batch_size=64, hidden_size=64
 
         for i, item in enumerate(test_loader, 1):
 
-            features, consts, target = item[0], item[1], item[2]
+            features, consts, target, lead_time = item
 
             # Make prediction with model
 
-            outputs = model(features, consts, max_lead_time)
+            outputs = model(features, consts, lead_time)
             outputs = outputs.squeeze()
 
             # Compute the loss and step the optimizer

@@ -60,10 +60,13 @@ class SeqLSTM(nn.Module):
         )
 
         self.drop = nn.Dropout3d(p=0.5)
+        self.in_drop = nn.Dropout3d(p=0.25)
         
     def autoencoder(self, x, seq_len, future_step, h_t, c_t, h_t2, c_t2, h_t3, c_t3, h_t4, c_t4):
 
         outputs = []
+
+        x = self.in_drop(x)
 
         # encoder
         for t in range(seq_len):

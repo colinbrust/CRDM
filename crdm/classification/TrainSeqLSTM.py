@@ -67,12 +67,12 @@ def train_model(feature_dir, const_dir, epochs=50, batch_size=64, hidden_size=64
         # Loop over each subset of data
         for i, item in enumerate(train_loader, 1):
 
-            features, consts, target, lead_time = item
+            features, consts, target = item
             # Zero out the optimizer's gradient buffer
             optimizer.zero_grad()
 
             # Make prediction with model
-            outputs = model(features, consts, lead_time)
+            outputs = model(features, consts, max_lead_time)
             outputs = outputs.squeeze()
             print(outputs.shape)
             print(target.shape)
@@ -92,11 +92,10 @@ def train_model(feature_dir, const_dir, epochs=50, batch_size=64, hidden_size=64
 
         for i, item in enumerate(test_loader, 1):
 
-            features, consts, target, lead_time = item
+            features, consts, target = item
 
             # Make prediction with model
-
-            outputs = model(features, consts, lead_time)
+            outputs = model(features, consts, max_lead_time)
             outputs = outputs.squeeze()
 
             # Compute the loss and step the optimizer

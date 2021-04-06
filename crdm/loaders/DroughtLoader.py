@@ -76,11 +76,10 @@ class DroughtLoader(Dataset):
 
         feats = np.array(feats)
 
-        lead_time = np.random.randint(0, 11, 1)
-        targets = self.targets[idx_list[lead_time], y:y+self.crop_size, x:x+self.crop_size]
+        targets = self.targets[idx_list, y:y+self.crop_size, x:x+self.crop_size]
         consts = self.consts[:, y:y+self.crop_size, x:x+self.crop_size]
 
-        return feats, consts, targets, lead_time
+        return feats, consts, targets
 
     @staticmethod
     def _transforms(feat, const, target):
@@ -115,13 +114,13 @@ class DroughtLoader(Dataset):
         if self.pixel:
             return self.pixel_loader(idx)
         else:
-            arr, consts, targets, lead_time = self.crop_loader(idx)
+            arr, consts, targets = self.crop_loader(idx)
             arr = np.transpose(arr, (1, 0, 2, 3))
 
             if self.transform:
                 arr, consts, targets = self._transforms(arr, consts, targets)
 
-            return dtype(arr), dtype(consts), dtype(targets), lead_time + 1
+            return dtype(arr), dtype(consts), dtype(targets)
 
 
 

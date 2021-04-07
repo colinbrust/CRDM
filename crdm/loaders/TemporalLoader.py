@@ -19,7 +19,6 @@ class DroughtLoader(Dataset):
         self.shp = STACK_SHP if pixel else (STACK_SHP[0], *DIMS)
         self.targets = np.memmap(str(list(p.glob('USDM.dat'))[0]), dtype='float32', shape=self.shp)
         self.features = [np.memmap(str(x), dtype='float32', shape=self.shp) for x in ps]
-        self.indices = TRAIN_INDICES if train else TEST_INDICES
         self.max_lead_time = max_lead_time
         self.n_weeks = n_weeks
         self.pixel = pixel
@@ -27,6 +26,7 @@ class DroughtLoader(Dataset):
         self.const_dir = const_dir
         self.transform = True if train else False
 
+        self.indices = TRAIN_INDICES if train else TEST_INDICES
         self.complete_ts = [list(range(x, x+max_lead_time)) for x in range(1, len(self.targets))]
         self.complete_ts = [x for x in self.complete_ts if all(y in self.indices for y in x)]
         self.complete_ts = [x for x in self.complete_ts if x[0] >= self.n_weeks]
@@ -91,9 +91,9 @@ class DroughtLoader(Dataset):
         elif tfm == 'rotate':
             print('rotating')
             rotation = np.random.randint(-180, 180, 1)
-            feat = rotate(feat, axes=(-2, -1), angle=int(rotation), reshape=False, mode='constant', cval=-1.5)
-            const = rotate(const, axes=(-2, -1), angle=int(rotation), reshape=False, mode='constant', cval=-1.5)
-            target = rotate(target, axes=(-2, -1), angle=int(rotation), reshape=False, mode='constant', cval=0, )
+            feat = rotate(feat, axes=(-2, -1), angle=int(rotation), reshape=False, mode='constant', cval=-1.5, order=0)
+            const = rotate(const, axes=(-2, -1), angle=int(rotation), reshape=False, mode='constant', cval=-1.5, order=0)
+            target = rotate(target, axes=(-2, -1), angle=int(rotation), reshape=False, mode='constant', cval=0, order=0)
         elif tfm == 'ud':
             print('ud flip')
             feat, const, target = feat[:, :, ::-1, :], const[:, ::-1, :], target[:, ::-1, :]
@@ -120,7 +120,7 @@ class DroughtLoader(Dataset):
             if self.transform:
                 arr, consts, targets = self._transforms(arr, consts, targets)
 
-            return dtype(arr), dtype(consts), dtype(targets)
+            return dtype(arr.copy()), dtype(consts.copy()), dtype(targets.copy())
 
 
 

@@ -5,7 +5,7 @@ from scipy.ndimage import rotate
 from torch.utils.data import Dataset
 import torch
 
-dtype = torch.FloatTensor
+dtype = torch.cuda.FloatTensor
 
 
 class DroughtLoader(Dataset):
@@ -89,19 +89,15 @@ class DroughtLoader(Dataset):
         if tfm == 'none':
             pass
         elif tfm == 'rotate':
-            print('rotating')
             rotation = np.random.randint(-180, 180, 1)
             feat = rotate(feat, axes=(-2, -1), angle=int(rotation), reshape=False, mode='constant', cval=-1.5, order=0)
             const = rotate(const, axes=(-2, -1), angle=int(rotation), reshape=False, mode='constant', cval=-1.5, order=0)
             target = rotate(target, axes=(-2, -1), angle=int(rotation), reshape=False, mode='constant', cval=0, order=0)
         elif tfm == 'ud':
-            print('ud flip')
             feat, const, target = feat[:, :, ::-1, :], const[:, ::-1, :], target[:, ::-1, :]
         elif tfm == 'lr':
-            print('lr flip')
             feat, const, target = feat[:, :, :, ::-1], const[:, :, ::-1], target[:, :, ::-1]
         else:
-            print('both flip')
             feat, const, target = feat[:, :, ::-1, ::-1], const[:, ::-1, ::-1], target[:, ::-1, ::-1]
 
         return feat, const, target

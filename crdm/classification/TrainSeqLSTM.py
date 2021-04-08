@@ -74,8 +74,6 @@ def train_model(feature_dir, const_dir, epochs=50, batch_size=64, hidden_size=64
             # Make prediction with model
             outputs = model(features, consts, max_lead_time)
             outputs = outputs.squeeze()
-            print(outputs.shape)
-            print(target.shape)
 
             # Compute the loss and step the optimizer
             loss = criterion(outputs, target)

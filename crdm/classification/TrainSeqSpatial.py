@@ -4,6 +4,7 @@ from crdm.classification.SeqConvLSTM import SeqLSTM
 from crdm.utils.MakeModelDir import make_model_dir
 import os
 import pickle
+import numpy as np
 import torch
 from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import ReduceLROnPlateau
@@ -37,7 +38,7 @@ def train_model(feature_dir, const_dir, train_dir, epochs=50, batch_size=64, hid
     criterion = nn.MSELoss()
     lr = 3e-4
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    scheduler = ReduceLROnPlateau(optimizer, mode='min', patience=2, threshold=1e-5, verbose=True, factor=0.5)
+    scheduler = ReduceLROnPlateau(optimizer, mode='min', patience=5, threshold=1e-5, verbose=True, factor=0.5)
 
     prev_best_loss = 1e6
     err_out = {}
@@ -73,15 +74,13 @@ def train_model(feature_dir, const_dir, train_dir, epochs=50, batch_size=64, hid
             # Make prediction with model
             outputs = model(features, consts, max_lead_time)
             outputs = outputs.squeeze()
-            print(outputs.shape)
-            print(target.shape)
 
             # Compute the loss and step the optimizer
             loss = criterion(outputs, target)
             loss.backward()
             optimizer.step()
             if i % 100 == 0:
-                print('Epoch: {}, Train Loss: {}'.format(epoch, loss.item()))
+                print('Epoch: {}, Train Loss: {}'.format(epoch, np.mean(train_loss)))
 
             # Store loss info
             train_loss.append(loss.item())
@@ -99,8 +98,8 @@ def train_model(feature_dir, const_dir, train_dir, epochs=50, batch_size=64, hid
 
             # Compute the loss and step the optimizer
             loss = criterion(outputs, target)
-            if i % 200 == 0:
-                print('Epoch: {}, Test Loss: {}'.format(epoch, loss.item()))
+            if i % 100 == 0:
+                print('Epoch: {}, Test Loss: {}'.format(epoch, np.mean(test_loss)))
 
             # Save loss info
             total_loss += loss.item()

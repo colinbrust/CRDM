@@ -7,7 +7,7 @@ from torch.utils.data import Dataset
 import torch
 import os
 
-dtype = torch.FloatTensor
+dtype = torch.cuda.FloatTensor
 
 
 class DroughtLoader(Dataset):
@@ -32,8 +32,9 @@ class DroughtLoader(Dataset):
 
         self.indices = self._read_pickle(os.path.join(train_dir, 'train.p')) if train else self._read_pickle(os.path.join(train_dir, 'test.p'))
         self.indices = np.array(self.indices)
-
-        self.complete_ts = [list(range(x, x + max_lead_time)) for x in range(1, len(self.targets))]
+        
+        self.complete_ts = [list(range(x, x+max_lead_time)) for x in range(1, len(self.targets))]
+        self.complete_ts = [x for x in self.complete_ts if all(y in TRAIN_INDICES+TEST_INDICES for y in x)]
         self.complete_ts = [x for x in self.complete_ts if x[0] >= self.n_weeks]
         self.complete_ts = [(x, self.indices[:, y]) for x in self.complete_ts for y in range(self.indices.shape[1])]
         np.random.shuffle(self.complete_ts)
@@ -102,7 +103,7 @@ class DroughtLoader(Dataset):
         return feat, const, target
 
     def __len__(self):
-        return 48000
+        return 20000
         # return len(self.complete_ts)
 
     def __getitem__(self, idx):

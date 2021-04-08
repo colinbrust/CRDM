@@ -36,6 +36,7 @@ class DroughtLoader(Dataset):
         self.complete_ts = [list(range(x, x + max_lead_time)) for x in range(1, len(self.targets))]
         self.complete_ts = [x for x in self.complete_ts if x[0] >= self.n_weeks]
         self.complete_ts = [(x, self.indices[:, y]) for x in self.complete_ts for y in range(self.indices.shape[1])]
+        np.random.shuffle(self.complete_ts)
 
     def _make_constants(self):
 
@@ -52,9 +53,7 @@ class DroughtLoader(Dataset):
         feature_start = feature_end - self.n_weeks
         feature_range = list(range(max(0, feature_start), feature_end))
 
-        x = location[1]
-        y = location[0]
-
+        x, y = location
         feats = []
 
         for feature in self.features:
@@ -66,7 +65,7 @@ class DroughtLoader(Dataset):
         npad = ((0, 0), (0, 0), (0, missing_1), (0, missing_2))
         feats = np.pad(feats, pad_width=npad, mode='constant', constant_values=-1.5)
 
-        npad = ((0, 0), (0, 0), (0, missing_1), (0, missing_2))
+        npad = ((0, 0), (0, missing_1), (0, missing_2))
         targets = self.targets[idx_list, y:y+self.crop_size, x:x+self.crop_size]
         targets = np.pad(targets, pad_width=npad, mode='constant', constant_values=-1.5)
 
@@ -89,25 +88,22 @@ class DroughtLoader(Dataset):
         if tfm == 'none':
             pass
         elif tfm == 'rotate':
-            print('rotating')
             rotation = np.random.randint(-180, 180, 1)
             feat = rotate(feat, axes=(-2, -1), angle=int(rotation), reshape=False, mode='constant', cval=-1.5, order=0)
             const = rotate(const, axes=(-2, -1), angle=int(rotation), reshape=False, mode='constant', cval=-1.5, order=0)
             target = rotate(target, axes=(-2, -1), angle=int(rotation), reshape=False, mode='constant', cval=0, order=0)
         elif tfm == 'ud':
-            print('ud flip')
             feat, const, target = feat[:, :, ::-1, :], const[:, ::-1, :], target[:, ::-1, :]
         elif tfm == 'lr':
-            print('lr flip')
             feat, const, target = feat[:, :, :, ::-1], const[:, :, ::-1], target[:, :, ::-1]
         else:
-            print('both flip')
             feat, const, target = feat[:, :, ::-1, ::-1], const[:, ::-1, ::-1], target[:, ::-1, ::-1]
 
         return feat, const, target
 
     def __len__(self):
-        return len(self.complete_ts)
+        return 48000
+        # return len(self.complete_ts)
 
     def __getitem__(self, idx):
 

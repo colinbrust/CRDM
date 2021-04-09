@@ -15,7 +15,7 @@ NUM_CONST = 17
 NUM_FEATS = 17
 
 
-def train_model(feature_dir, const_dir, epochs=50, batch_size=64, hidden_size=64, n_weeks=25, max_lead_time=12,
+def train_model(feature_dir, const_dir, epochs=50, batch_size=64, n_weeks=25, max_lead_time=12,
                 crop_size=16, feats=FEATS):
     test_loader = DroughtLoader(feature_dir, const_dir, train=False, max_lead_time=max_lead_time, n_weeks=n_weeks,
                                 pixel=False, crop_size=crop_size, feats=feats)
@@ -46,7 +46,6 @@ def train_model(feature_dir, const_dir, epochs=50, batch_size=64, hidden_size=64
 
     metadata = {'epochs': epochs,
                 'batch_size': batch_size,
-                'hidden_size': hidden_size,
                 'n_weeks': n_weeks,
                 'max_lead_time': max_lead_time,
                 'crop_size': crop_size,
@@ -125,7 +124,6 @@ if __name__ == '__main__':
     parser.add_argument('-c', '--const_dir', type=str, help='Directory containing constant features.')
     parser.add_argument('-e', '--epochs', type=int, default=25, help='Number of epochs.')
     parser.add_argument('-bs', '--batch_size', type=int, default=64, help='Batch size to train model with.')
-    parser.add_argument('-hs', '--hidden_size', type=int, default=64, help='LSTM hidden dimension size.')
     parser.add_argument('-nw', '--n_weeks', type=int, default=25, help='Number of week history to use for prediction')
     parser.add_argument('-mx', '--max_lead', type=int, default=8,
                         help='How many weeks into the future to make predictions.')
@@ -144,28 +142,28 @@ if __name__ == '__main__':
         for feats in feat_list:
             print('Grid search with feat_list={}'.format(feats))
             train_model(feature_dir=args.feature_dir, const_dir=args.const_dir, epochs=20,
-                        batch_size=args.batch_size, hidden_size=args.hidden_size,
-                        n_weeks=25, max_lead_time=args.max_lead, crop_size=args.crop_size, feats=feats)
+                        batch_size=args.batch_size, n_weeks=25, max_lead_time=args.max_lead,
+                        crop_size=args.crop_size, feats=feats)
             os.chdir(pwd)
 
         week_list = [1, 5, 10, 20, 30, 40, 50]
         for week in week_list:
             print('Grid search with n_weeks={}'.format(week))
             train_model(feature_dir=args.feature_dir, const_dir=args.const_dir, epochs=20,
-                        batch_size=args.batch_size, hidden_size=args.hidden_size,
-                        n_weeks=week, max_lead_time=args.max_lead, crop_size=args.crop_size, feats=['*'])
+                        batch_size=args.batch_size, n_weeks=week, max_lead_time=args.max_lead,
+                        crop_size=args.crop_size, feats=['*'])
             os.chdir(pwd)
 
-        hidden_list = [32, 64, 128, 16]
-        for hidden in hidden_list:
-            print('Grid search with hidden_size={}'.format(hidden))
+        hidden_list = [16, 32, 64, 128]
+        for crop in hidden_list:
+            print('Grid search with crop_size={}'.format(crop))
             train_model(feature_dir=args.feature_dir, const_dir=args.const_dir, epochs=20,
-                        batch_size=args.batch_size, hidden_size=hidden,
-                        n_weeks=25, max_lead_time=args.max_lead, crop_size=args.crop_size, feats=['*'])
+                        batch_size=args.batch_size, n_weeks=25, max_lead_time=args.max_lead,
+                        crop_size=crop, feats=['*'])
             os.chdir(pwd)
 
     else:
         train_model(feature_dir=args.feature_dir, const_dir=args.const_dir, epochs=args.epochs,
-                    batch_size=args.batch_size, hidden_size=args.hidden_size,
-                    n_weeks=args.n_weeks, max_lead_time=args.max_lead, crop_size=args.crop_size, feats=['*'])
+                    batch_size=args.batch_size, n_weeks=args.n_weeks, max_lead_time=args.max_lead,
+                    crop_size=args.crop_size, feats=['*'])
 

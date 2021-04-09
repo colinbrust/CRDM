@@ -5,7 +5,7 @@ from scipy.ndimage import rotate
 from torch.utils.data import Dataset
 import torch
 
-dtype = torch.cuda.FloatTensor
+dtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
 
 
 class DroughtLoader(Dataset):

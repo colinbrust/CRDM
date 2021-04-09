@@ -66,15 +66,15 @@ class SeqLSTM(nn.Module):
 
         outputs = []
 
-        # x = self.in_drop(x)
+        x = self.in_drop(x)
 
         # encoder
         for t in range(seq_len):
             h_t, c_t = self.encoder_1_convlstm(input_tensor=x[:, t, :, :],
                                                cur_state=[h_t, c_t])
-            # h_tD = self.drop(h_t)
+            h_tD = self.drop(h_t)
 
-            h_t2, c_t2 = self.encoder_2_convlstm(input_tensor=h_t,
+            h_t2, c_t2 = self.encoder_2_convlstm(input_tensor=h_tD,
                                                  cur_state=[h_t2, c_t2])
 
         # encoder_vector
@@ -84,9 +84,9 @@ class SeqLSTM(nn.Module):
         for t in range(future_step):
             h_t3, c_t3 = self.decoder_1_convlstm(input_tensor=encoder_vector,
                                                  cur_state=[h_t3, c_t3])
-            # h_t3D = self.drop(h_t3)
+            h_t3D = self.drop(h_t3)
 
-            h_t4, c_t4 = self.decoder_2_convlstm(input_tensor=h_t3,
+            h_t4, c_t4 = self.decoder_2_convlstm(input_tensor=h_t3D,
                                                  cur_state=[h_t4, c_t4])
 
             encoder_vector = h_t4

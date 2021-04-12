@@ -149,19 +149,21 @@ if __name__ == '__main__':
                        batch_size=args.batch_size, hidden_size=args.hidden_size,
                        n_weeks=25, mx_lead=args.max_lead, feats=feats)
 
-        week_list = [10, 20, 30, 40, 50]
+        week_list = [15, 20, 30, 40, 50]
         for week in week_list:
             print('Grid search with n_weeks={}'.format(week))
-            train_lstm(feature_dir=args.feature_dir, const_dir=args.const_dir, epochs=20,
+            train_lstm(feature_dir=args.feature_dir, const_dir=args.const_dir, epochs=15,
                        batch_size=args.batch_size, hidden_size=args.hidden_size,
                        n_weeks=week, mx_lead=args.max_lead, feats=['*'])
 
-        hidden_list = [32, 64, 128, 16]
+        hidden_list = reversed([128, 256, 512, 1024])
+        batch_list = reversed([128, 256, 512, 1024])
         for hidden in hidden_list:
-            print('Grid search with hidden_size={}'.format(hidden))
-            train_lstm(feature_dir=args.feature_dir, const_dir=args.const_dir, epochs=20,
-                       batch_size=args.batch_size, hidden_size=hidden,
-                       n_weeks=25, mx_lead=args.max_lead, feats=['*'])
+            for batch in batch_list:
+                print('Grid search with hidden_size={}'.format(hidden))
+                train_lstm(feature_dir=args.feature_dir, const_dir=args.const_dir, epochs=15,
+                           batch_size=batch, hidden_size=hidden,
+                           n_weeks=25, mx_lead=args.max_lead, feats=['*'])
 
     else:
         train_lstm(feature_dir=args.feature_dir, const_dir=args.const_dir, epochs=args.epochs,

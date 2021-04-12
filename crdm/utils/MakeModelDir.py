@@ -8,4 +8,4 @@ def make_model_dir():
 
     new_dir = 'model'+str(i)
     os.mkdir(new_dir)
-    os.chdir(new_dir)
+    return new_dir

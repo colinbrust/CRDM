@@ -14,7 +14,7 @@ class LSTM(nn.Module):
         self.mx_lead = mx_lead
         self.const_size = const_size
 
-        self.lstm = nn.LSTM(size, self.hidden_size, num_layers=2)
+        self.lstm = nn.LSTM(size, self.hidden_size, num_layers=2, batch_first=True)
 
         classifier = []
         sz = self.hidden_size

@@ -18,15 +18,19 @@ class LSTM(nn.Module):
 
         classifier = []
         sz = self.hidden_size
+        new_sz = int(sz + self.const_size)
         while sz > 32:
-            classifier.append(nn.Linear(sz+self.const_size, sz//2))
-            classifier.append(nn.BatchNorm1d(sz//2))
+            print(new_sz, sz//2)
+            classifier.append(nn.Linear(int(new_sz), int(sz//2)))
+            classifier.append(nn.BatchNorm1d(int(sz//2)))
             classifier.append(nn.ReLU())
             classifier.append(nn.Dropout(0.25))
             sz /= 2
+            new_sz = sz
 
-        classifier.append(nn.Linear(sz, 1))
+        classifier.append(nn.Linear(int(sz), 1))
         classifier.append(nn.ReLU())
+        self.classifier = nn.Sequential(*classifier)
 
     def init_state(self):
         # This is what we'll initialise our hidden state as
@@ -37,6 +41,7 @@ class LSTM(nn.Module):
         # Run the LSTM forward
         lstm_out, lstm_state = self.lstm(lstm_seq, prev_state)
         lstm_out = lstm_out[:, -self.mx_lead:, :]
+        const = const.unsqueeze(1).expand(-1, self.mx_lead, -1)
         lstm_and_const = torch.cat([lstm_out, const], dim=-1)
         preds = self.classifier(lstm_and_const)
         preds = preds.squeeze()

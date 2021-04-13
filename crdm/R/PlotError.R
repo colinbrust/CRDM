@@ -5,15 +5,49 @@ use_condaenv("gee", conda = "/opt/miniconda3/bin/conda")
 source_python('~/projects/DroughtCast/crdm/utils/ReadPickle.py')
 source('https://raw.githubusercontent.com/colinbrust/DroughtCast/revert/crdm/R/PlotTheme.R')
 
-strip_text = function(x) {
+
+read_metadata <- function(f) {
   
-  x %>%
-    stringr::str_split('-') %>%
-    lapply(magrittr::extract, -1) %>%
-    unlist()
+  read_pickle(f) %>% 
+    lapply(function(x) paste(x, collapse=', ')) %>%
+    tibble::as_tibble() %>% 
+    dplyr::mutate(across(!dplyr::starts_with('feats'), as.numeric)) %>%
+    dplyr::mutate(model_id = basename(dirname(f))) 
 }
 
-read_file <- function(f) {
+read_error <- function(f) {
+  
+  read_pickle(f) %>%
+    lapply(function(x) lapply(x, mean)) %>%
+    lapply(tibble::as_tibble) %>%
+    dplyr::bind_rows() %>%
+    dplyr::mutate(model_id = basename(dirname(f)))
+  
+}
+
+read_all <- function(pth) {
+  
+  err <-  list.files(pth, recursive = T, full.names = T, pattern = 'err.p') %>%
+    lapply(read_error) %>%
+    dplyr::bind_rows()
+  
+  metadata <- list.files(
+    pth, recursive = T, full.names = T, pattern = 'metadata.p'
+    ) %>% 
+    lapply(read_metadata) %>% 
+    dplyr::bind_rows()
+  
+  dplyr::left_join(err, metadata, by='model_id')
+
+}
+
+plot_all <- function(pth, ...) {
+  
+  read_all(pth) %>% 
+    
+}
+
+read_file <- function() {
   
   read_pickle(f) %>%
     lapply(function(x) lapply(x,mean)) %>%
@@ -21,20 +55,6 @@ read_file <- function(f) {
     dplyr::bind_rows() %>%
     tibble::rowid_to_column() %>%
     dplyr::mutate(f = basename(f)) %>%
-    tidyr::separate(
-      f,
-      c('epochs', 'batch', 'nWeeks', 'hiddenSize', 'leadTime',
-        'rmFeatures', 'init', 'rerun', 'fType'), 
-      sep='_'
-    ) %>%
-    dplyr::select(-dplyr::starts_with('drop')) %>%
-    dplyr::mutate_at(
-      c('epochs', 'batch', 'nWeeks', 'hiddenSize', 'leadTime', 
-        'rmFeatures', 'init', 'rerun', 'fType'), strip_text
-    ) %>%
-    dplyr::mutate_at(
-      c('epochs', 'batch', 'nWeeks', 'hiddenSize', 'rerun'), as.numeric
-    ) 
 }
 
 plot_all <- function(f_dir='~/projects/DroughtCast/data/model_results/unet/crop16/') {

@@ -21,7 +21,9 @@ read_error <- function(f) {
     lapply(function(x) lapply(x, mean)) %>%
     lapply(tibble::as_tibble) %>%
     dplyr::bind_rows() %>%
-    dplyr::mutate(model_id = basename(dirname(f)))
+    dplyr::mutate(model_id = basename(dirname(f))) %>%
+    tibble::rowid_to_column() %>%
+    dplyr::rename(epoch=rowid)
   
 }
 
@@ -43,7 +45,16 @@ read_all <- function(pth) {
 
 plot_all <- function(pth, ...) {
   
-  read_all(pth) %>% 
+
+  read_all(pth) %>%
+    tidyr::pivot_longer(c(train, test), names_to = 'set', values_to = 'err') %>% 
+    dplyr::mutate(model_id = stringr::str_replace(model_id, 'model', '') %>%
+                    as.numeric() %>% 
+                    factor()) %>%
+    dplyr::filter(set == 'train') %>% 
+    ggplot(aes(x=epoch, y=err, color=model_id)) + 
+      geom_line() 
+    
     
 }
 

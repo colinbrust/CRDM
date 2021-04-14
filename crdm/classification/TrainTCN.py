@@ -62,8 +62,8 @@ def train_lstm(feature_dir, const_dir, n_weeks=25, epochs=50, batch_size=64, mx_
         model.train()
 
         # Loop over each subset of data
-        for i, item in enumerate(train_loader, 1):
-            x, _, y = item
+        for i in range(len(train_loader)):
+            x, _, y = train_loader[i]
             # Zero out the optimizer's gradient buffer
             optimizer.zero_grad()
 

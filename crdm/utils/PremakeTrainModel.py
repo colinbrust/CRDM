@@ -1,8 +1,10 @@
 from crdm.loaders.AggregatePixels import PremakeTrainingPixels
 from crdm.utils.MakeModelDir import make_model_dir
 from crdm.utils.ImportantVars import LENGTH
+import os
 import numpy as np
 from pathlib import Path
+import pickle
 from sklearn.model_selection import train_test_split
 
 
@@ -42,3 +44,14 @@ def premake_train_model(in_features, out_classes, **kwargs):
     train_w, train_t = np.concatenate(train_w, axis=-1), np.concatenate(train_t, axis=-1)
     test_w, test_t = np.concatenate(test_w, axis=-1), np.concatenate(test_t, axis=-1)
 
+    dirname = make_model_dir()
+
+    locs = {'train': train_locs,
+            'test': test_locs}
+
+    with open(os.path.join(dirname, 'locs.p'), 'wb') as f:
+        pickle.dump(locs, f)
+
+    for name, dat in zip(['train_w', 'train_t', 'test_w', 'test_t'], [train_w, train_t, test_w, test_t]):
+        with open(os.pth.join(dirname, name)) as f:
+            pickle.dump(dat, f)

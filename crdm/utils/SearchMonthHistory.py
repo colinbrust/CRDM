@@ -1,4 +1,4 @@
-from crdm.classification.TrainLSTM import train_lstm
+from crdm.training.TrainLSTM import train_lstm
 from crdm.utils.MakeLSTMPixelTS import make_lstm_pixel_ts
 import os
 

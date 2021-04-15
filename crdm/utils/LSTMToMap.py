@@ -2,9 +2,8 @@ import argparse
 import torch
 import os
 import glob
-import matplotlib.pyplot as plt
 import numpy as np
-from crdm.classification.TrainLSTM import LSTM
+from crdm.training.TrainLSTM import LSTM
 from crdm.loaders.EvalLSTM import AggregateAllPixles
 from crdm.utils.ImportantVars import DIMS, LENGTH, MONTHLY_VARS, WEEKLY_VARS
 from crdm.utils.ParseFileNames import parse_fname

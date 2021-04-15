@@ -12,7 +12,7 @@ class Aggregate(ABC):
     """
     Class for aggregating all images necessary to make predictions for a given USDM image.
     """
-    def __init__(self, targets: List[str], in_features: str, mei: str, n_weeks: int = 17, **kwargs) -> None:
+    def __init__(self, targets: List[str], in_features: str, n_weeks: int = 25, **kwargs) -> None:
         """
         :param target: Path to target flash drought image :param in_features: Path to directory containing 'monthly',
         'constant' and 'annual' subdirectories each containing features :param lead_time: How many months in advance

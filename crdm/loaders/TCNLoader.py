@@ -28,5 +28,5 @@ class TCNLoader(Dataset):
         x = self.x[idx]
         y = self.y[idx]
 
-        # Copy so we only have to copy one slice into memory rather than the entire training dataset.
+        # Copy so we only have to copy one slice into memory rather than the entire train/test dataset.
         return dtype(x.copy()), dtype(y.copy())

@@ -58,6 +58,7 @@ if __name__ == '__main__':
     parser.add_argument('-nl', '--n_layers', type=int, default=7, help='Number of residual layers in network.')
     parser.add_argument('-nw', '--n_weeks', type=int, default=25, help='Number of week history to use for prediction')
     parser.add_argument('-sz', '--size', type=int, default=1024, help='How many samples to take per image.')
+    parser.add_argument('-clip', '--clip', tyype=float, default=0.35, help='Gradient clip')
 
     parser.add_argument('-mx', '--mx_lead', type=int, default=8,
                         help='How many weeks into the future to make predictions.')
@@ -81,14 +82,15 @@ if __name__ == '__main__':
         'n_layers': args.n_layers,
         'n_weeks': args.n_weeks,
         'mx_lead': args.mx_lead,
-        'size': args.size, 
+        'size': args.size,
+        'clip': args.clip,
         'early_stop': 10
     }
 
     i = 0
     # Hyperparameter grid search
     if args.search:
-
+        setup['index'] = i
         week_list = [30, 50, 75, 100]
         setup['n_weeks'] = 15
         print('Grid search with n_weeks={}'.format(15))

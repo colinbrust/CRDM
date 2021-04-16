@@ -15,8 +15,9 @@ def train_tcn(setup, dirname=None):
 
     # If model isn't being trained on premade data, create a model directory and make training data.
     if dirname is None:
-        dirname = make_training_data(setup['in_features'], setup['out_classes'], **setup)
+        dirname = make_training_data(**setup)
 
+    setup['dirname'] = dirname
     with open(os.path.join(dirname, 'shps.p'), 'rb') as f:
         shps = pickle.load(f)
 
@@ -27,7 +28,7 @@ def train_tcn(setup, dirname=None):
     setup['test'] = DataLoader(dataset=test_loader, batch_size=setup['batch_size'], shuffle=True)
 
     # Define model, loss and optimizer.
-    model = TCN(input_size=shps['train_x.dat'][-1], output_size=1,
+    model = TCN(input_size=shps['train_x.dat'][1], output_size=1,
                 num_channels=[setup['hidden_size']] * setup['n_layers'],
                 kernel_size=setup['kernel_size'], mx_lead=setup['mx_lead'], dropout=0.2)
 
@@ -43,7 +44,7 @@ def train_tcn(setup, dirname=None):
     setup['model_name'] = 'model-tcn.p'
 
     train_model(setup)
-
+    return dirname
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train Drought Prediction Model')
@@ -55,6 +56,8 @@ if __name__ == '__main__':
     parser.add_argument('-ks', '--kernel_size', type=int, default=7, help='Filter kernel size.')
     parser.add_argument('-nl', '--n_layers', type=int, default=7, help='Number of residual layers in network.')
     parser.add_argument('-nw', '--n_weeks', type=int, default=25, help='Number of week history to use for prediction')
+    parser.add_argument('-sz', '--size', type=int, default=1024, help='How many samples to take per image.')
+
     parser.add_argument('-mx', '--mx_lead', type=int, default=8,
                         help='How many weeks into the future to make predictions.')
     parser.add_argument('-dn', '--dirname', type=str, default=None,
@@ -76,17 +79,22 @@ if __name__ == '__main__':
         'kernel_size': args.kernel_size,
         'n_layers': args.n_layers,
         'n_weeks': args.n_weeks,
-        'mx_lead': args.mx_lead
+        'mx_lead': args.mx_lead,
+        'size': args.size, 
+        'early_stop': 10
     }
 
     # Hyperparameter grid search
     if args.search:
 
-        week_list = [15, 30, 50, 75, 100]
+        week_list = [30, 50, 75, 100]
+        setup['n_weeks'] = 15
+        print('Grid search with n_weeks={}'.format(15))
+        dirname = train_tcn(setup, dirname=args.dirname)
         for week in week_list:
             setup['n_weeks'] = week
             print('Grid search with n_weeks={}'.format(week))
-            train_tcn(setup, dirname=args.dirname)
+            dirname = train_tcn(setup, dirname=dirname)
 
         hidden_list = [20, 25, 30, 35]
         layer_list = [5, 10, 15, 20]

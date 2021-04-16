@@ -49,6 +49,8 @@ def make_training_data(in_features, out_classes, **kwargs):
     test_x, test_y = np.swapaxes(test_x, 0, 2), np.swapaxes(test_y, 0, 1)
     train_y, test_y = train_y/5, test_y/5
 
+    # train_x, test_x = np.swapaxes(train_x, 1, 2), np.swapaxes(test_x, 1, 2)
+
     dirname = make_model_dir()
 
     locs = {'train': train_locs,

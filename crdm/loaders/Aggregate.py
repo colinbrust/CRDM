@@ -27,6 +27,7 @@ class Aggregate(ABC):
         self.n_weeks = n_weeks
         self.kwargs = kwargs
         self.mei = pd.read_csv(os.path.join(in_features, 'mei.csv'))
+        self.mei.date = self.mei.date.astype(str)
 
         self.weekly_dates = self._get_date_list()
         self.annuals = self._get_annuals()

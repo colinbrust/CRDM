@@ -69,7 +69,7 @@ def train_model(setup):
         err_out[epoch] = {'train': train_loss,
                           'test': test_loss}
 
-        with open(os.path.join(setup['dirname'], 'err.p'), 'wb') as f:
+        with open(os.path.join(setup['dirname'], 'err_{}.p'.format(setup['index'])), 'wb') as f:
             pickle.dump(err_out, f)
 
         # If our new loss is better than old loss, save the model. Otherwise, increment the number of times the

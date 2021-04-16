@@ -41,10 +41,11 @@ def train_tcn(setup, dirname=None):
     setup['criterion'] = criterion
     setup['optimizer'] = optimizer
     setup['scheduler'] = scheduler
-    setup['model_name'] = 'model-tcn.p'
+    setup['model_name'] = 'model-tcn_{}.p'.format(setup['index'])
 
     train_model(setup)
     return dirname
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train Drought Prediction Model')
@@ -84,6 +85,7 @@ if __name__ == '__main__':
         'early_stop': 10
     }
 
+    i = 0
     # Hyperparameter grid search
     if args.search:
 
@@ -93,8 +95,12 @@ if __name__ == '__main__':
         dirname = train_tcn(setup, dirname=args.dirname)
         for week in week_list:
             setup['n_weeks'] = week
+            setup['index'] = i
             print('Grid search with n_weeks={}'.format(week))
+            with open(os.path.join(dirname, 'metadata_{}.p'.format(setup['index'])), 'wb') as f:
+                pickle.dump(setup, f)
             dirname = train_tcn(setup, dirname=dirname)
+            i += 1
 
         hidden_list = [20, 25, 30, 35]
         layer_list = [5, 10, 15, 20]
@@ -107,8 +113,15 @@ if __name__ == '__main__':
                     setup['hidden_size'] = hidden
                     setup['n_layers'] = layer
                     setup['kernel_size'] = kern
+                    setup['index'] = i
+                    with open(os.path.join(dirname, 'metadata.p'), 'wb') as f:
+                        pickle.dump(setup, f)
                     print('Grid search with hidden_size={}, layers={}, kernel_size={}'.format(hidden, layer, kern))
-                    train_tcn(setup, dirname=args.dirname)
+                    dirname = train_tcn(setup, dirname=dirname)
+                    i += 1
 
     else:
-        train_tcn(setup, dirname=args.dirname)
+        setup['index'] = i
+        dirname = train_tcn(setup, dirname=args.dirname)
+        with open(os.path.join(dirname, 'metadata_{}.p'.format(setup['index'])), 'wb') as f:
+            pickle.dump(setup, f)

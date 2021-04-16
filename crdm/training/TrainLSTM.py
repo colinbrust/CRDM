@@ -1,213 +1,116 @@
 import argparse
-from crdm.classification.LSTM import LSTM
-from crdm.loaders.LoaderLSTM import PixelLoader
-from crdm.utils.ImportantVars import MONTHLY_VARS, WEEKLY_VARS
-from crdm.utils.ParseFileNames import parse_fname
+from crdm.models.LSTMUnbranched import LSTM
+from crdm.training.MakeTrainingData import make_training_data
+from crdm.training.TrainModel import train_model
+from crdm.loaders.LSTMLoader import LSTMLoader
 import os
 import torch
 from torch import nn
-from torch.utils.data import DataLoader
-from torch.utils.data.sampler import SubsetRandomSampler
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from sklearn.model_selection import train_test_split
+from torch.utils.data import DataLoader
 import pickle
 
 
-def train_lstm(const_f, week_f, mon_f, target_f, epochs=50, batch_size=64, hidden_size=64, cuda=False, mod_f=None,
-               retrain_run=0):
-    device = 'cuda:0' if torch.cuda.is_available() and cuda else 'cpu'
-    info = parse_fname(const_f)
-    lead_time = info['leadTime']
+def train_lstm(setup, dirname=None):
 
-    # Make data loader
-    loader = PixelLoader(const_f, week_f, mon_f, target_f)
+    # If model isn't being trained on premade data, create a model directory and make training data.
+    if dirname is None:
+        dirname = make_training_data(**setup)
 
-    # Split into training and test sets
-    train, test = train_test_split([x for x in range(len(loader))], test_size=0.25)
-    train_sampler = SubsetRandomSampler(train)
-    test_sampler = SubsetRandomSampler(test)
+    setup['dirname'] = dirname
+    with open(os.path.join(dirname, 'shps.p'), 'rb') as f:
+        shps = pickle.load(f)
 
-    train_loader = DataLoader(dataset=loader, batch_size=batch_size, sampler=train_sampler)
-    test_loader = DataLoader(dataset=loader, batch_size=batch_size, sampler=test_sampler)
+    # Make train and test set data loaders and add them to model setup
+    train_loader = LSTMLoader(dirname=dirname, train=True)
+    test_loader = LSTMLoader(dirname=dirname, train=False)
+    setup['train'] = DataLoader(dataset=train_loader, batch_size=setup['batch_size'], shuffle=True, drop_last=True)
+    setup['test'] = DataLoader(dataset=test_loader, batch_size=setup['batch_size'], shuffle=True, drop_last=True)
 
-    const_size = loader[0]['const'].shape[-1]
-
-    weekly_size = len(WEEKLY_VARS) + 4
     # Define model, loss and optimizer.
+    model = LSTM(size=shps['train_x.dat'][1], hidden_size=setup['hidden_size'], batch_size=setup['batch_size'],
+                 mx_lead=setup['mx_lead'])
 
-    if mod_f is not None:
-        model = LSTM(weekly_size=weekly_size, monthly_size=len(MONTHLY_VARS), hidden_size=hidden_size, output_size=1,
-                     batch_size=batch_size, const_size=const_size, cuda=cuda)
-
-        model.load_state_dict(torch.load(mod_f)) if cuda and torch.cuda.is_available() else model.load_state_dict(
-            torch.load(mod_f, map_location=torch.device('cpu')))
-
-    else:
-        model = LSTM(weekly_size=weekly_size, monthly_size=len(MONTHLY_VARS), hidden_size=hidden_size, output_size=1,
-                     batch_size=batch_size, const_size=const_size, cuda=cuda)
-
-    model.to(device)
-
-    if torch.cuda.is_available() and cuda:
-        print('Using GPU')
-        model.cuda()
-
-    # Provide relative frequency weights to use in loss function.
     criterion = nn.MSELoss()
-    lr = 3e-4
+    lr = 0.002
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    scheduler = ReduceLROnPlateau(optimizer, mode='min', patience=2, threshold=1e-5, verbose=True)
+    scheduler = ReduceLROnPlateau(optimizer, mode='min', patience=10, threshold=1e-5, verbose=True, factor=0.5)
 
-    prev_best_loss = 1e6
-    err_out = {}
+    setup['model'] = model
+    setup['criterion'] = criterion
+    setup['optimizer'] = optimizer
+    setup['scheduler'] = scheduler
 
-    if mod_f is not None:
-        assert retrain_run != 0, 'If you are retraining the model, you must specify which number rerun this is ' \
-                                  'using the -rr flag. '
-
-    out_name_mod = 'epochs-{}_batch-{}_nMonths-{}_hiddenSize-{}_leadTime-{}_remove-{}_init-{}_rr-{}_fType-model.p'.format(
-        epochs, batch_size, info['nWeeks'], hidden_size, lead_time, info['rmYears'], info['init'], retrain_run)
-    out_name_err = 'epochs-{}_batch-{}_nMonths-{}_hiddenSize-{}_leadTime-{}_remove-{}_init-{}_rr-{}_fType-err.p'.format(
-        epochs, batch_size, info['nWeeks'], hidden_size, lead_time, info['rmYears'], info['init'], retrain_run)
-
-    dt = torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor
-
-    for epoch in range(epochs):
-        total_loss = 0
-        train_loss = []
-        test_loss = []
-
-        model.train()
-
-        # Loop over each subset of data
-        for i, item in enumerate(train_loader, 1):
-
-            try:
-                week_h, week_c = model.init_state()
-                month_h, month_c = model.init_state()
-
-                mon = item['mon'].permute(1, 0, 2)
-                week = item['week'].permute(1, 0, 2)
-                const = item['const'].permute(0, 1)
-
-                mon = mon.type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor)
-                week = week.type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor)
-                const = const.type(
-                    torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor)
-
-                # Zero out the optimizer's gradient buffer
-                optimizer.zero_grad()
-
-                # model.hidden = model.init_hidden()
-
-                # Make prediction with model
-                outputs, (week_h, week_c), (month_h, month_c) = model(week, mon, const, (week_h, week_c),
-                                                                      (month_h, month_c))
-                outputs = outputs.squeeze()
-
-                week_h, month_h = week_h.detach(), month_h.detach()
-                week_c, month_c = week_c.detach(), week_c.detach()
-
-                # Compute the loss and step the optimizer
-                target = item['target'] / 5
-                outputs = outputs.squeeze()
-
-                loss = criterion(outputs.type(dt), target.type(dt))
-
-                loss.backward()
-                optimizer.step()
-
-                if i % 250 == 0:
-                    print('Epoch: {}, Train Loss: {}'.format(epoch, loss.item()))
-
-                # Store loss info
-                train_loss.append(loss.item())
-
-            except RuntimeError as e:
-                # For some reason the SubsetRandomSampler makes uneven batch sizes at the end of the batch,
-                # so this is done as a workaound.
-                print(e, '\nSkipping this mini-batch.')
-
-        # Switch to evaluation mode
-        model.eval()
-
-        for i, item in enumerate(test_loader, 1):
-
-            try:
-
-                week_h, week_c = model.init_state()
-                month_h, month_c = model.init_state()
-
-                mon = item['mon'].permute(1, 0, 2)
-                week = item['week'].permute(1, 0, 2)
-                const = item['const'].permute(0, 1)
-
-                mon = mon.type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor)
-                week = week.type(torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor)
-                const = const.type(
-                    torch.cuda.FloatTensor if (torch.cuda.is_available() and cuda) else torch.FloatTensor)
-
-                # Run model on test set
-                outputs, (week_h, week_c), (month_h, month_c) = model(week, mon, const, (week_h, week_c),
-                                                                      (month_h, month_c))
-
-                target = item['target'] / 5
-                outputs = outputs.squeeze()
-
-                loss = criterion(outputs.type(dt), target.type(dt))
-
-                if i % 250 == 0:
-                    print('Epoch: {}, Test Loss: {}'.format(epoch, loss.item()))
-
-                # Save loss info
-                total_loss += loss.item()
-                test_loss.append(loss.item())
-
-            except RuntimeError as e:
-                # For some reason the SubsetRandomSampler makes uneven batch sizes at the end of the batch,
-                # so this is done as a workaound.
-                print(e, '\nSkipping this mini-batch.')
-
-        # If our new loss is better than old loss, save the model
-        if prev_best_loss > total_loss:
-            torch.save(model.state_dict(), out_name_mod)
-            prev_best_loss = total_loss
-
-        scheduler.step(total_loss)
-
-        # Save out train and test set loss.
-        err_out[epoch] = {'train': train_loss,
-                          'test': test_loss}
-
-        with open(out_name_err, 'wb') as f:
-            pickle.dump(err_out, f)
+    train_model(setup)
+    return dirname
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train Drought Prediction Model')
-    parser.add_argument('-p', '--pickle_f', type=str, help='File of memmap of constants.')
+    parser.add_argument('-if', '--in_features', type=str, help='Directory containing training features.')
+    parser.add_argument('-c', '--out_classes', type=str, help='Directory containing target classes.')
     parser.add_argument('-e', '--epochs', type=int, default=25, help='Number of epochs.')
-    parser.add_argument('-bs', '--batch_size', type=int, help='Batch size to train model with.')
-    parser.add_argument('-hs', '--hidden_size', type=int, help='LSTM hidden dimension size.')
-    parser.add_argument('-mf', '--model_file', type=str, default=None, help='Location of pretrained model pickle.')
-    parser.add_argument('-rr', '--retrain_run', type=int, default=0, help='Number of times model has been retrained')
+    parser.add_argument('-bs', '--batch_size', type=int, default=64, help='Batch size to train model with.')
+    parser.add_argument('-hs', '--hidden_size', type=int, default=64, help='LSTM hidden dimension size.')
+    parser.add_argument('-nw', '--n_weeks', type=int, default=25, help='Number of week history to use for prediction')
+    parser.add_argument('-sz', '--size', type=int, default=1024, help='How many samples to take per image.')
+    parser.add_argument('-clip', '--clip', tyype=float, default=-1, help='Gradient clip')
 
-    parser.add_argument('--cuda', dest='cuda', action='store_true',
-                        help='Train model on GPU.')
-    parser.add_argument('--no-cuda', dest='cuda', action='store_false',
-                        help='Train model on CPU. ')
-    parser.set_defaults(cuda=False)
+    parser.add_argument('-mx', '--mx_lead', type=int, default=8,
+                        help='How many weeks into the future to make predictions.')
+    parser.add_argument('-dn', '--dirname', type=str, default=None,
+                        help='Directory with training data to use. If left blank, training data will be created.')
+
+    parser.add_argument('--search', dest='search', action='store_true', help='Perform hyperparameter grid search.')
+    parser.add_argument('--no-search', dest='search', action='store_false',
+                        help="Don't perform hyperparameter grid search.")
+    parser.set_defaults(search=False)
 
     args = parser.parse_args()
-    infile = open(args.pickle_f, 'rb')
-    pick = pickle.load(infile)
-    infile.close()
 
-    week_f = os.path.join(os.path.dirname(args.pickle_f), pick['featType-weekly'])
-    mon_f = os.path.join(os.path.dirname(args.pickle_f), pick['featType-monthly'])
-    const_f = os.path.join(os.path.dirname(args.pickle_f), pick['featType-constant'])
-    target_f = os.path.join(os.path.dirname(args.pickle_f), pick['featType-target'])
+    setup = {
+        'in_features': args.in_features,
+        'out_classes': args.out_classes,
+        'epochs': args.epochs,
+        'batch_size': args.batch_size,
+        'hidden_size': args.hidden_size,
+        'kernel_size': args.kernel_size,
+        'n_layers': args.n_layers,
+        'n_weeks': args.n_weeks,
+        'mx_lead': args.mx_lead,
+        'size': args.size,
+        'clip': args.clip,
+        'early_stop': 10,
+        'model_type': 'lstm'
+    }
 
-    train_lstm(const_f=const_f, mon_f=mon_f, week_f=week_f, target_f=target_f,
-               epochs=args.epochs, batch_size=args.batch_size, hidden_size=args.hidden_size,
-               cuda=args.cuda, mod_f=args.model_file, retrain_run=args.retrain_run)
+    i = 0
+    # Hyperparameter grid search
+    if args.search:
+
+        week_list = [30, 50, 75, 100]
+        hidden_list = [128, 256, 512, 1024]
+
+        setup['index'] = i
+        setup['n_weeks'] = 15
+        setup['hidden_size'] = 128
+        print('Grid search with n_weeks={}, hidden_size={}'.format(15, 128))
+
+        dirname = train_lstm(setup, dirname=args.dirname)
+        setup['n_weeks'] = args.n_weeks
+        for hidden in hidden_list:
+            for n_weeks in week_list:
+                setup['hidden_size'] = hidden
+                setup['n_weeks'] = n_weeks
+                setup['index'] = i
+                with open(os.path.join(dirname, 'metadata.p'), 'wb') as f:
+                    pickle.dump(setup, f)
+                print('Grid search with hidden_size={}, n_weeks={}'.format(hidden, n_weeks))
+                dirname = train_lstm(setup, dirname=dirname)
+                i += 1
+
+    else:
+        setup['index'] = i
+        dirname = train_lstm(setup, dirname=args.dirname)
+        with open(os.path.join(dirname, 'metadata_{}_{}.p'.format(setup['index'], setup['model_type'])), 'wb') as f:
+            pickle.dump(setup, f)

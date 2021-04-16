@@ -4,7 +4,7 @@ import torch
 
 class LSTM(nn.Module):
 
-    def __init__(self, size=23, hidden_size=64, batch_size=64, mx_lead=12, const_size=15):
+    def __init__(self, size=23, hidden_size=64, batch_size=64, mx_lead=12):
         super().__init__()
 
         self.hidden_size = hidden_size
@@ -12,21 +12,18 @@ class LSTM(nn.Module):
         self.batch_size = batch_size
         self.size = size
         self.mx_lead = mx_lead
-        self.const_size = const_size
 
-        self.lstm = nn.LSTM(size, self.hidden_size, num_layers=2, batch_first=True)
+        self.lstm = nn.LSTM(size, self.hidden_size, num_layers=1, batch_first=True)
 
         classifier = []
         sz = self.hidden_size
-        new_sz = int(sz + self.const_size)
         while sz > 32:
             print(new_sz, sz//2)
-            classifier.append(nn.Linear(int(new_sz), int(sz//2)))
-            classifier.append(nn.BatchNorm1d(int(sz//2)))
+            classifier.append(nn.Linear(int(sz), int(sz//2)))
+            classifier.append(nn.BatchNorm1d(self.mx_lead))
             classifier.append(nn.ReLU())
             classifier.append(nn.Dropout(0.25))
             sz /= 2
-            new_sz = sz
 
         classifier.append(nn.Linear(int(sz), 1))
         classifier.append(nn.ReLU())

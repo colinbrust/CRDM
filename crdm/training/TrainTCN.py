@@ -58,7 +58,7 @@ if __name__ == '__main__':
     parser.add_argument('-nl', '--n_layers', type=int, default=7, help='Number of residual layers in network.')
     parser.add_argument('-nw', '--n_weeks', type=int, default=25, help='Number of week history to use for prediction')
     parser.add_argument('-sz', '--size', type=int, default=1024, help='How many samples to take per image.')
-    parser.add_argument('-clip', '--clip', tyype=float, default=0.35, help='Gradient clip')
+    parser.add_argument('-clip', '--clip', tyype=float, default=-1, help='Gradient clip')
 
     parser.add_argument('-mx', '--mx_lead', type=int, default=8,
                         help='How many weeks into the future to make predictions.')
@@ -84,7 +84,8 @@ if __name__ == '__main__':
         'mx_lead': args.mx_lead,
         'size': args.size,
         'clip': args.clip,
-        'early_stop': 10
+        'early_stop': 10,
+        'model_type': 'tcn'
     }
 
     i = 0
@@ -99,7 +100,7 @@ if __name__ == '__main__':
             setup['n_weeks'] = week
             setup['index'] = i
             print('Grid search with n_weeks={}'.format(week))
-            with open(os.path.join(dirname, 'metadata_{}.p'.format(setup['index'])), 'wb') as f:
+            with open(os.path.join(dirname, 'metadata_{}_{}.p'.format(setup['index'], setup['model_type'])), 'wb') as f:
                 pickle.dump(setup, f)
             dirname = train_tcn(setup, dirname=dirname)
             i += 1
@@ -125,5 +126,5 @@ if __name__ == '__main__':
     else:
         setup['index'] = i
         dirname = train_tcn(setup, dirname=args.dirname)
-        with open(os.path.join(dirname, 'metadata_{}.p'.format(setup['index'])), 'wb') as f:
+        with open(os.path.join(dirname, 'metadata_{}_{}.p'.format(setup['index'], setup['model_type'])), 'wb') as f:
             pickle.dump(setup, f)

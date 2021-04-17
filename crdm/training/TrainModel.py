@@ -88,3 +88,8 @@ def train_model(setup):
         # If test set loss isn't improving, stop training the model.
         if no_improvements >= early_stop:
             break
+
+    del setup['scheduler']
+    del setup['model']
+    del setup['optimizer']
+    del setup['early_stop']

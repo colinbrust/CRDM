@@ -54,7 +54,7 @@ if __name__ == '__main__':
     parser.add_argument('-hs', '--hidden_size', type=int, default=64, help='LSTM hidden dimension size.')
     parser.add_argument('-nw', '--n_weeks', type=int, default=25, help='Number of week history to use for prediction')
     parser.add_argument('-sz', '--size', type=int, default=1024, help='How many samples to take per image.')
-    parser.add_argument('-clip', '--clip', tyype=float, default=-1, help='Gradient clip')
+    parser.add_argument('-clip', '--clip', type=float, default=-1, help='Gradient clip')
 
     parser.add_argument('-mx', '--mx_lead', type=int, default=8,
                         help='How many weeks into the future to make predictions.')
@@ -74,8 +74,6 @@ if __name__ == '__main__':
         'epochs': args.epochs,
         'batch_size': args.batch_size,
         'hidden_size': args.hidden_size,
-        'kernel_size': args.kernel_size,
-        'n_layers': args.n_layers,
         'n_weeks': args.n_weeks,
         'mx_lead': args.mx_lead,
         'size': args.size,
@@ -83,20 +81,20 @@ if __name__ == '__main__':
         'early_stop': 10,
         'model_type': 'lstm'
     }
-
-    i = 0
+    dirname = args.dirname
+    i = 1
     # Hyperparameter grid search
     if args.search:
 
-        week_list = [30, 50, 75, 100]
-        hidden_list = [128, 256, 512, 1024]
+        week_list = [50, 75, 100]
+        hidden_list = [256, 512, 1024]
 
         setup['index'] = i
-        setup['n_weeks'] = 15
-        setup['hidden_size'] = 128
+        setup['n_weeks'] = 30
+        setup['hidden_size'] = 256
         print('Grid search with n_weeks={}, hidden_size={}'.format(15, 128))
 
-        dirname = train_lstm(setup, dirname=args.dirname)
+        # dirname = train_lstm(setup, dirname=args.dirname)
         setup['n_weeks'] = args.n_weeks
         for hidden in hidden_list:
             for n_weeks in week_list:

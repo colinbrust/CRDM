@@ -58,7 +58,7 @@ if __name__ == '__main__':
     parser.add_argument('-nl', '--n_layers', type=int, default=7, help='Number of residual layers in network.')
     parser.add_argument('-nw', '--n_weeks', type=int, default=25, help='Number of week history to use for prediction')
     parser.add_argument('-sz', '--size', type=int, default=1024, help='How many samples to take per image.')
-    parser.add_argument('-clip', '--clip', tyype=float, default=-1, help='Gradient clip')
+    parser.add_argument('-clip', '--clip', type=float, default=-1, help='Gradient clip')
 
     parser.add_argument('-mx', '--mx_lead', type=int, default=8,
                         help='How many weeks into the future to make predictions.')
@@ -87,19 +87,20 @@ if __name__ == '__main__':
         'early_stop': 10,
         'model_type': 'tcn'
     }
-
-    i = 0
+    dirname = args.dirname
+    i = 1
     # Hyperparameter grid search
     if args.search:
         setup['index'] = i
         week_list = [30, 50, 75, 100]
-        setup['n_weeks'] = 15
+        # setup['n_weeks'] = 15
         print('Grid search with n_weeks={}'.format(15))
-        dirname = train_tcn(setup, dirname=args.dirname)
+        # dirname = train_tcn(setup, dirname=args.dirname)
         for week in week_list:
             setup['n_weeks'] = week
             setup['index'] = i
             print('Grid search with n_weeks={}'.format(week))
+            print(setup)
             with open(os.path.join(dirname, 'metadata_{}_{}.p'.format(setup['index'], setup['model_type'])), 'wb') as f:
                 pickle.dump(setup, f)
             dirname = train_tcn(setup, dirname=dirname)

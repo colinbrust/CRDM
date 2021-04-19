@@ -16,9 +16,6 @@ def pretty_params(metadata):
         out.append('{}: {}'.format(k, v))
 
     return '\n'.join(out)
-
-def calc_loss(err):
-
     with open(err, 'rb') as f:
         err = pickle.load(f)
 
@@ -42,6 +39,9 @@ def calc_loss(err):
         's_train': s_train_out,
         's_test': s_test_out
     })
+
+def calc_loss(err):
+    pass
 
 
 

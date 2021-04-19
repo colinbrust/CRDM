@@ -1,0 +1,111 @@
+import argparse
+import torch
+import os
+import glob
+import numpy as np
+from crdm.models.TCN import TCN
+from crdm.models.LSTM import LSTM
+from crdm.loaders.AggregatePixels import PremakeTrainingPixels
+from crdm.utils.ImportantVars import DIMS, LENGTH, MONTHLY_VARS, WEEKLY_VARS
+import pickle
+from pathlib import Path
+import rasterio as rio
+from sklearn.metrics import mean_squared_error as mse
+import torch
+
+
+class Mapper(object):
+
+    def __init__(self, model, metadata, features, classes, out_dir, test=True):
+
+        self.model = model
+        self.features = features
+        self.classes = classes
+        self.out_dir = out_dir
+        self.test = test
+        self.metadata = metadata
+        self.dtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
+
+        targets = sorted([str(x) for x in Path(classes).glob('*.dat')])
+        targets = [targets[i:i + metadata['mx_lead']] for i in range(len(targets))]
+        targets = list(filter(lambda x: len(x) == metadata['mx_lead'], targets))
+        targets = [x for x in targets if ('/2015' in x[0] or '/2017' in x[0] or '/2007' in x[0])] if test else targets
+
+        self.targets = targets
+        self.indices = list(range(0, LENGTH+1, 2488))
+
+    def get_preds(self):
+
+        for target in self.targets:
+            print(target)
+            x_out = []
+            y_out = []
+            for i in range(len(self.indices)-1):
+                idx = list(range(self.indices[i], self.indices[i+1]))
+                agg = PremakeTrainingPixels(in_features=self.features, targets=target,
+                                            n_weeks=self.metadata['n_weeks'], indices=idx)
+                x, y = agg.premake_features()
+                x = self.dtype(x.swapaxes(0, 2))
+                outputs = self.model(x)
+                x_out.append(outputs)
+                y_out.append(y)
+
+            x = torch.cat(x_out).detach().numpy()
+            x = x.swapaxes(0, 1).reshape(self.metadata['mx_lead'], *DIMS)
+            x = x*5
+            y = np.concatenate(y_out, axis=1).reshape(metadata['mx_lead'], *DIMS)
+            self.save_arrays(x, target, True)
+            self.save_arrays(y, target, False)
+            baseline = np.memmap(agg.initial_drought[-1], mode='r', dtype='int8', shape=DIMS)
+            err = {}
+            for i in range(len(x)):
+                x_tmp, y_tmp = x[i], y[i]
+                true_err = mse(x_tmp, y_tmp)
+                base_err = mse(baseline, y_tmp)
+                err[i+1] = {'true_err': true_err, 'base_err': base_err}
+
+            with open(os.path.join(self.out_dir, target[0].replace('USDM.tif', 'err.p')), 'wb') as f:
+                pickle.dump(err, f)
+
+    def save_arrays(self, data, target, preds=True):
+
+        suffix = 'preds.tif' if preds else 'targets.tif'
+        dt = 'float32' if preds else 'int8'
+        out_dst = rio.open(
+            os.path.join(self.out_dir, os.path.basename(target[0]).replace('USDM.dat', suffix)),
+            'w',
+            driver='GTiff',
+            height=DIMS[0],
+            width=DIMS[1],
+            count=self.metadata['mx_lead'],
+            dtype=dt,
+            transform=rio.Affine(9000.0, 0.0, -12048530.45, 0.0, -9000.0, 5568540.83),
+            crs='+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs'
+        )
+
+        out_dst.write(data)
+        out_dst.close()
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Run model for entire domain for all target images.')
+
+    parser.add_argument('-mf', '--model_file', type=str, help='Path to pickled model file.')
+    parser.add_argument('-mm', '--meta_file', type=str, help='Path to pickled metadata file.')
+    parser.add_argument('-sf', '--shp_file', type=str, help='Path to pickled file with dataset shapes.')
+    parser.add_argument('-c', '--classes', type=str, help='Directory containing memmaps of all target images.')
+    parser.add_argument('-f', '--features', type=str, help='Directory contining all memmap input features.')
+    parser.add_argument('-od', '--out_dir', type=str, help='Directory to write np arrays out to.')
+    parser.add_argument('-mt', '--model_type', type=str, help="One of 'lstm' or 'tcn'.", default='lstm')
+
+    args = parser.parse_args()
+    shps = pickle.load(open(args.shp_file, 'rb'))
+    metadata = pickle.load(open(args.meta_file, 'rb'))
+    model = LSTM(size=shps['train_x.dat'][1], hidden_size=metadata['hidden_size'],
+                 batch_size=2488, mx_lead=metadata['mx_lead'])
+
+    device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+    model.load_state_dict(torch.load(args.model_file, map_location=torch.device(device)))
+
+    mapper = Mapper(model, metadata, args.features, args.classes, args.out_dir, True)
+    mapper.get_preds()

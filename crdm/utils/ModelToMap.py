@@ -47,10 +47,11 @@ class Mapper(object):
                 x, y = agg.premake_features()
                 x = self.dtype(x.swapaxes(0, 2))
                 outputs = self.model(x)
+                outputs = outputs.detach.numpy()
                 x_out.append(outputs)
                 y_out.append(y)
 
-            x = torch.cat(x_out).detach().numpy()
+            x = np.concatenate(x_out, axis=1)
             x = x.swapaxes(0, 1).reshape(self.metadata['mx_lead'], *DIMS)
             x = x*5
             y = np.concatenate(y_out, axis=1).reshape(metadata['mx_lead'], *DIMS)

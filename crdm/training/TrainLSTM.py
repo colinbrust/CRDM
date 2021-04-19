@@ -82,12 +82,12 @@ if __name__ == '__main__':
         'model_type': 'lstm'
     }
     dirname = args.dirname
-    i = 1
+    i = 3
     # Hyperparameter grid search
     if args.search:
 
-        week_list = [50, 75, 100]
-        hidden_list = [256, 512, 1024]
+        week_list = [15, 25, 50]
+        hidden_list = [512, 1024]
 
         setup['index'] = i
         setup['n_weeks'] = 30
@@ -100,8 +100,8 @@ if __name__ == '__main__':
             for n_weeks in week_list:
                 setup['hidden_size'] = hidden
                 setup['n_weeks'] = n_weeks
-                setup['index'] = i
-                with open(os.path.join(dirname, 'metadata.p'), 'wb') as f:
+                setup['index'] = i    
+                with open(os.path.join(dirname, 'metadata_{}_{}.p'.format(setup['index'], setup['model_type'])), 'wb') as f:
                     pickle.dump(setup, f)
                 print('Grid search with hidden_size={}, n_weeks={}'.format(hidden, n_weeks))
                 dirname = train_lstm(setup, dirname=dirname)

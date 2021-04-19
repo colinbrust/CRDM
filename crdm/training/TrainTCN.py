@@ -92,7 +92,7 @@ if __name__ == '__main__':
     # Hyperparameter grid search
     if args.search:
         setup['index'] = i
-        week_list = [30, 50, 75, 100]
+        week_list = [50, 75, 100]
         # setup['n_weeks'] = 15
         print('Grid search with n_weeks={}'.format(15))
         # dirname = train_tcn(setup, dirname=args.dirname)

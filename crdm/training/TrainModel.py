@@ -92,4 +92,5 @@ def train_model(setup):
     del setup['scheduler']
     del setup['model']
     del setup['optimizer']
-    del setup['early_stop']
+    del setup['train']
+    del setup['test']

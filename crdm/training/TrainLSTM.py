@@ -34,7 +34,7 @@ def train_lstm(setup, dirname=None):
     criterion = nn.MSELoss()
     lr = 0.002
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    scheduler = ReduceLROnPlateau(optimizer, mode='min', patience=10, threshold=1e-5, verbose=True, factor=0.5)
+    scheduler = ReduceLROnPlateau(optimizer, mode='min', patience=3, threshold=1e-5, verbose=True, factor=0.1)
 
     setup['model'] = model
     setup['criterion'] = criterion
@@ -78,15 +78,15 @@ if __name__ == '__main__':
         'mx_lead': args.mx_lead,
         'size': args.size,
         'clip': args.clip,
-        'early_stop': 10,
+        'early_stop': 5,
         'model_type': 'lstm'
     }
     dirname = args.dirname
-    i = 3
+    i = 5
     # Hyperparameter grid search
     if args.search:
-
-        week_list = [15, 25, 50]
+        
+        week_list = [25, 50]
         hidden_list = [512, 1024]
 
         setup['index'] = i

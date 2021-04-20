@@ -41,13 +41,15 @@ class Mapper(object):
             x_out = []
             y_out = []
             for i in range(len(self.indices)-1):
+                print(i)
                 idx = list(range(self.indices[i], self.indices[i+1]))
                 agg = PremakeTrainingPixels(in_features=self.features, targets=target,
                                             n_weeks=self.metadata['n_weeks'], indices=idx)
+                print(agg.initial_drought)
                 x, y = agg.premake_features()
                 x = self.dtype(x.swapaxes(0, 2))
                 outputs = self.model(x)
-                outputs = outputs.detach.numpy()
+                outputs = outputs.detach().cpu().numpy()
                 x_out.append(outputs)
                 y_out.append(y)
 
@@ -58,8 +60,10 @@ class Mapper(object):
             self.save_arrays(x, target, True)
             self.save_arrays(y, target, False)
             baseline = np.memmap(agg.initial_drought[-1], mode='r', dtype='int8', shape=DIMS)
+            print('i made it here')
             err = {}
             for i in range(len(x)):
+                print(i)
                 x_tmp, y_tmp = x[i], y[i]
                 true_err = mse(x_tmp, y_tmp)
                 base_err = mse(baseline, y_tmp)
@@ -107,6 +111,8 @@ if __name__ == '__main__':
 
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
     model.load_state_dict(torch.load(args.model_file, map_location=torch.device(device)))
-
+    if torch.cuda.is_available():
+        print('GPU')
+        model.cuda()
     mapper = Mapper(model, metadata, args.features, args.classes, args.out_dir, True)
     mapper.get_preds()

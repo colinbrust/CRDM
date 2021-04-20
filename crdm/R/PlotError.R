@@ -21,7 +21,9 @@ read_error <- function(f) {
     lapply(function(x) lapply(x, mean)) %>%
     lapply(tibble::as_tibble) %>%
     dplyr::bind_rows() %>%
-    dplyr::mutate(model_id = basename(dirname(f))) %>%
+    dplyr::mutate(model_id =f %>% basename() %>% 
+                    stringr::str_split('_') %>% 
+                    unlist() %>% magrittr::extract(2)) %>%
     tibble::rowid_to_column() %>%
     dplyr::rename(epoch=rowid)
   

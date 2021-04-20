@@ -1,12 +1,11 @@
 import argparse
 import torch
 import os
-import glob
 import numpy as np
 from crdm.models.TCN import TCN
 from crdm.models.LSTM import LSTM
 from crdm.loaders.AggregatePixels import PremakeTrainingPixels
-from crdm.utils.ImportantVars import DIMS, LENGTH, MONTHLY_VARS, WEEKLY_VARS
+from crdm.utils.ImportantVars import DIMS, LENGTH
 import pickle
 from pathlib import Path
 import rasterio as rio
@@ -32,7 +31,7 @@ class Mapper(object):
         targets = [x for x in targets if ('/2015' in x[0] or '/2017' in x[0] or '/2007' in x[0])] if test else targets
 
         self.targets = targets
-        self.indices = list(range(0, LENGTH+1, 2488))
+        self.indices = list(range(0, LENGTH+1, 1244))
 
     def get_preds(self):
 
@@ -40,20 +39,19 @@ class Mapper(object):
             print(target)
             x_out = []
             y_out = []
+            agg = PremakeTrainingPixels(in_features=self.features, targets=target,
+                                        n_weeks=self.metadata['n_weeks'])
             for i in range(len(self.indices)-1):
                 print(i)
                 idx = list(range(self.indices[i], self.indices[i+1]))
-                agg = PremakeTrainingPixels(in_features=self.features, targets=target,
-                                            n_weeks=self.metadata['n_weeks'], indices=idx)
-                print(agg.initial_drought)
-                x, y = agg.premake_features()
+                x, y = agg.premake_features(idx)
                 x = self.dtype(x.swapaxes(0, 2))
                 outputs = self.model(x)
                 outputs = outputs.detach().cpu().numpy()
                 x_out.append(outputs)
                 y_out.append(y)
 
-            x = np.concatenate(x_out, axis=1)
+            x = np.concatenate(x_out, axis=0)
             x = x.swapaxes(0, 1).reshape(self.metadata['mx_lead'], *DIMS)
             x = x*5
             y = np.concatenate(y_out, axis=1).reshape(metadata['mx_lead'], *DIMS)
@@ -69,7 +67,7 @@ class Mapper(object):
                 base_err = mse(baseline, y_tmp)
                 err[i+1] = {'true_err': true_err, 'base_err': base_err}
 
-            with open(os.path.join(self.out_dir, target[0].replace('USDM.tif', 'err.p')), 'wb') as f:
+            with open(os.path.join(self.out_dir, os.path.basename(target[0].replace('USDM.dat', 'err.p'))), 'wb') as f:
                 pickle.dump(err, f)
 
     def save_arrays(self, data, target, preds=True):

@@ -26,14 +26,8 @@ class PremakeTrainingPixels(Aggregate):
 
         return out
 
-    def premake_features(self) -> np.array:
+    def premake_features(self, indices) -> np.array:
         # Make sure you have pixel indices to slice by.
-        assert 'indices' in self.kwargs, "'indices' must be included as a kwarg when instantiating the " \
-                                         "AggregatePixels class. "
-        assert len(self.kwargs['indices']) <= LENGTH, "'indices' must be smaller than 161040 (the number of 9km " \
-                                                      "pixels in the CONUS domain). "
-
-        indices = self.kwargs['indices']
 
         weeklys = self.make_pixel_stack(indices)
 
@@ -49,11 +43,11 @@ class PremakeTrainingPixels(Aggregate):
         constants = np.concatenate((constants, guess_doy[np.newaxis]))
         constants = np.repeat(np.expand_dims(constants, 1), self.n_weeks, 1)
 
-        mei = self.mei[self.mei.date.isin(self.weekly_dates)].value
+        mei = agg.mei[agg.mei.date.isin(agg.weekly_dates)].value
         mei = np.expand_dims(mei, -1)
         mei = np.repeat(mei, len(indices), -1)
 
-        drought = np.array([np.memmap(x, 'int8', 'c') for x in self.initial_drought])
+        drought = np.array([np.memmap(x, 'int8', 'r') for x in self.initial_drought])
         drought = np.take(drought, indices, axis=1)
         drought = 2 * drought / 5 - 1
 
@@ -61,7 +55,7 @@ class PremakeTrainingPixels(Aggregate):
         weeklys = np.concatenate((weeklys, mei[np.newaxis]))
         weeklys = np.vstack((weeklys, constants))
 
-        targets = np.array([np.memmap(x, 'int8', 'c') for x in self.targets])
+        targets = np.array([np.memmap(x, 'int8', 'r') for x in agg.targets])
         targets = np.take(targets, indices, axis=1)
 
         return weeklys, targets

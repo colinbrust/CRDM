@@ -43,7 +43,7 @@ class PremakeTrainingPixels(Aggregate):
         constants = np.concatenate((constants, guess_doy[np.newaxis]))
         constants = np.repeat(np.expand_dims(constants, 1), self.n_weeks, 1)
 
-        mei = agg.mei[agg.mei.date.isin(agg.weekly_dates)].value
+        mei = self.mei[self.mei.date.isin(self.weekly_dates)].value
         mei = np.expand_dims(mei, -1)
         mei = np.repeat(mei, len(indices), -1)
 
@@ -55,7 +55,7 @@ class PremakeTrainingPixels(Aggregate):
         weeklys = np.concatenate((weeklys, mei[np.newaxis]))
         weeklys = np.vstack((weeklys, constants))
 
-        targets = np.array([np.memmap(x, 'int8', 'r') for x in agg.targets])
+        targets = np.array([np.memmap(x, 'int8', 'r') for x in self.targets])
         targets = np.take(targets, indices, axis=1)
 
         return weeklys, targets

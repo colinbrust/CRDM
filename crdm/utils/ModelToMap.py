@@ -31,16 +31,20 @@ class Mapper(object):
         targets = [x for x in targets if ('/2015' in x[0] or '/2017' in x[0] or '/2007' in x[0])] if test else targets
 
         self.targets = targets
-        self.indices = list(range(0, LENGTH+1, 1244))
+        self.indices = list(range(0, LENGTH+1, 2488))
 
     def get_preds(self):
 
         for target in self.targets:
-            print(target)
+            print(target[0])
             x_out = []
             y_out = []
-            agg = PremakeTrainingPixels(in_features=self.features, targets=target,
-                                        n_weeks=self.metadata['n_weeks'])
+            try:
+                agg = PremakeTrainingPixels(in_features=self.features, targets=target,
+                                            n_weeks=self.metadata['n_weeks'])
+            except AssertionError as e:
+                print(e)
+                continue
             for i in range(len(self.indices)-1):
                 print(i)
                 idx = list(range(self.indices[i], self.indices[i+1]))
@@ -57,11 +61,11 @@ class Mapper(object):
             y = np.concatenate(y_out, axis=1).reshape(metadata['mx_lead'], *DIMS)
             self.save_arrays(x, target, True)
             self.save_arrays(y, target, False)
+            
             baseline = np.memmap(agg.initial_drought[-1], mode='r', dtype='int8', shape=DIMS)
-            print('i made it here')
+
             err = {}
             for i in range(len(x)):
-                print(i)
                 x_tmp, y_tmp = x[i], y[i]
                 true_err = mse(x_tmp, y_tmp)
                 base_err = mse(baseline, y_tmp)
@@ -112,5 +116,5 @@ if __name__ == '__main__':
     if torch.cuda.is_available():
         print('GPU')
         model.cuda()
-    mapper = Mapper(model, metadata, args.features, args.classes, args.out_dir, True)
+    mapper = Mapper(model, metadata, args.features, args.classes, args.out_dir, False)
     mapper.get_preds()

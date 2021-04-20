@@ -63,7 +63,7 @@ class Mapper(object):
             self.save_arrays(y, target, False)
             
             baseline = np.memmap(agg.initial_drought[-1], mode='r', dtype='int8', shape=DIMS)
-
+            
             err = {}
             for i in range(len(x)):
                 x_tmp, y_tmp = x[i], y[i]

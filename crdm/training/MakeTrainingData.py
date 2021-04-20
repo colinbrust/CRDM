@@ -27,15 +27,13 @@ def make_training_data(in_features, out_classes, **kwargs):
     for target in targets:
         try:
             print(target[0])
-            tmp = PremakeTrainingPixels(target, in_features, kwargs['n_weeks'],
-                                        indices=np.random.choice(train_locs, int(kwargs['size']*0.75)))
-            tmp_w, tmp_t = tmp.premake_features()
+            tmp = PremakeTrainingPixels(target, in_features, kwargs['n_weeks'])
+            tmp_w, tmp_t = tmp.premake_features(indices=np.random.choice(train_locs, int(kwargs['size']*0.75)))
             train_x.append(tmp_w)
             train_y.append(tmp_t)
 
-            tmp = PremakeTrainingPixels(target, in_features, kwargs['n_weeks'],
-                                        indices=np.random.choice(test_locs, int(kwargs['size']*0.25)))
-            tmp_w, tmp_t = tmp.premake_features()
+            tmp = PremakeTrainingPixels(target, in_features, kwargs['n_weeks'])
+            tmp_w, tmp_t = tmp.premake_features(indices=np.random.choice(test_locs, int(kwargs['size']*0.25)))
             test_x.append(tmp_w)
             test_y.append(tmp_t)
 

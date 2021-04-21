@@ -84,30 +84,15 @@ if __name__ == '__main__':
         'mx_lead': args.mx_lead,
         'size': args.size,
         'clip': args.clip,
-        'early_stop': 10,
+        'early_stop': 5,
         'model_type': 'tcn'
     }
     dirname = args.dirname
-    i = 1
+    i = 0
     # Hyperparameter grid search
     if args.search:
-        setup['index'] = i
-        week_list = [50, 75, 100]
-        # setup['n_weeks'] = 15
-        print('Grid search with n_weeks={}'.format(15))
-        # dirname = train_tcn(setup, dirname=args.dirname)
-        for week in week_list:
-            setup['n_weeks'] = week
-            setup['index'] = i
-            print('Grid search with n_weeks={}'.format(week))
-            print(setup)
-            with open(os.path.join(dirname, 'metadata_{}_{}.p'.format(setup['index'], setup['model_type'])), 'wb') as f:
-                pickle.dump(setup, f)
-            dirname = train_tcn(setup, dirname=dirname)
-            i += 1
-
-        hidden_list = [20, 25, 30, 35]
-        layer_list = [5, 10, 15, 20]
+        hidden_list = [30, 35]
+        layer_list = [15, 20]
         kern_list = [4, 5, 6, 7, 8]
 
         setup['n_weeks'] = args.n_weeks
@@ -118,7 +103,7 @@ if __name__ == '__main__':
                     setup['n_layers'] = layer
                     setup['kernel_size'] = kern
                     setup['index'] = i
-                    with open(os.path.join(dirname, 'metadata.p'), 'wb') as f:
+                    with open(os.path.join(dirname, 'metadata_{}_{}.p'.format(setup['index'], setup['model_type'])), 'wb') as f:
                         pickle.dump(setup, f)
                     print('Grid search with hidden_size={}, layers={}, kernel_size={}'.format(hidden, layer, kern))
                     dirname = train_tcn(setup, dirname=dirname)

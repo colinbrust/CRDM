@@ -6,7 +6,7 @@ from crdm.loaders.LSTMLoader import LSTMLoader
 import os
 import torch
 from torch import nn
-from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.optim.lr_scheduler import CyclicLR
 from torch.utils.data import DataLoader
 import pickle
 
@@ -32,9 +32,9 @@ def train_lstm(setup, dirname=None):
                  mx_lead=setup['mx_lead'])
 
     criterion = nn.MSELoss()
-    lr = 0.002
+    lr = 0.0002
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    scheduler = ReduceLROnPlateau(optimizer, mode='min', patience=3, threshold=1e-5, verbose=True, factor=0.1)
+    scheduler = CyclicLR(optimizer, base_lr=lr, max_lr=0.002, verbose=True)
 
     setup['model'] = model
     setup['criterion'] = criterion
@@ -79,7 +79,8 @@ if __name__ == '__main__':
         'size': args.size,
         'clip': args.clip,
         'early_stop': 5,
-        'model_type': 'lstm'
+        'model_type': 'lstm',
+        'pix_mask': '/home/colin/data/in_feature/pix_mask.dat'
     }
     dirname = args.dirname
     i = 1

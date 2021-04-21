@@ -47,6 +47,7 @@ def train_model(setup):
 
             # Store loss info
             train_loss.append(loss.item())
+            scheduler.step()
 
         # Switch to evaluation mode
         model.eval()
@@ -64,8 +65,6 @@ def train_model(setup):
             # Save loss info
             total_loss += loss.item()
             test_loss.append(loss.item())
-
-        scheduler.step(total_loss)
 
         # Save out train and test set loss.
         err_out[epoch] = {'train': train_loss,

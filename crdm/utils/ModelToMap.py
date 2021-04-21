@@ -15,7 +15,7 @@ import torch
 
 class Mapper(object):
 
-    def __init__(self, model, metadata, features, classes, out_dir, test=True):
+    def __init__(self, model, metadata, features, classes, out_dir, test=True, model_type='lstm'):
 
         self.model = model
         self.features = features
@@ -24,6 +24,7 @@ class Mapper(object):
         self.test = test
         self.metadata = metadata
         self.dtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
+        self.model_type = model_type
 
         targets = sorted([str(x) for x in Path(classes).glob('*.dat')])
         targets = [targets[i:i + metadata['mx_lead']] for i in range(len(targets))]
@@ -49,7 +50,13 @@ class Mapper(object):
                 print(i)
                 idx = list(range(self.indices[i], self.indices[i+1]))
                 x, y = agg.premake_features(idx)
-                x = self.dtype(x.swapaxes(0, 2))
+                if self.model_type == 'lstm':
+                    x = self.dtype(x.swapaxes(0, 2))
+                elif self.model_type == 'tcn':
+                    x = self.dtype(x.swapaxes(0, 2).swapaxes(1, 2))
+                else:
+                    raise ValueError('model_type must be either "lstm" or "tcn"')
+
                 outputs = self.model(x)
                 outputs = outputs.detach().cpu().numpy()
                 x_out.append(outputs)
@@ -108,8 +115,17 @@ if __name__ == '__main__':
     args = parser.parse_args()
     shps = pickle.load(open(args.shp_file, 'rb'))
     metadata = pickle.load(open(args.meta_file, 'rb'))
-    model = LSTM(size=shps['train_x.dat'][1], hidden_size=metadata['hidden_size'],
-                 batch_size=2488, mx_lead=metadata['mx_lead'])
+    # metadata['n_weeks'] = 15
+
+    if args.model_type == 'lstm':
+        model = LSTM(size=shps['train_x.dat'][1], hidden_size=metadata['hidden_size'],
+                     batch_size=2488, mx_lead=metadata['mx_lead'])
+    elif args.model_type == 'tcn':
+        model = TCN(input_size=shps['train_x.dat'][1], output_size=1,
+                    num_channels=[metadata['hidden_size']] * metadata['n_layers'],
+                    kernel_size=metadata['kernel_size'], mx_lead=metadata['mx_lead'], dropout=0.2)
+    else:
+        raise ValueError('-mt flag muse be one of "lstm" opr "tcn".')
 
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
     model.load_state_dict(torch.load(args.model_file, map_location=torch.device(device)))

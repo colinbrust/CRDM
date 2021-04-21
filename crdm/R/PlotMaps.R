@@ -105,3 +105,27 @@ save_all <- function(f_dir='/mnt/e/PycharmProjects/CRDM/data/model_results/weekl
   parallel::mclapply(patterns, plot_single_date, f_list = f_list, out_dir = out_dir, 
          template = template, states = states, mc.cores = 10)
 }
+
+tibble::as_tibble(a) %>% 
+  `colnames<-`(c('x', 'y', paste('lt', 1:12, sep ='_'))) %>% 
+  tidyr::pivot_longer(dplyr::starts_with('lt_')) %>% 
+  dplyr::mutate(value = round(value),
+                value = ifelse(value >5, 5, value),
+                value = dplyr::recode(
+                  value, 
+                  `0` = 'No Drought',
+                  `1` = 'D0', 
+                  `2` = 'D1',
+                  `3` = 'D2',
+                  `4` = 'D3',
+                  `5` = 'D4')) %>% 
+  ggplot(aes(x=x, y=y, fill=value)) +
+   geom_raster() + 
+   facet_wrap(~name) + 
+   scale_fill_manual(values = c('No Drought' = NA,
+                               'D0' = '#FFFF00',
+                               'D1' = '#FCD37F',
+                               'D2' = '#FFAA00',
+                               'D3' = '#E60000',
+                               'D4' = '#730000')) + 
+  plot_theme()

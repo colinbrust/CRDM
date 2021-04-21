@@ -19,7 +19,10 @@ def make_training_data(in_features, out_classes, **kwargs):
     targets = list(filter(lambda x: len(x) == kwargs['mx_lead'], targets))
     targets = [x for x in targets if not ('/2015' in x[0] or '/2017' in x[0] or '/2007' in x[0])]
 
-    train_locs, test_locs = train_test_split(list(range(LENGTH)), train_size=0.6)
+    mask = np.memmap(kwargs['pix_mask'], dtype='int8')
+    locs = [idx for idx, x in enumerate(mask) if x == 1]
+
+    train_locs, test_locs = train_test_split(locs, train_size=0.6)
 
     train_x, train_y = [], []
     test_x, test_y = [], []

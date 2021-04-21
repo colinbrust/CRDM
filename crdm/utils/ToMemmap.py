@@ -11,16 +11,15 @@ def to_memmap(f: str, out_dir: str, as_int=False) -> None:
     out_dir: path to directory that will contain new memmap
     """
     print(f)
+    dt = 'int8' if as_int else 'float32'
 
     # Read array, convert na values to np.nan, normalize between zero and one
     arr = rio.open(f).read(1)
     arr = np.where(arr <= -10, -1.5, arr)
 
-    if as_int:
-        mm = np.memmap(os.path.join(out_dir, os.path.basename(f)).replace('.tif', '.dat'), dtype='int8', mode='w+', shape=arr.shape)
-    else:
-        # Make empty memmap
-        mm = np.memmap(os.path.join(out_dir, os.path.basename(f)).replace('.tif', '.dat'), dtype='float32', mode='w+', shape=arr.shape)
+    mm = np.memmap(os.path.join(out_dir, os.path.basename(f)).replace('.tif', '.dat'),
+                   dtype=dt, mode='w+', shape=arr.shape)
+
     # Copy .tif array to the memmap.
     mm[:] = arr[:]
 

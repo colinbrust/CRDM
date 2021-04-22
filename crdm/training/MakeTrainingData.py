@@ -35,7 +35,6 @@ def make_training_data(in_features, out_classes, **kwargs):
             train_x.append(tmp_w)
             train_y.append(tmp_t)
 
-            tmp = PremakeTrainingPixels(target, in_features, kwargs['n_weeks'])
             tmp_w, tmp_t = tmp.premake_features(indices=np.random.choice(test_locs, int(kwargs['size']*0.25)))
             test_x.append(tmp_w)
             test_y.append(tmp_t)

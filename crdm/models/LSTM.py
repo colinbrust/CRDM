@@ -4,7 +4,7 @@ import torch
 
 class LSTM(nn.Module):
 
-    def __init__(self, size=23, hidden_size=64, batch_size=64, mx_lead=12):
+    def __init__(self, size=23, hidden_size=64, batch_size=64, mx_lead=12, lead_time=None):
         super().__init__()
 
         self.hidden_size = hidden_size
@@ -12,6 +12,7 @@ class LSTM(nn.Module):
         self.batch_size = batch_size
         self.size = size
         self.mx_lead = mx_lead
+        self.lead_time = lead_time
 
         self.lstm = nn.LSTM(size, self.hidden_size, num_layers=1, batch_first=True)
 
@@ -19,7 +20,10 @@ class LSTM(nn.Module):
         sz = self.hidden_size
         while sz > 32:
             classifier.append(nn.Linear(int(sz), int(sz//2)))
-            classifier.append(nn.BatchNorm1d(self.mx_lead))
+            if self.lead_time is not None:
+                classifier.append(nn.BatchNorm1d(int(sz//2)))
+            else:
+                classifier.append(nn.BatchNorm1d(self.mx_lead))
             classifier.append(nn.ReLU())
             classifier.append(nn.Dropout(0.25))
             sz /= 2
@@ -37,7 +41,10 @@ class LSTM(nn.Module):
         # Run the LSTM forward
         prev_state = self.init_state()
         lstm_out, lstm_state = self.lstm(lstm_seq, prev_state)
-        lstm_out = lstm_out[:, -self.mx_lead:, :]
+        if self.lead_time is not None:
+            lstm_out = lstm_out[:, -1, :]
+        else:
+            lstm_out = lstm_out[:, -self.mx_lead:, :]
         preds = self.classifier(lstm_out)
         preds = preds.squeeze()
         return preds

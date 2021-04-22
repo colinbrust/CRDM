@@ -1,4 +1,3 @@
-import numpy as np
 import os
 import pickle
 import torch
@@ -11,6 +10,10 @@ def train_model(setup):
     criterion = setup['criterion']
     scheduler = setup['scheduler']
     early_stop = setup['early_stop']
+    lead_time = setup['lead_time']
+
+    if lead_time is not None:
+        lead_time = lead_time - 1
     err_out = {}
 
     if torch.cuda.is_available():
@@ -35,6 +38,10 @@ def train_model(setup):
             # Make prediction with model
             outputs = model(x)
             outputs = outputs.squeeze()
+
+            if lead_time is not None:
+                y = y[:, lead_time]
+
             # Compute the loss and step the optimizer
             loss = criterion(outputs, y)
             loss.backward()
@@ -47,7 +54,6 @@ def train_model(setup):
 
             # Store loss info
             train_loss.append(loss.item())
-            scheduler.step()
 
         # Switch to evaluation mode
         model.eval()
@@ -57,6 +63,9 @@ def train_model(setup):
 
             outputs = model(x)
             outputs = outputs.squeeze()
+
+            if lead_time is not None:
+                y = y[:, lead_time]
             loss = criterion(outputs, y)
 
             if idx % 100 == 0:
@@ -87,6 +96,8 @@ def train_model(setup):
         # If test set loss isn't improving, stop training the model.
         if no_improvements >= early_stop:
             break
+
+        scheduler.step()
 
     del setup['scheduler']
     del setup['model']

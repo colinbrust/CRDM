@@ -1,86 +1,79 @@
-from torch import nn
 import torch
+from torch import nn
+import torch.nn.functional as F
+
+# credit to https://discuss.pytorch.org/t/seq2seq-model-with-attention-for-time-series-forecasting/80463/10
+
+class RNNEncoder(nn.Module):
+    def __init__(self, rnn_num_layers=1, input_feature_len=1, sequence_len=168, hidden_size=100, bidirectional=False):
+        super().__init__()
+        self.sequence_len = sequence_len
+        self.hidden_size = hidden_size
+        self.input_feature_len = input_feature_len
+        self.num_layers = rnn_num_layers
+        self.rnn_directions = 2 if bidirectional else 1
+        self.gru = nn.GRU(
+            num_layers=rnn_num_layers,
+            input_size=input_feature_len,
+            hidden_size=hidden_size,
+            batch_first=True,
+            bidirectional=bidirectional
+        )
+
+    def forward(self, input_seq):
+        ht = torch.zeros(self.num_layers * self.rnn_directions, input_seq.size(0), self.hidden_size)
+        if input_seq.ndim < 3:
+            input_seq.unsqueeze_(2)
+        gru_out, hidden = self.gru(input_seq, ht)
+        if self.rnn_directions > 1:
+            gru_out = gru_out.view(input_seq.size(0), self.sequence_len, self.rnn_directions, self.hidden_size)
+            gru_out = torch.sum(gru_out, dim=2)
+        return gru_out, hidden.squeeze(0)
 
 
-class Encoder(nn.Module):
-    def __init__(self, input_dim, hidden_dim, num_layers):
-        super(Encoder, self).__init__()
+class AttentionDecoderCell(nn.Module):
+    def __init__(self, input_feature_len, hidden_size, sequence_len):
+        super().__init__()
+        # attention - inputs - (decoder_inputs, prev_hidden)
+        self.attention_linear = nn.Linear(hidden_size + input_feature_len, sequence_len)
+        # attention_combine - inputs - (decoder_inputs, attention * encoder_outputs)
+        self.decoder_rnn_cell = nn.GRUCell(
+            input_size=hidden_size,
+            hidden_size=hidden_size,
+        )
+        self.out = nn.Linear(hidden_size, input_feature_len)
 
-        self.input_dim = input_dim
-        self.hidden_dim = hidden_dim
-        self.num_layers = num_layers
-
-        # intialize the GRU to take the input dimetion of embbed, and output dimention of hidden and
-        # set the number of gru layers
-        self.gru = nn.GRU(self.input_dim, self.hidden_dim, num_layers=self.num_layers)
-
-    def forward(self, seq):
-
-        outputs, hidden = self.gru(seq)
-        return outputs, hidden
-
-
-class Decoder(nn.Module):
-    def __init__(self, output_dim, hidden_dim, num_layers):
-        super(Decoder, self).__init__()
-
-        # set the encoder output dimension, embed dimension, hidden dimension, and number of layers
-        self.hidden_dim = hidden_dim
-        self.output_dim = output_dim
-        self.num_layers = num_layers
-
-        self.gru = nn.GRU(self.output_dim, self.hidden_dim, num_layers=self.num_layers)
-        self.out = nn.Linear(self.hidden_dim, self.output_dim)
-        self.relu = nn.ReLU()
-
-    def forward(self, input, hidden):
-        # reshape the input to (1, batch_size)
-        embedded = self.relu(input)
-        output, hidden = self.gru(embedded, hidden)
-        prediction = self.relu(self.out(output[0]))
-
-        return prediction, hidden
+    def forward(self, encoder_output, prev_hidden, y):
+        attention_input = torch.cat([prev_hidden, y], dim=1)
+        attention_weights = F.softmax(self.attention_linear(attention_input), dim=1).unsqueeze(1)
+        attention_combine = torch.bmm(attention_weights, encoder_output).squeeze(1)
+        rnn_hidden = self.decoder_rnn_cell(attention_combine, prev_hidden)
+        output = self.out(rnn_hidden)
+        return output, rnn_hidden
 
 
 class Seq2Seq(nn.Module):
-    def __init__(self, encoder, decoder, device):
+    def __init__(self, rnn_num_layers=1, input_feature_len=1, sequence_len=168, hidden_size=100, output_size=3):
         super().__init__()
+        self.encoder = RNNEncoder(rnn_num_layers, input_feature_len, sequence_len, hidden_size)
+        self.decoder_cell = AttentionDecoderCell(input_feature_len, hidden_size, sequence_len)
+        self.output_size = output_size
+        self.out = nn.Linear(input_feature_len, 1)
 
-        # initialize the encoder and decoder
-        self.encoder = encoder
-        self.decoder = decoder
-        self.device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+    def forward(self, xb):
+        input_seq = xb
+        encoder_output, encoder_hidden = self.encoder(input_seq)
+        prev_hidden = encoder_hidden
 
-    def forward(self, source, target, teacher_forcing_ratio=0.5):
+        outputs = []
+        y_prev = input_seq[:, -1, :]
+        for i in range(self.output_size):
+            rnn_output, prev_hidden = self.decoder_cell(encoder_output, prev_hidden, y_prev)
+            y_prev = rnn_output
 
-        input_length = source.size(0)  # get the input length (number of words in sentence)
-        batch_size = target.shape[1]
-        target_length = target.shape[0]
-        vocab_size = self.decoder.output_dim
+            outputs.append(rnn_output)
 
-        # initialize a variable to hold the predicted outputs
-        outputs = torch.zeros(target_length, batch_size, vocab_size).to(self.device)
-
-        # encode every word in a sentence
-        for i in range(input_length):
-            encoder_output, encoder_hidden = self.encoder(source[i])
-
-        # use the encoder’s hidden layer as the decoder hidden
-        decoder_hidden = encoder_hidden.to(device)
-
-        # add a token before the first predicted word
-        decoder_input = torch.tensor([SOS_token], device=device)  # SOS
-
-        # topk is used to get the top K value over a list
-        # predict the output word from the current target word. If we enable the teaching force,  then the #next decoder input is the next word, else, use the decoder output highest value.
-
-        for t in range(target_length):
-            decoder_output, decoder_hidden = self.decoder(decoder_input, decoder_hidden)
-            outputs[t] = decoder_output
-            teacher_force = random.random() < teacher_forcing_ratio
-            topv, topi = decoder_output.topk(1)
-            input = (target[t] if teacher_force else topi)
-            if (teacher_force == False and input.item() == EOS_token):
-                break
-
-        return outputs
+        outputs = torch.stack(outputs, 1)
+        outputs = F.relu(outputs)
+        outputs = F.relu(self.out(outputs))
+        return outputs.squeeze(-1)

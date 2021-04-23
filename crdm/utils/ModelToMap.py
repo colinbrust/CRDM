@@ -2,7 +2,7 @@ import argparse
 import torch
 import os
 import numpy as np
-from crdm.models.TCN import TCN
+from crdm.models.SeqToSeq import Seq2Seq
 from crdm.models.LSTM import LSTM
 from crdm.loaders.AggregatePixels import PremakeTrainingPixels
 from crdm.utils.ImportantVars import DIMS, LENGTH
@@ -50,12 +50,7 @@ class Mapper(object):
                 print(i)
                 idx = list(range(self.indices[i], self.indices[i+1]))
                 x, y = agg.premake_features(idx)
-                if self.model_type == 'lstm':
-                    x = self.dtype(x.swapaxes(0, 2))
-                elif self.model_type == 'tcn':
-                    x = self.dtype(x.swapaxes(0, 2).swapaxes(1, 2))
-                else:
-                    raise ValueError('model_type must be either "lstm" or "tcn"')
+                x = self.dtype(x.swapaxes(0, 2))
 
                 outputs = self.model(x)
                 outputs = outputs.detach().cpu().numpy()
@@ -110,27 +105,30 @@ if __name__ == '__main__':
     parser.add_argument('-c', '--classes', type=str, help='Directory containing memmaps of all target images.')
     parser.add_argument('-f', '--features', type=str, help='Directory contining all memmap input features.')
     parser.add_argument('-od', '--out_dir', type=str, help='Directory to write np arrays out to.')
-    parser.add_argument('-mt', '--model_type', type=str, help="One of 'lstm' or 'tcn'.", default='lstm')
+    parser.add_argument('-mt', '--model_type', type=str, help="One of 'lstm' or 'seq'.", default='lstm')
+    parser.add_argument('lt', '--lead_time', type=int, default=None,
+                        help='Whether or not to use a model that was only trained on one lead time.')
 
     args = parser.parse_args()
+    print(os.path.exists(args.shp_file))
+
     shps = pickle.load(open(args.shp_file, 'rb'))
     metadata = pickle.load(open(args.meta_file, 'rb'))
     # metadata['n_weeks'] = 15
 
     if args.model_type == 'lstm':
         model = LSTM(size=shps['train_x.dat'][1], hidden_size=metadata['hidden_size'],
-                     batch_size=2488, mx_lead=metadata['mx_lead'])
-    elif args.model_type == 'tcn':
-        model = TCN(input_size=shps['train_x.dat'][1], output_size=1,
-                    num_channels=[metadata['hidden_size']] * metadata['n_layers'],
-                    kernel_size=metadata['kernel_size'], mx_lead=metadata['mx_lead'], dropout=0.2)
+                     batch_size=2488, mx_lead=metadata['mx_lead'], lead_time=metadata['lead_time'])
+    elif args.model_type == 'seq':
+        model = Seq2Seq(1, shps['train_x.dat'][1], shps['train_x.dat'][-1],
+                        metadata['hidden_size'], metadata['mx_lead'])
     else:
-        raise ValueError('-mt flag muse be one of "lstm" opr "tcn".')
+        raise ValueError('-mt flag muse be one of "lstm" opr "seq".')
 
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
     model.load_state_dict(torch.load(args.model_file, map_location=torch.device(device)))
     if torch.cuda.is_available():
         print('GPU')
         model.cuda()
-    mapper = Mapper(model, metadata, args.features, args.classes, args.out_dir, False)
+    mapper = Mapper(model, metadata, args.features, args.classes, args.out_dir, True)
     mapper.get_preds()

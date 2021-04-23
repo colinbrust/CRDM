@@ -11,8 +11,11 @@ read_metadata <- function(f) {
   read_pickle(f) %>% 
     lapply(function(x) paste(x, collapse=', ')) %>%
     tibble::as_tibble() %>% 
-    dplyr::mutate(across(!dplyr::starts_with('feats'), as.numeric)) %>%
-    dplyr::mutate(model_id = basename(dirname(f))) 
+    dplyr::mutate(model_class = basename(dirname(f)), 
+                  model_id = basename(f) %>% 
+                    stringr::str_split('_') %>% 
+                    unlist() %>% 
+                    magrittr::extract(2)) 
 }
 
 read_error <- function(f) {
@@ -21,27 +24,34 @@ read_error <- function(f) {
     lapply(function(x) lapply(x, mean)) %>%
     lapply(tibble::as_tibble) %>%
     dplyr::bind_rows() %>%
-    dplyr::mutate(model_id =f %>% basename() %>% 
+    dplyr::mutate(model_class = basename(dirname(f)), 
+                  model_id = basename(f) %>% 
                     stringr::str_split('_') %>% 
-                    unlist() %>% magrittr::extract(2)) %>%
+                    unlist() %>% 
+                    magrittr::extract(2)) %>%
     tibble::rowid_to_column() %>%
     dplyr::rename(epoch=rowid)
   
 }
 
 read_all <- function(pth) {
-  
-  err <-  list.files(pth, recursive = T, full.names = T, pattern = 'err.p') %>%
+   
+  err <-  list.files(pth, recursive = T, full.names = T, pattern = 'err_') %>%
     lapply(read_error) %>%
-    dplyr::bind_rows()
+    dplyr::bind_rows() %>%
+    dplyr::mutate(model_id = as.numeric(model_id))
   
   metadata <- list.files(
-    pth, recursive = T, full.names = T, pattern = 'metadata.p'
+    pth, recursive = T, full.names = T, pattern = 'metadata_'
     ) %>% 
     lapply(read_metadata) %>% 
-    dplyr::bind_rows()
+    dplyr::bind_rows()  %>%
+    dplyr::select(-c(dirname, criterion, pix_mask, model_type, early_stop, 
+                     in_features, out_classes, seq, clip)) %>%
+    dplyr::mutate(dplyr::across(!dplyr::ends_with('class'), as.numeric))
   
-  dplyr::left_join(err, metadata, by='model_id')
+  
+  dplyr::left_join(err, metadata, by=c('model_id', 'model_class'))
 
 }
 
@@ -50,42 +60,12 @@ plot_all <- function(pth, ...) {
 
   read_all(pth) %>%
     tidyr::pivot_longer(c(train, test), names_to = 'set', values_to = 'err') %>% 
-    dplyr::mutate(model_id = stringr::str_replace(model_id, 'model', '') %>%
-                    as.numeric() %>% 
-                    factor()) %>%
-    dplyr::filter(set == 'train') %>% 
-    ggplot(aes(x=epoch, y=err, color=model_id)) + 
-      geom_line() 
+    dplyr::mutate(model_id = factor(model_id)) %>%
+    dplyr::filter(set == 'test') %>% 
+    ggplot(aes(x=epoch, y=err, color=model_class)) + 
+      geom_line() +
+    facet_wrap(~model_id)
     
     
-}
-
-read_file <- function() {
-  
-  read_pickle(f) %>%
-    lapply(function(x) lapply(x,mean)) %>%
-    lapply(tibble::as_tibble) %>%
-    dplyr::bind_rows() %>%
-    tibble::rowid_to_column() %>%
-    dplyr::mutate(f = basename(f)) %>%
-}
-
-plot_all <- function(f_dir='~/projects/DroughtCast/data/model_results/unet/crop16/') {
-  
-  f_dir %>%
-    list.files(full.names = T, pattern = 'err.p') %>%
-    lapply(read_file) %>%
-    dplyr::bind_rows() %>%
-    dplyr::arrange(rerun, rowid) %>%
-    dplyr::select(-rowid) %>% 
-    tibble::rowid_to_column() %>% 
-    tidyr::pivot_longer(c(train, test), names_to='set') %>%
-    dplyr::mutate(batch = factor(batch),
-                  hiddenSize = factor(hiddenSize),
-                  nWeeks = factor(nWeeks)) %>%
-    ggplot(aes(x=rowid, y=value, color=set)) + 
-     geom_line() +
-     labs(x='Epoch', y='MSE Loss', color='Train/Test Set') + 
-     plot_theme()
 }
 

@@ -105,13 +105,13 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     shps = pickle.load(open(os.path.join(args.model_dir, 'shps.p'), 'rb'))
-    metadata = pickle.load(open(os.path.join(args.model_dir, 'metadata_1_seq.p'), 'rb'))
+    metadata = pickle.load(open(os.path.join(args.model_dir, 'metadata_0_seq.p'), 'rb'))
 
     model = Seq2Seq(1, shps['train_x.dat'][1], shps['train_x.dat'][-1],
                     metadata['hidden_size'], metadata['mx_lead'])
 
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-    model.load_state_dict(torch.load(args.model_file, map_location=torch.device(device)))
+    model.load_state_dict(torch.load(os.path.join(args.model_dir, 'model_0_seq.p'), map_location=torch.device(device)))
 
     if torch.cuda.is_available():
         print('GPU')

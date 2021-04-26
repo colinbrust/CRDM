@@ -3,16 +3,18 @@ import os
 import numpy as np
 from crdm.models.SeqToSeq import Seq2Seq
 from crdm.loaders.AggregatePixels import PremakeTrainingPixels
-from crdm.utils.ImportantVars import DIMS, LENGTH
+from crdm.utils.ImportantVars import DIMS, LENGTH, holdouts
 import pickle
 from pathlib import Path
 import rasterio as rio
 import torch
 
+BATCH = 2488
+
 
 class Mapper(object):
 
-    def __init__(self, model, metadata, features, classes, out_dir, test=True, model_type='lstm'):
+    def __init__(self, model, metadata, features, classes, out_dir, shps, test=True, holdout=None):
 
         self.model = model
         self.features = features
@@ -20,8 +22,9 @@ class Mapper(object):
         self.out_dir = out_dir
         self.test = test
         self.metadata = metadata
+        self.shps = shps
         self.dtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
-        self.model_type = model_type
+        self.holdout = holdout
 
         targets = sorted([str(x) for x in Path(classes).glob('*.dat')])
         targets = [targets[i:i + metadata['mx_lead']] for i in range(len(targets))]
@@ -29,9 +32,11 @@ class Mapper(object):
         targets = [x for x in targets if ('/2015' in x[0] or '/2017' in x[0] or '/2007' in x[0])] if test else targets
 
         self.targets = targets
-        self.indices = list(range(0, LENGTH+1, 2488))
+        self.indices = list(range(0, LENGTH+1, BATCH))
 
     def get_preds(self):
+
+        fill_shp = (BATCH, self.shps['train_x.dat'][-1])
 
         for target in self.targets:
             print(target[0])
@@ -43,9 +48,16 @@ class Mapper(object):
                 print(e)
                 continue
             for i in range(len(self.indices)-1):
+
                 idx = list(range(self.indices[i], self.indices[i+1]))
+
                 x, _ = agg.premake_features(idx)
-                x = self.dtype(x.swapaxes(0, 2))
+                # Batch, Seq, Feature
+                x = x.swapaxes(0, 2)
+                # Replace variable with a random value if specified in init.
+                if self.holdout is not None:
+                    x[:, :, holdouts[self.holdout]] = np.random.uniform(-1, 1, fill_shp)
+                x = self.dtype(x)
 
                 outputs = self.model(x)
                 outputs = outputs.detach().cpu().numpy()
@@ -53,12 +65,12 @@ class Mapper(object):
 
             x = np.concatenate(x_out, axis=0)
             x = x.swapaxes(0, 1).reshape(self.metadata['mx_lead'], *DIMS)
-            x = min([round(x*5), 5])
+            x = np.clip(np.round(x * 5), 0, 5)
             self.save_arrays(x, target)
 
     def save_arrays(self, data, target):
 
-        suffix = 'preds.tif'
+        suffix = 'preds_{}.tif'.format(self.holdout)
         dt = 'int8'
         out_dst = rio.open(
             os.path.join(self.out_dir, os.path.basename(target[0]).replace('USDM.dat', suffix)),
@@ -83,6 +95,8 @@ if __name__ == '__main__':
     parser.add_argument('-t', '--targets', type=str, help='Directory containing memmaps of all target images.')
     parser.add_argument('-f', '--features', type=str, help='Directory contining all memmap input features.')
     parser.add_argument('-od', '--out_dir', type=str, help='Directory to write np arrays out to.')
+    parser.add_argument('-h', '--holdout', type=str, default=None,
+                        help='Which variable should be held out to run the model')
 
     args = parser.parse_args()
 
@@ -99,5 +113,5 @@ if __name__ == '__main__':
         print('GPU')
         model.cuda()
 
-    mapper = Mapper(model, metadata, args.features, args.targets, args.out_dir, True)
+    mapper = Mapper(model, metadata, args.features, args.targets, args.out_dir, shps, True, args.holdout)
     mapper.get_preds()

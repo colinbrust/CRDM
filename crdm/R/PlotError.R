@@ -61,7 +61,8 @@ plot_all <- function(pth, ...) {
   read_all(pth) %>%
     tidyr::pivot_longer(c(train, test), names_to = 'set', values_to = 'err') %>% 
     dplyr::mutate(model_id = factor(model_id)) %>%
-    dplyr::filter(set == 'test') %>% 
+    dplyr::filter(set == 'test', 
+                  model_class %in% c('seq32', 'seq64', 'seq128')) %>% 
     ggplot(aes(x=epoch, y=err, color=model_class)) + 
       geom_line() +
     facet_wrap(~model_id)

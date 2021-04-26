@@ -3,6 +3,9 @@ figures/*
 scratch/*
 .idea/*
 
+DroughtCast.Rproj
+.Rhistory
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

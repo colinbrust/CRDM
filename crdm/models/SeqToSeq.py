@@ -4,6 +4,8 @@ import torch.nn.functional as F
 
 # credit to https://discuss.pytorch.org/t/seq2seq-model-with-attention-for-time-series-forecasting/80463/10
 
+device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+
 class RNNEncoder(nn.Module):
     def __init__(self, rnn_num_layers=1, input_feature_len=1, sequence_len=168, hidden_size=100, bidirectional=False):
         super().__init__()
@@ -21,7 +23,7 @@ class RNNEncoder(nn.Module):
         )
 
     def forward(self, input_seq):
-        ht = torch.zeros(self.num_layers * self.rnn_directions, input_seq.size(0), self.hidden_size)
+        ht = torch.zeros(self.num_layers * self.rnn_directions, input_seq.size(0), self.hidden_size, device=device)
         if input_seq.ndim < 3:
             input_seq.unsqueeze_(2)
         gru_out, hidden = self.gru(input_seq, ht)

@@ -31,6 +31,7 @@ def train_lstm(setup, dirname=None):
     # Define model, loss and optimizer.
     if setup['seq']:
         model = Seq2Seq(1, shps['train_x.dat'][1], shps['train_x.dat'][-1], setup['hidden_size'], setup['mx_lead'])
+        print('Using Seq')
     else:
         model = LSTM(size=shps['train_x.dat'][1], hidden_size=setup['hidden_size'], batch_size=setup['batch_size'],
                      mx_lead=setup['mx_lead'], lead_time=setup['lead_time'])
@@ -61,7 +62,7 @@ if __name__ == '__main__':
     parser.add_argument('-clip', '--clip', type=float, default=-1, help='Gradient clip')
     parser.add_argument('-lt', '--lead_time', type=int, default=None,
                         help='Lead time to predict. If None, a timeseries will be predicted')
-    parser.add_argument('-seq', '--seq', type=bool, default=False,
+    parser.add_argument('-seq', '--seq', type=int, default=0,
                         help='Whether to use SeqToSeq model or standard lstm.')
 
     parser.add_argument('-mx', '--mx_lead', type=int, default=8,
@@ -86,13 +87,14 @@ if __name__ == '__main__':
         'mx_lead': args.mx_lead,
         'size': args.size,
         'clip': args.clip,
+        'seq': args.seq,
         'lead_time': args.lead_time,
         'early_stop': 5,
         'model_type': 'seq' if args.seq else 'lstm',
-        'pix_mask': '/home/colin/data/in_feature/pix_mask.dat'
+        'pix_mask': '/home/colin/data/in_features/pix_mask.dat'
     }
     dirname = args.dirname
-    i = 1
+    i = 0
     # Hyperparameter grid search
     if args.search:
         

@@ -29,11 +29,7 @@ def train_lstm(setup, dirname=None):
     setup['test'] = DataLoader(dataset=test_loader, batch_size=setup['batch_size'], shuffle=True, drop_last=True)
 
     # Define model, loss and optimizer.
-    if setup.seq:
-        model = Seq2Seq(1, shps['train_x.dat'][1], shps['train_x.dat'][-1], setup['hidden_size'], setup['mx_lead'])
-    else:
-        model = LSTM(size=shps['train_x.dat'][1], hidden_size=setup['hidden_size'], batch_size=setup['batch_size'],
-                     mx_lead=setup['mx_lead'], lead_time=setup['lead_time'])
+    model = Seq2Seq(1, shps['train_x.dat'][1], shps['train_x.dat'][-1], setup['hidden_size'], setup['mx_lead'])
 
     criterion = nn.MSELoss()
     lr = 0.002
@@ -78,9 +74,8 @@ if __name__ == '__main__':
     dirname = args.dirname
     i = 1
     # Hyperparameter grid search
-    if args.search:
-        
-        hidden_list = [64, 128, 256]
+    if True:
+        hidden_list = [32]
         batch_list = [64, 128, 256]
         setup['index'] = i
         setup['n_weeks'] = 30
@@ -97,8 +92,3 @@ if __name__ == '__main__':
                 dirname = train_lstm(setup, dirname=dirname)
                 i += 1
 
-    else:
-        setup['index'] = i
-        dirname = train_lstm(setup, dirname=args.dirname)
-        with open(os.path.join(dirname, 'metadata_{}_{}.p'.format(setup['index'], setup['model_type'])), 'wb') as f:
-            pickle.dump(setup, f)

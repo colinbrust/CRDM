@@ -3,7 +3,6 @@ import torch
 import os
 import numpy as np
 from crdm.models.SeqToSeq import Seq2Seq
-from crdm.models.LSTM import LSTM
 from crdm.loaders.AggregatePixels import PremakeTrainingPixels
 from crdm.utils.ImportantVars import DIMS, LENGTH
 import pickle
@@ -47,7 +46,6 @@ class Mapper(object):
                 print(e)
                 continue
             for i in range(len(self.indices)-1):
-                print(i)
                 idx = list(range(self.indices[i], self.indices[i+1]))
                 x, y = agg.premake_features(idx)
                 x = self.dtype(x.swapaxes(0, 2))
@@ -99,36 +97,25 @@ class Mapper(object):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run model for entire domain for all target images.')
 
-    parser.add_argument('-mf', '--model_file', type=str, help='Path to pickled model file.')
-    parser.add_argument('-mm', '--meta_file', type=str, help='Path to pickled metadata file.')
-    parser.add_argument('-sf', '--shp_file', type=str, help='Path to pickled file with dataset shapes.')
-    parser.add_argument('-c', '--classes', type=str, help='Directory containing memmaps of all target images.')
+    parser.add_argument('-md', '--model_dir', type=str, help='Path to the directory containing model results.')
+    parser.add_argument('-t', '--targets', type=str, help='Directory containing memmaps of all target images.')
     parser.add_argument('-f', '--features', type=str, help='Directory contining all memmap input features.')
     parser.add_argument('-od', '--out_dir', type=str, help='Directory to write np arrays out to.')
-    parser.add_argument('-mt', '--model_type', type=str, help="One of 'lstm' or 'seq'.", default='lstm')
-    parser.add_argument('lt', '--lead_time', type=int, default=None,
-                        help='Whether or not to use a model that was only trained on one lead time.')
 
     args = parser.parse_args()
-    print(os.path.exists(args.shp_file))
 
-    shps = pickle.load(open(args.shp_file, 'rb'))
-    metadata = pickle.load(open(args.meta_file, 'rb'))
-    # metadata['n_weeks'] = 15
+    shps = pickle.load(open(os.path.join(args.model_dir, 'shps.p'), 'rb'))
+    metadata = pickle.load(open(os.path.join(args.model_dir, 'metadata_1_seq.p'), 'rb'))
 
-    if args.model_type == 'lstm':
-        model = LSTM(size=shps['train_x.dat'][1], hidden_size=metadata['hidden_size'],
-                     batch_size=2488, mx_lead=metadata['mx_lead'], lead_time=metadata['lead_time'])
-    elif args.model_type == 'seq':
-        model = Seq2Seq(1, shps['train_x.dat'][1], shps['train_x.dat'][-1],
-                        metadata['hidden_size'], metadata['mx_lead'])
-    else:
-        raise ValueError('-mt flag muse be one of "lstm" opr "seq".')
+    model = Seq2Seq(1, shps['train_x.dat'][1], shps['train_x.dat'][-1],
+                    metadata['hidden_size'], metadata['mx_lead'])
 
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
     model.load_state_dict(torch.load(args.model_file, map_location=torch.device(device)))
+
     if torch.cuda.is_available():
         print('GPU')
         model.cuda()
-    mapper = Mapper(model, metadata, args.features, args.classes, args.out_dir, True)
+
+    mapper = Mapper(model, metadata, args.features, args.targets, args.out_dir, True)
     mapper.get_preds()

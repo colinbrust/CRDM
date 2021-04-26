@@ -29,7 +29,7 @@ def train_lstm(setup, dirname=None):
     setup['test'] = DataLoader(dataset=test_loader, batch_size=setup['batch_size'], shuffle=True, drop_last=True)
 
     # Define model, loss and optimizer.
-    if setup.seq:
+    if setup['seq']:
         model = Seq2Seq(1, shps['train_x.dat'][1], shps['train_x.dat'][-1], setup['hidden_size'], setup['mx_lead'])
     else:
         model = LSTM(size=shps['train_x.dat'][1], hidden_size=setup['hidden_size'], batch_size=setup['batch_size'],

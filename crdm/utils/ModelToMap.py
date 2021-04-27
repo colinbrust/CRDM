@@ -84,7 +84,7 @@ class Mapper(object):
             crs='+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs'
         )
 
-        out_dst.write(data)
+        out_dst.write(data.astype(np.int8))
         out_dst.close()
 
 
@@ -95,7 +95,7 @@ if __name__ == '__main__':
     parser.add_argument('-t', '--targets', type=str, help='Directory containing memmaps of all target images.')
     parser.add_argument('-f', '--features', type=str, help='Directory contining all memmap input features.')
     parser.add_argument('-od', '--out_dir', type=str, help='Directory to write np arrays out to.')
-    parser.add_argument('-h', '--holdout', type=str, default=None,
+    parser.add_argument('-ho', '--holdout', type=str, default=None,
                         help='Which variable should be held out to run the model')
 
     args = parser.parse_args()

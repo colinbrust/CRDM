@@ -55,12 +55,13 @@ class AttentionDecoderCell(nn.Module):
 
 
 class Seq2Seq(nn.Module):
-    def __init__(self, rnn_num_layers=1, input_feature_len=1, sequence_len=168, hidden_size=100, output_size=3):
+    def __init__(self, rnn_num_layers=1, input_feature_len=1, sequence_len=168, hidden_size=100, categorical=False):
         super().__init__()
         self.encoder = RNNEncoder(rnn_num_layers, input_feature_len, sequence_len, hidden_size)
         self.decoder_cell = AttentionDecoderCell(input_feature_len, hidden_size, sequence_len)
-        self.output_size = output_size
+        self.output_size = 6 if categorical else 1
         self.out = nn.Linear(input_feature_len, 1)
+        self.categorical = categorical
 
     def forward(self, xb):
         input_seq = xb
@@ -77,5 +78,8 @@ class Seq2Seq(nn.Module):
 
         outputs = torch.stack(outputs, 1)
         outputs = F.relu(outputs)
-        outputs = F.relu(self.out(outputs))
+        outputs = self.out(outputs)
+
+        outputs = outputs.permute(0, 2, 1) if self.categorical else F.relu(outputs)
+        print(outputs.shape)
         return outputs.squeeze(-1)

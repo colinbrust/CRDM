@@ -1,5 +1,4 @@
 import argparse
-from crdm.models.LSTM import LSTM
 from crdm.models.SeqToSeq import Seq2Seq
 from crdm.training.MakeTrainingData import make_training_data
 from crdm.training.TrainModel import train_model
@@ -12,31 +11,26 @@ from torch.utils.data import DataLoader
 import pickle
 
 
-def train_lstm(setup, dirname=None):
+def train_lstm(setup):
 
-    # If model isn't being trained on premade data, create a model directory and make training data.
-    if dirname is None:
-        dirname = make_training_data(**setup)
-
-    setup['dirname'] = dirname
-    with open(os.path.join(dirname, 'shps.p'), 'rb') as f:
+    with open(os.path.join(setup['dirname'], 'shps.p'), 'rb') as f:
         shps = pickle.load(f)
 
     # Make train and test set data loaders and add them to model setup
-    train_loader = LSTMLoader(dirname=dirname, train=True)
-    test_loader = LSTMLoader(dirname=dirname, train=False)
+    train_loader = LSTMLoader(dirname=setup['dirname'], train=True, categorical=setup['categorical'])
+    test_loader = LSTMLoader(dirname=setup['dirname'], train=False, categorical=setup['categorical'])
     setup['train'] = DataLoader(dataset=train_loader, batch_size=setup['batch_size'], shuffle=True, drop_last=True)
     setup['test'] = DataLoader(dataset=test_loader, batch_size=setup['batch_size'], shuffle=True, drop_last=True)
 
     # Define model, loss and optimizer.
-    if setup['seq']:
-        model = Seq2Seq(1, shps['train_x.dat'][1], shps['train_x.dat'][-1], setup['hidden_size'], setup['mx_lead'])
-        print('Using Seq')
-    else:
-        model = LSTM(size=shps['train_x.dat'][1], hidden_size=setup['hidden_size'], batch_size=setup['batch_size'],
-                     mx_lead=setup['mx_lead'], lead_time=setup['lead_time'])
 
-    criterion = nn.MSELoss()
+    model = Seq2Seq(1, shps['train_x.dat'][1], shps['train_x.dat'][-1],
+                    setup['hidden_size'], setup['mx_lead'], categorical=setup['categorical'])
+
+    weights = torch.Tensor([0.4192, 0.8842, 0.9183, 0.959, 0.8301, 0.9892]).type(
+        torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor)
+
+    criterion = nn.CrossEntropyLoss(weight=weights) if setup['categorical'] else nn.MSELoss()
     lr = 0.002
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, amsgrad=True)
     scheduler = StepLR(optimizer, step_size=3, gamma=0.5, verbose=True)
@@ -47,7 +41,6 @@ def train_lstm(setup, dirname=None):
     setup['scheduler'] = scheduler
 
     train_model(setup)
-    return dirname
 
 
 if __name__ == '__main__':
@@ -59,20 +52,18 @@ if __name__ == '__main__':
     parser.add_argument('-hs', '--hidden_size', type=int, default=64, help='LSTM hidden dimension size.')
     parser.add_argument('-nw', '--n_weeks', type=int, default=25, help='Number of week history to use for prediction')
     parser.add_argument('-sz', '--size', type=int, default=1024, help='How many samples to take per image.')
-    parser.add_argument('-clip', '--clip', type=float, default=-1, help='Gradient clip')
     parser.add_argument('-lt', '--lead_time', type=int, default=None,
                         help='Lead time to predict. If None, a timeseries will be predicted')
-    parser.add_argument('-seq', '--seq', type=int, default=0,
-                        help='Whether to use SeqToSeq model or standard lstm.')
 
     parser.add_argument('-mx', '--mx_lead', type=int, default=8,
                         help='How many weeks into the future to make predictions.')
+
     parser.add_argument('-dn', '--dirname', type=str, default=None,
                         help='Directory with training data to use. If left blank, training data will be created.')
 
-    parser.add_argument('--search', dest='search', action='store_true', help='Perform hyperparameter grid search.')
-    parser.add_argument('--no-search', dest='search', action='store_false',
-                        help="Don't perform hyperparameter grid search.")
+    parser.add_argument('--cat', dest='categorical', action='store_true', help='Treat targets as categorical')
+    parser.add_argument('--no-cat', dest='categorical', action='store_false',
+                        help="Treat targets as continuous")
     parser.set_defaults(search=False)
 
     args = parser.parse_args()
@@ -86,37 +77,27 @@ if __name__ == '__main__':
         'n_weeks': args.n_weeks,
         'mx_lead': args.mx_lead,
         'size': args.size,
-        'clip': args.clip,
-        'seq': args.seq,
         'lead_time': args.lead_time,
         'early_stop': 5,
-        'model_type': 'seq' if args.seq else 'lstm',
+        'categorical': args.cat,
+        'model_type': 'seq',
         'pix_mask': '/home/colin/data/in_features/pix_mask.dat'
     }
-    dirname = args.dirname
-    i = 0
-    # Hyperparameter grid search
-    if args.search:
-        
-        hidden_list = [64, 128, 256] if args.seq else [512, 1024]
-        batch_list = [64, 128, 256]
-        setup['index'] = i
-        setup['n_weeks'] = 30
 
-        # dirname = train_lstm(setup, dirname=None)
-        for hidden in hidden_list:
-            for batch in batch_list:
-                setup['hidden_size'] = hidden
-                setup['batch_size'] = batch
-                setup['index'] = i    
-                with open(os.path.join(dirname, 'metadata_{}_{}.p'.format(setup['index'], setup['model_type'])), 'wb') as f:
-                    pickle.dump(setup, f)
-                print('Grid search with hidden_size={}, batch_size={}'.format(hidden, batch))
-                dirname = train_lstm(setup, dirname=dirname)
-                i += 1
-
+    if args.dirname is None:
+        dirname = make_training_data(**setup)
+        setup['dirname'] = dirname
     else:
-        setup['index'] = i
-        dirname = train_lstm(setup, dirname=args.dirname)
-        with open(os.path.join(dirname, 'metadata_{}_{}.p'.format(setup['index'], setup['model_type'])), 'wb') as f:
-            pickle.dump(setup, f)
+        setup['dirname'] = args.dirname
+
+    i = 0
+
+    while os.path.exists(os.path.join(setup['dirname'], 'model_{}_{}.p'.format(i, setup['model_type']))):
+        i += 1
+
+    setup['index'] = i
+
+    with open(os.path.join(setup['dirname'], 'metadata_{}_{}.p'.format(setup['index'],setup['model_type'])), 'wb') as f:
+        pickle.dump(setup, f)
+    train_lstm(setup)
+

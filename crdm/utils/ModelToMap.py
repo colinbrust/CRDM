@@ -30,6 +30,7 @@ class Mapper(object):
         targets = [targets[i:i + metadata['mx_lead']] for i in range(len(targets))]
         targets = list(filter(lambda x: len(x) == metadata['mx_lead'], targets))
         targets = [x for x in targets if ('/2015' in x[0] or '/2017' in x[0] or '/2007' in x[0])] if test else targets
+        targets = targets[20:]
 
         self.targets = targets
         self.indices = list(range(0, LENGTH+1, BATCH))
@@ -84,7 +85,7 @@ class Mapper(object):
             crs='+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs'
         )
 
-        out_dst.write(data)
+        out_dst.write(data.astype(np.int8))
         out_dst.close()
 
 
@@ -95,7 +96,7 @@ if __name__ == '__main__':
     parser.add_argument('-t', '--targets', type=str, help='Directory containing memmaps of all target images.')
     parser.add_argument('-f', '--features', type=str, help='Directory contining all memmap input features.')
     parser.add_argument('-od', '--out_dir', type=str, help='Directory to write np arrays out to.')
-    parser.add_argument('-h', '--holdout', type=str, default=None,
+    parser.add_argument('-ho', '--holdout', type=str, default=None,
                         help='Which variable should be held out to run the model')
 
     args = parser.parse_args()

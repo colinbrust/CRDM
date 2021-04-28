@@ -45,8 +45,6 @@ def train_model(setup):
             # Compute the loss and step the optimizer
             loss = criterion(outputs, y)
             loss.backward()
-            if setup['clip'] > 0:
-                torch.nn.utils.clip_grad_norm_(model.parameters(), setup['clip'])
             optimizer.step()
 
             if idx % 100 == 0:

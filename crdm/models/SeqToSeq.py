@@ -55,12 +55,14 @@ class AttentionDecoderCell(nn.Module):
 
 
 class Seq2Seq(nn.Module):
-    def __init__(self, rnn_num_layers=1, input_feature_len=1, sequence_len=168, hidden_size=100, categorical=False):
+    def __init__(self, rnn_num_layers=1, input_feature_len=1, sequence_len=168, hidden_size=100, output_size=12, categorical=False):
         super().__init__()
         self.encoder = RNNEncoder(rnn_num_layers, input_feature_len, sequence_len, hidden_size)
         self.decoder_cell = AttentionDecoderCell(input_feature_len, hidden_size, sequence_len)
-        self.output_size = 6 if categorical else 1
-        self.out = nn.Linear(input_feature_len, 1)
+        self.output_size = output_size
+
+        self.n_classes = 6 if categorical else 1
+        self.out = nn.Linear(input_feature_len, self.n_classes)
         self.categorical = categorical
 
     def forward(self, xb):

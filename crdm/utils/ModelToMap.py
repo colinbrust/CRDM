@@ -8,6 +8,7 @@ import pickle
 from pathlib import Path
 import rasterio as rio
 import torch
+from tqdm import tqdm
 
 BATCH = 2488
 
@@ -48,7 +49,7 @@ class Mapper(object):
             except AssertionError as e:
                 print(e)
                 continue
-            for i in range(len(self.indices)-1):
+            for i in tqdm(range(len(self.indices)-1)):
 
                 idx = list(range(self.indices[i], self.indices[i+1]))
 
@@ -95,7 +96,6 @@ if __name__ == '__main__':
     parser.add_argument('-md', '--model_dir', type=str, help='Path to the directory containing model results.')
     parser.add_argument('-t', '--targets', type=str, help='Directory containing memmaps of all target images.')
     parser.add_argument('-f', '--features', type=str, help='Directory contining all memmap input features.')
-    parser.add_argument('-od', '--out_dir', type=str, help='Directory to write np arrays out to.')
     parser.add_argument('-ho', '--holdout', type=str, default=None,
                         help='Which variable should be held out to run the model')
 
@@ -114,5 +114,7 @@ if __name__ == '__main__':
         print('GPU')
         model.cuda()
 
-    mapper = Mapper(model, metadata, args.features, args.targets, args.out_dir, shps, True, args.holdout)
+    out_dir = os.path.join(args.model_dir, 'preds')
+
+    mapper = Mapper(model, metadata, args.features, args.targets, out_dir, shps, True, args.holdout)
     mapper.get_preds()

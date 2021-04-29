@@ -6,6 +6,7 @@ import torch.nn.functional as F
 
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
+
 class RNNEncoder(nn.Module):
     def __init__(self, rnn_num_layers=1, input_feature_len=1, sequence_len=168, hidden_size=100, bidirectional=False):
         super().__init__()

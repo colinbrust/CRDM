@@ -1,6 +1,6 @@
 import numpy as np
 from crdm.loaders.Aggregate import Aggregate
-from crdm.utils.ImportantVars import LENGTH, WEEKLY_VARS, MONTHLY_VARS
+from crdm.utils.ImportantVars import WEEKLY_VARS, MONTHLY_VARS
 
 
 # make list of tuples where elem[0] is the sequence of features and elem[1] is the output class

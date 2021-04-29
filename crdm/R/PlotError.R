@@ -1,8 +1,8 @@
 library(reticulate)
 library(magrittr)
 library(ggplot2)
-use_condaenv("gee", conda = "/opt/miniconda3/bin/conda")
-source_python('~/projects/DroughtCast/crdm/utils/ReadPickle.py')
+use_condaenv("ml", conda = "/home/colin/miniconda3/bin/conda")
+source_python('./crdm/utils/ReadPickle.py')
 source('https://raw.githubusercontent.com/colinbrust/DroughtCast/revert/crdm/R/PlotTheme.R')
 
 
@@ -60,6 +60,7 @@ plot_all <- function(pth, ...) {
 
   read_all(pth) %>%
     tidyr::pivot_longer(c(train, test), names_to = 'set', values_to = 'err') %>% 
+<<<<<<< Updated upstream
     dplyr::mutate(batch_size = factor(batch_size),
                   hidden_size = factor(hidden_size),
                   model_class = factor(model_class),
@@ -69,6 +70,12 @@ plot_all <- function(pth, ...) {
     ggplot(aes(x=epoch, y=err, color=batch_size)) + 
       geom_line() +
     facet_wrap(~hidden_size)
+=======
+    dplyr::mutate(model_id = factor(model_id)) %>%
+    dplyr::filter(set == 'train') %>% 
+    ggplot(aes(x=epoch, y=err, color=model_class)) + 
+      geom_line() 
+>>>>>>> Stashed changes
     
     
 }

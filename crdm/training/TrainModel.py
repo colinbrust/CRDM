@@ -39,9 +39,6 @@ def train_model(setup):
             outputs = model(x)
             outputs = outputs.squeeze()
 
-            if lead_time is not None:
-                y = y[:, lead_time]
-
             # Compute the loss and step the optimizer
             loss = criterion(outputs, y)
             loss.backward()

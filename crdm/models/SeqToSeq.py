@@ -84,5 +84,4 @@ class Seq2Seq(nn.Module):
         outputs = self.out(outputs)
 
         outputs = outputs.permute(0, 2, 1) if self.categorical else F.relu(outputs)
-        print(outputs.shape)
         return outputs.squeeze(-1)

@@ -33,7 +33,7 @@ def train_lstm(setup):
     criterion = nn.CrossEntropyLoss(weight=weights) if setup['categorical'] else nn.MSELoss()
     lr = 0.002
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, amsgrad=True)
-    scheduler = StepLR(optimizer, step_size=3, gamma=0.5, verbose=True)
+    scheduler = StepLR(optimizer, step_size=5, gamma=0.5, verbose=True)
 
     setup['model'] = model
     setup['criterion'] = criterion
@@ -79,7 +79,7 @@ if __name__ == '__main__':
         'size': args.size,
         'lead_time': args.lead_time,
         'early_stop': 5,
-        'categorical': args.cat,
+        'categorical': args.categorical,
         'model_type': 'seq',
         'pix_mask': '/home/colin/data/in_features/pix_mask.dat'
     }

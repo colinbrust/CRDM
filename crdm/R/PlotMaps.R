@@ -62,7 +62,7 @@ label_model <- function(data) {
   
   data %>% 
     dplyr::mutate(
-      label = paste0(day + lubridate::weeks(lead_time), ' Forecast ', '(', lead_time+1, ')'),
+      label = paste0(day + lubridate::weeks(lead_time), ' Drought ', '(', lead_time+1, ')'),
       label = factor(label, levels = stringr::str_sort(unique(label), numeric=TRUE))
     )
 } 
@@ -89,14 +89,43 @@ get_targets <- function(f_dir, day, states) {
     clean_maps(states = states)
 }
 
+get_both <- function(f, target_dir, states, plot_target = TRUE) {
+  
+  day <- f %>% 
+    basename() %>% 
+    stringr::str_split('_') %>% 
+    unlist() %>% 
+    head(1)
+  
+  model <- f %>% 
+    clean_maps(states = states) %>%
+    map_to_tidy(day = day) %>%
+    label_model() %>%
+    dplyr::mutate(src = 'Model')
+  
+  if (plot_target) {
+    targets <- get_targets(target_dir, day, states) %>% 
+      map_to_tidy(day = day) %>%
+      label_model() %>%
+      dplyr::mutate(src = 'Target')
+  } else {
+    targets <- tibble::tibble()
+  }
+  
+  dplyr::bind_rows(model, targets) %>%
+    dplyr::filter(lead_time %in% c(1, 3, 7, 11),
+                  val != 'No Drought') %>%
+    plot_data(states = states)
+}
 
 plot_data <- function(data, states) {
   
   ggplot() + 
-    geom_raster(data = data, mapping = aes(x=x, y=y, fill=val)) + 
+    geom_raster(data = d2, mapping = aes(x=x, y=y, fill=val)) + 
     geom_sf(data = states, mapping = aes(), fill=NA, size = 0.5) +
     # coord_sf(crs = 6933, datum = NA) +
-    facet_wrap(~label) +
+    facet_grid(rows = dplyr::vars(src), cols = dplyr::vars(label), switch = 'y') + 
+    # facet_wrap(src~label, nrow=2, switch = 'y') +
     plot_theme() + 
     scale_fill_manual(values = c('No Drought' = NA,
                                  'D0' = '#FFFF00',
@@ -105,22 +134,7 @@ plot_data <- function(data, states) {
                                  'D3' = '#E60000',
                                  'D4' = '#730000')) +
     labs(x='', y='', fill='Drought\nCategory') + 
-    scale_x_discrete(guide = guide_axis(check.overlap = TRUE)) +
-    scale_y_discrete(guide = guide_axis(check.overlap = TRUE))
+    scale_y_discrete(guide = guide_axis(check.overlap = TRUE)) + 
+    theme(axis.text.x = element_text(angle = 45),
+          strip.placement = "outside")
 }
-
-f_list <- list.files('./data/models', full.names=T, recursive = T, pattern='.tif') 
-
-preds <- average_ensemble('20070116', 'None', f_list)
-preds_tidy <- map_to_tidy(preds, '20070116')
-preds_tidy <- label_model(preds_tidy)
-
-targets <- get_targets('./data/tif_targets', '20070116', states)
-targets_tidy <- map_to_tidy(targets, '20070116')
-targets_tidy <- label_targets(targets_tidy)
-
-plot_data(preds_tidy, states)
-plot_data(targets_tidy, states)
-
-
-test <- targets %>% dplyr::filter(val != 'No Drought')

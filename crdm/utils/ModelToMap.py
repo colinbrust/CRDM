@@ -15,7 +15,7 @@ BATCH = 2488
 
 class Mapper(object):
 
-    def __init__(self, model, metadata, features, classes, out_dir, shps, test=True, holdout=None):
+    def __init__(self, model, metadata, features, classes, out_dir, shps, test=True, holdout=None, categorical=False):
 
         self.model = model
         self.features = features
@@ -26,12 +26,12 @@ class Mapper(object):
         self.shps = shps
         self.dtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
         self.holdout = holdout
+        self.categorical = categorical
 
         targets = sorted([str(x) for x in Path(classes).glob('*.dat')])
         targets = [targets[i:i + metadata['mx_lead']] for i in range(len(targets))]
         targets = list(filter(lambda x: len(x) == metadata['mx_lead'], targets))
         targets = [x for x in targets if ('/2015' in x[0] or '/2017' in x[0] or '/2007' in x[0])] if test else targets
-        targets = targets[20:]
 
         self.targets = targets
         self.indices = list(range(0, LENGTH+1, BATCH))
@@ -46,28 +46,34 @@ class Mapper(object):
             try:
                 agg = PremakeTrainingPixels(in_features=self.features, targets=target,
                                             n_weeks=self.metadata['n_weeks'])
+
+                x_full, _ = agg.premake_features(list(range(self.indices[0], self.indices[-1])))
+
             except AssertionError as e:
                 print(e)
                 continue
-            for i in tqdm(range(len(self.indices)-1)):
+            for i in tqdm(range(len(mapper.indices)-1)):
 
-                idx = list(range(self.indices[i], self.indices[i+1]))
+                idx = list(range(mapper.indices[i], mapper.indices[i+1]))
 
-                x, _ = agg.premake_features(idx)
+                x = x_full[:, :, idx]
+
                 # Batch, Seq, Feature
                 x = x.swapaxes(0, 2)
                 # Replace variable with a random value if specified in init.
-                if self.holdout is not None:
-                    x[:, :, holdouts[self.holdout]] = np.random.uniform(-1, 1, fill_shp)
-                x = self.dtype(x)
+                if mapper.holdout is not None:
+                    x[:, :, holdouts[mapper.holdout]] = np.random.uniform(-1, 1, fill_shp)
+                x = mapper.dtype(x)
 
-                outputs = self.model(x)
+                outputs = mapper.model(x)
                 outputs = outputs.detach().cpu().numpy()
+                outputs = np.argmax(outputs, 1) if self.categorical else outputs
+
                 x_out.append(outputs)
 
             x = np.concatenate(x_out, axis=0)
             x = x.swapaxes(0, 1).reshape(self.metadata['mx_lead'], *DIMS)
-            x = np.clip(np.round(x * 5), 0, 5)
+            x = x if self.categorical else np.clip(np.round(x * 5), 0, 5)
             self.save_arrays(x, target)
 
     def save_arrays(self, data, target):
@@ -105,7 +111,7 @@ if __name__ == '__main__':
     metadata = pickle.load(open(os.path.join(args.model_dir, 'metadata_0_seq.p'), 'rb'))
 
     model = Seq2Seq(1, shps['train_x.dat'][1], shps['train_x.dat'][-1],
-                    metadata['hidden_size'], metadata['mx_lead'])
+                    metadata['hidden_size'], metadata['mx_lead'], categorical=metadata['categorical'])
 
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
     model.load_state_dict(torch.load(os.path.join(args.model_dir, 'model_0_seq.p'), map_location=torch.device(device)))
@@ -116,5 +122,5 @@ if __name__ == '__main__':
 
     out_dir = os.path.join(args.model_dir, 'preds')
 
-    mapper = Mapper(model, metadata, args.features, args.targets, out_dir, shps, True, args.holdout)
+    mapper = Mapper(model, metadata, args.features, args.targets, out_dir, shps, False, args.holdout, metadata['categorical'])
     mapper.get_preds()

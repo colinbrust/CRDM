@@ -60,22 +60,16 @@ plot_all <- function(pth, ...) {
 
   read_all(pth) %>%
     tidyr::pivot_longer(c(train, test), names_to = 'set', values_to = 'err') %>% 
-<<<<<<< Updated upstream
     dplyr::mutate(batch_size = factor(batch_size),
                   hidden_size = factor(hidden_size),
                   model_class = factor(model_class),
                   model_id = factor(model_id)) %>%
-    dplyr::filter(set == 'test',
-                  model_class %in% c('seq32', 'seq64', 'seq128')) %>% 
+    dplyr::filter(set == 'train',
+                  model_class %in% c('model6', 'model7')) %>% 
     ggplot(aes(x=epoch, y=err, color=batch_size)) + 
       geom_line() +
     facet_wrap(~hidden_size)
-=======
-    dplyr::mutate(model_id = factor(model_id)) %>%
-    dplyr::filter(set == 'train') %>% 
-    ggplot(aes(x=epoch, y=err, color=model_class)) + 
-      geom_line() 
->>>>>>> Stashed changes
+
     
     
 }

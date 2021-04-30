@@ -81,7 +81,7 @@ if __name__ == '__main__':
         'early_stop': 5,
         'categorical': args.categorical,
         'model_type': 'seq',
-        'pix_mask': '/home/colin/data/in_features/pix_mask.dat'
+        'pix_mask': '/mnt/e/PycharmProjects/DroughtCast/data/pix_mask.dat'
     }
 
     if args.dirname is None:

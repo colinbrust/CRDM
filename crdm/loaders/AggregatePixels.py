@@ -1,6 +1,7 @@
 import numpy as np
 from crdm.loaders.Aggregate import Aggregate
 from crdm.utils.ImportantVars import WEEKLY_VARS, MONTHLY_VARS
+from typing import List
 
 
 # make list of tuples where elem[0] is the sequence of features and elem[1] is the output class
@@ -59,3 +60,19 @@ class PremakeTrainingPixels(Aggregate):
         targets = np.take(targets, indices, axis=1)
 
         return weeklys, targets
+
+    def sample_evenly(self) -> List[int]:
+
+        targs = np.array([np.memmap(x, 'int8', 'r') for x in self.targets])
+
+        indices = []
+        for category in [5, 4, 3, 2, 1, 0]:
+            locs = list(np.where(np.any(targs == category, axis=0))[0])
+
+            if len(locs) == 0:
+                continue
+            else:
+                locs = list(np.random.choice(np.setdiff1d(locs, indices), self.sample_size))
+                indices = indices + locs
+
+        return list(np.unique(indices))

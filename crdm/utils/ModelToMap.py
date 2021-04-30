@@ -31,7 +31,7 @@ class Mapper(object):
         targets = sorted([str(x) for x in Path(classes).glob('*.dat')])
         targets = [targets[i:i + metadata['mx_lead']] for i in range(len(targets))]
         targets = list(filter(lambda x: len(x) == metadata['mx_lead'], targets))
-        targets = [x for x in targets if ('/2015' in x[0] or '/2017' in x[0] or '/2007' in x[0])] if test else targets
+        targets = [x for x in targets if ('/201707' in x[0])] if test else targets
 
         self.targets = targets
         self.indices = list(range(0, LENGTH+1, BATCH))
@@ -111,7 +111,7 @@ if __name__ == '__main__':
     metadata = pickle.load(open(os.path.join(args.model_dir, 'metadata_0_seq.p'), 'rb'))
 
     model = Seq2Seq(1, shps['train_x.dat'][1], shps['train_x.dat'][-1],
-                    metadata['hidden_size'], metadata['mx_lead'], categorical=metadata['categorical'])
+                    metadata['hidden_size'], metadata['mx_lead'], categorical=False)
 
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
     model.load_state_dict(torch.load(os.path.join(args.model_dir, 'model_0_seq.p'), map_location=torch.device(device)))
@@ -122,5 +122,5 @@ if __name__ == '__main__':
 
     out_dir = os.path.join(args.model_dir, 'preds')
 
-    mapper = Mapper(model, metadata, args.features, args.targets, out_dir, shps, False, args.holdout, metadata['categorical'])
+    mapper = Mapper(model, metadata, args.features, args.targets, out_dir, shps, True, args.holdout, False)
     mapper.get_preds()

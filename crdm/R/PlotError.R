@@ -46,8 +46,8 @@ read_all <- function(pth) {
     ) %>% 
     lapply(read_metadata) %>% 
     dplyr::bind_rows()  %>%
-    dplyr::select(-c(dirname, criterion, pix_mask, model_type, early_stop, 
-                     in_features, out_classes, seq, clip)) %>%
+    dplyr::select(-c(dirname, pix_mask, model_type, early_stop, 
+                     in_features, out_classes)) %>%
     dplyr::mutate(dplyr::across(!dplyr::ends_with('class'), as.numeric))
   
   
@@ -64,8 +64,7 @@ plot_all <- function(pth, ...) {
                   hidden_size = factor(hidden_size),
                   model_class = factor(model_class),
                   model_id = factor(model_id)) %>%
-    dplyr::filter(set == 'train',
-                  model_class %in% c('model6', 'model7')) %>% 
+    dplyr::filter(set == 'train') %>% 
     ggplot(aes(x=epoch, y=err, color=batch_size)) + 
       geom_line() +
     facet_wrap(~hidden_size)

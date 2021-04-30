@@ -121,7 +121,7 @@ get_both <- function(f, target_dir, states, plot_target = TRUE) {
 plot_data <- function(data, states) {
   
   ggplot() + 
-    geom_raster(data = d2, mapping = aes(x=x, y=y, fill=val)) + 
+    geom_raster(data = data, mapping = aes(x=x, y=y, fill=val)) + 
     geom_sf(data = states, mapping = aes(), fill=NA, size = 0.5) +
     # coord_sf(crs = 6933, datum = NA) +
     facet_grid(rows = dplyr::vars(src), cols = dplyr::vars(label), switch = 'y') + 

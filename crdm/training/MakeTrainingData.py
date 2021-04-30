@@ -19,6 +19,7 @@ def make_training_data(in_features, out_classes, **kwargs):
     targets = [targets[i:i+kwargs['mx_lead']] for i in range(len(targets))]
     targets = list(filter(lambda x: len(x) == kwargs['mx_lead'], targets))
     targets = [x for x in targets if not ('/2014' in x[0] or '/2017' in x[0] or '/2007' in x[0])]
+    targets = targets[100:105]
 
     df = []
     for y in range(DIMS[0]):
@@ -38,6 +39,7 @@ def make_training_data(in_features, out_classes, **kwargs):
     test_locs = list(np.where(chk.ravel() == 0)[0])
 
     dirname = make_model_dir()
+    print(dirname)
 
     locs = {'train': train_locs,
             'test': test_locs}
@@ -51,7 +53,7 @@ def make_training_data(in_features, out_classes, **kwargs):
     for target in targets:
         try:
             print(target[0])
-            tmp = PremakeTrainingPixels(target, in_features, kwargs['n_weeks'], kwargs['mx_lead'], kwargs['size'])
+            tmp = PremakeTrainingPixels(target, in_features, kwargs['n_weeks'], kwargs['size'])
             indices = tmp.sample_evenly()
             tmp_w, tmp_t = tmp.premake_features(indices=list(set(indices).intersection(set(train_locs))))
             train_x.append(tmp_w)

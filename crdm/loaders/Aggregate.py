@@ -12,8 +12,7 @@ class Aggregate(ABC):
     """
     Class for aggregating all images necessary to make predictions for a given USDM image.
     """
-    def __init__(self, targets: List[str], in_features: str, n_weeks: int = 25,
-                 mx_lead: int = 12, sample_size: int = 2048) -> None:
+    def __init__(self, targets: List[str], in_features: str, n_weeks: int = 25, sample_size: int = 2048) -> None:
         """
         :param target: Path to target flash drought image :param in_features: Path to directory containing 'monthly',
         'constant' and 'annual' subdirectories each containing features :param lead_time: How many months in advance
@@ -28,6 +27,7 @@ class Aggregate(ABC):
         self.n_weeks = n_weeks
         self.mei = pd.read_csv(os.path.join(in_features, 'mei.csv'))
         self.mei.date = self.mei.date.astype(str)
+        self.sample_size = sample_size
 
         self.weekly_dates = self._get_date_list()
         self.annuals = self._get_annuals()

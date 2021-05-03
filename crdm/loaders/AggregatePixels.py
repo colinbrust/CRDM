@@ -1,6 +1,6 @@
 import numpy as np
 from crdm.loaders.Aggregate import Aggregate
-from crdm.utils.ImportantVars import WEEKLY_VARS, MONTHLY_VARS
+from crdm.utils.ImportantVars import WEEKLY_VARS, MONTHLY_VARS, LENGTH
 from typing import List
 
 
@@ -66,7 +66,8 @@ class PremakeTrainingPixels(Aggregate):
         targs = np.array([np.memmap(x, 'int8', 'r') for x in self.targets])
 
         indices = []
-        for category in [5, 4, 3, 2, 1, 0]:
+        # ensure we have samples from highest category droughts in each
+        for category in [5, 4]:
             locs = list(np.where(np.any(targs == category, axis=0))[0])
 
             if len(locs) == 0:
@@ -74,5 +75,33 @@ class PremakeTrainingPixels(Aggregate):
             else:
                 locs = list(np.random.choice(np.setdiff1d(locs, indices), self.sample_size))
                 indices = indices + locs
+
+        # Sample pixels where drought is decreasing across the forecast time
+        for category in [0, -1]:
+            locs = list(np.where(np.any(np.diff(targs, axis=0) < category, axis=0))[0])
+
+            if len(locs) == 0:
+                continue
+            else:
+                locs = list(np.random.choice(np.setdiff1d(locs, indices), self.sample_size))
+                indices = indices + locs
+
+        # Sample pixels where drought is increasing across the forecast time
+        for category in [0, 1]:
+            locs = list(np.where(np.any(np.diff(targs, axis=0) > category, axis=0))[0])
+
+            if len(locs) == 0:
+                continue
+            else:
+                locs = list(np.random.choice(np.setdiff1d(locs, indices), self.sample_size))
+                indices = indices + locs
+
+        # Sample pixels where drought is staying the same across forecast time
+        locs = list(np.where(np.all(np.diff(targs, axis=0) == 0, axis=0))[0])
+        locs = list(np.random.choice(np.setdiff1d(locs, indices), self.sample_size))
+        indices += locs
+
+        # sample any other random pixles
+        indices += list(np.random.choice(np.setdiff1d(list(range(LENGTH)), indices), self.sample_size, replace=False))
 
         return list(np.unique(indices))

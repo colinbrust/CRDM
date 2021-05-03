@@ -70,38 +70,44 @@ class PremakeTrainingPixels(Aggregate):
         for category in [5, 4]:
             locs = list(np.where(np.any(targs == category, axis=0))[0])
 
-            if len(locs) == 0:
-                continue
-            else:
+            try:
                 locs = list(np.random.choice(np.setdiff1d(locs, indices), self.sample_size))
                 indices = indices + locs
+            except ValueError:
+                continue
 
         # Sample pixels where drought is decreasing across the forecast time
         for category in [0, -1]:
             locs = list(np.where(np.any(np.diff(targs, axis=0) < category, axis=0))[0])
 
-            if len(locs) == 0:
-                continue
-            else:
+            try:
                 locs = list(np.random.choice(np.setdiff1d(locs, indices), self.sample_size))
                 indices = indices + locs
+            except ValueError:
+                continue
 
         # Sample pixels where drought is increasing across the forecast time
         for category in [0, 1]:
             locs = list(np.where(np.any(np.diff(targs, axis=0) > category, axis=0))[0])
 
-            if len(locs) == 0:
-                continue
-            else:
+            try:
                 locs = list(np.random.choice(np.setdiff1d(locs, indices), self.sample_size))
                 indices = indices + locs
+            except ValueError:
+                continue
 
         # Sample pixels where drought is staying the same across forecast time
-        locs = list(np.where(np.all(np.diff(targs, axis=0) == 0, axis=0))[0])
-        locs = list(np.random.choice(np.setdiff1d(locs, indices), self.sample_size))
-        indices += locs
+        try:
+            locs = list(np.where(np.all(np.diff(targs, axis=0) == 0, axis=0))[0])
+            locs = list(np.random.choice(np.setdiff1d(locs, indices), self.sample_size))
+            indices += locs
+        except ValueError:
+            pass
 
         # sample any other random pixles
-        indices += list(np.random.choice(np.setdiff1d(list(range(LENGTH)), indices), self.sample_size, replace=False))
+        try:
+            indices += list(np.random.choice(np.setdiff1d(list(range(LENGTH)), indices), self.sample_size, replace=False))
+        except ValueError:
+            pass
 
         return list(np.unique(indices))

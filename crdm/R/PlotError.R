@@ -64,10 +64,10 @@ plot_all <- function(pth, ...) {
                   hidden_size = factor(hidden_size),
                   model_class = factor(model_class),
                   model_id = factor(model_id)) %>%
-    dplyr::filter(set == 'train') %>% 
-    ggplot(aes(x=epoch, y=err, color=batch_size)) + 
+    dplyr::filter(set == 'test') %>% 
+    ggplot(aes(x=epoch, y=err, color=model_class)) + 
       geom_line() +
-    facet_wrap(~hidden_size)
+    facet_wrap(~model_id) + ylim(c(0, 0.01))
 
     
     

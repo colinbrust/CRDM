@@ -29,7 +29,6 @@ class PremakeTrainingPixels(Aggregate):
 
     def premake_features(self, indices) -> np.array:
         # Make sure you have pixel indices to slice by.
-
         weeklys = self.make_pixel_stack(indices)
 
         # dim = variable x location
@@ -104,7 +103,7 @@ class PremakeTrainingPixels(Aggregate):
         except ValueError:
             pass
 
-        # sample any other random pixles
+        # sample any other random pixels
         try:
             indices += list(np.random.choice(np.setdiff1d(list(range(LENGTH)), indices), self.sample_size, replace=False))
         except ValueError:

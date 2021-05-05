@@ -1,7 +1,8 @@
 import pandas as pd
 from crdm.loaders.AggregatePixels import PremakeTrainingPixels
 from crdm.utils.MakeModelDir import make_model_dir
-from crdm.utils.ImportantVars import DIMS
+from crdm.utils.ImportantVars import DIMS, LENGTH
+from crdm.utils.Stack import Stack
 import os
 import numpy as np
 from pathlib import Path
@@ -49,11 +50,15 @@ def make_training_data(in_features, out_classes, **kwargs):
     train_x, train_y = [], []
     test_x, test_y = [], []
 
+    stk = Stack(LENGTH, kwargs['mx_lead'])
+
     for target in targets:
         try:
             print(target[0])
-            tmp = PremakeTrainingPixels(target, in_features, kwargs['n_weeks'], kwargs['size'])
-            indices = tmp.sample_evenly()
+            tmp = PremakeTrainingPixels(target, in_features, kwargs['n_weeks'], 1)
+            # indices = tmp.sample_evenly()
+            indices = stk.sample()
+            stk.push(indices)
             tmp_w, tmp_t = tmp.premake_features(indices=list(set(indices).intersection(set(train_locs))))
             train_x.append(tmp_w)
             train_y.append(tmp_t)

@@ -102,25 +102,34 @@ if __name__ == '__main__':
     parser.add_argument('-md', '--model_dir', type=str, help='Path to the directory containing model results.')
     parser.add_argument('-t', '--targets', type=str, help='Directory containing memmaps of all target images.')
     parser.add_argument('-f', '--features', type=str, help='Directory contining all memmap input features.')
+    parser.add_argument('-od', '--out_dir', type=str, help='Directory to write images to.', default='preds')
+    parser.add_argument('-n', '--num', type=int, help='Model number to run.')
     parser.add_argument('-ho', '--holdout', type=str, default=None,
                         help='Which variable should be held out to run the model')
 
     args = parser.parse_args()
 
     shps = pickle.load(open(os.path.join(args.model_dir, 'shps.p'), 'rb'))
-    metadata = pickle.load(open(os.path.join(args.model_dir, 'metadata_0_seq.p'), 'rb'))
+    metadata = pickle.load(open(os.path.join(args.model_dir, 'metadata_{}_seq.p'.format(args.num)), 'rb'))
 
     model = Seq2Seq(1, shps['train_x.dat'][1], shps['train_x.dat'][-1],
-                    metadata['hidden_size'], metadata['mx_lead'], categorical=False)
+                    metadata['hidden_size'], metadata['mx_lead'], categorical=metadata['categorical'])
 
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-    model.load_state_dict(torch.load(os.path.join(args.model_dir, 'model_0_seq.p'), map_location=torch.device(device)))
+    model.load_state_dict(torch.load(os.path.join(args.model_dir, 'model_{}_seq.p'.format(args.num)),
+                                     map_location=torch.device(device)))
 
     if torch.cuda.is_available():
         print('GPU')
         model.cuda()
 
-    out_dir = os.path.join(args.model_dir, 'preds')
+    out_dir = os.path.join(args.model_dir, 'preds_{}'.format(args.num))
+    if not os.path.exists(out_dir):
+        print('{} does not exist. Creating directory.')
+        os.makedirs(out_dir)
 
-    mapper = Mapper(model, metadata, args.features, args.targets, out_dir, shps, True, args.holdout, False)
-    mapper.get_preds()
+    for holdout in [None, 'pr', 'sm-surface', 'sm-rootzone', 'vpd', 'srad']:
+
+        mapper = Mapper(model, metadata, args.features, args.targets, out_dir,
+                        shps, False, holdout, metadata['categorical'])
+        mapper.get_preds()

@@ -3,12 +3,14 @@ from crdm.models.SeqToSeq import Seq2Seq
 from crdm.training.MakeTrainingData import make_training_data
 from crdm.training.TrainModel import train_model
 from crdm.loaders.LSTMLoader import LSTMLoader
+import numpy as np
 import os
 import torch
 from torch import nn
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader
 import pickle
+from sklearn.utils.class_weight import compute_class_weight
 
 
 def train_lstm(setup):
@@ -27,7 +29,12 @@ def train_lstm(setup):
     model = Seq2Seq(1, shps['train_x.dat'][1], shps['train_x.dat'][-1],
                     setup['hidden_size'], setup['mx_lead'], categorical=setup['categorical'])
 
-    weights = torch.Tensor([0.4192, 0.8842, 0.9183, 0.959, 0.8301, 0.9892]).type(
+    y = np.memmap(os.path.join(setup['dirname'], 'train_y.dat'), dtype='float32')
+    y = y*5
+    y = y.astype(np.int8)
+    class_weights = compute_class_weight('balanced', np.unique(y), y)
+    print('Class Weights: {}'.format(class_weights))
+    weights = torch.Tensor(class_weights).type(
         torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor)
 
     criterion = nn.CrossEntropyLoss(weight=weights) if setup['categorical'] else nn.MSELoss()

@@ -7,7 +7,9 @@ from torch.utils.data import Dataset
 
 class LSTMLoader(Dataset):
 
-    def __init__(self, dirname, train=True, categorical=False):
+    def __init__(self, dirname, train=True, categorical=False, n_weeks=30):
+
+        print('Train: {}\nCategorical: {}\nWeek History: {}'.format(train, categorical, n_weeks))
 
         with open(os.path.join(dirname, 'shps.p'), 'rb') as f:
             shps = pickle.load(f)
@@ -22,6 +24,7 @@ class LSTMLoader(Dataset):
             self.ytype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
 
         self.x = np.memmap(os.path.join(dirname, x), dtype='float32', shape=shps[x], mode='r')
+        self.x = self.x[..., -n_weeks:]
         self.y = np.memmap(os.path.join(dirname, y), dtype='float32', shape=shps[y], mode='r')
 
         # Batch, seq, feature

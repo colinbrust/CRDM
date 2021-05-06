@@ -102,7 +102,6 @@ if __name__ == '__main__':
     parser.add_argument('-md', '--model_dir', type=str, help='Path to the directory containing model results.')
     parser.add_argument('-t', '--targets', type=str, help='Directory containing memmaps of all target images.')
     parser.add_argument('-f', '--features', type=str, help='Directory contining all memmap input features.')
-    parser.add_argument('-od', '--out_dir', type=str, help='Directory to write images to.', default='preds')
     parser.add_argument('-n', '--num', type=int, help='Model number to run.')
     parser.add_argument('-ho', '--holdout', type=str, default=None,
                         help='Which variable should be held out to run the model')
@@ -128,8 +127,6 @@ if __name__ == '__main__':
         print('{} does not exist. Creating directory.')
         os.makedirs(out_dir)
 
-    for holdout in [None, 'pr', 'sm-surface', 'sm-rootzone', 'vpd', 'srad']:
-
-        mapper = Mapper(model, metadata, args.features, args.targets, out_dir,
-                        shps, False, holdout, metadata['categorical'])
-        mapper.get_preds()
+    mapper = Mapper(model, metadata, args.features, args.targets, out_dir,
+                    shps, True, args.holdout, metadata['categorical'])
+    mapper.get_preds()

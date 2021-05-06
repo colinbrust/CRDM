@@ -55,7 +55,7 @@ def make_training_data(in_features, out_classes, **kwargs):
     for target in targets:
         try:
             print(target[0])
-            tmp = PremakeTrainingPixels(target, in_features, kwargs['n_weeks'], 1)
+            tmp = PremakeTrainingPixels(target, in_features, kwargs['n_weeks'], kwargs['size'])
             # indices = tmp.sample_evenly()
             indices = stk.sample()
             stk.push(indices)

@@ -85,7 +85,7 @@ if __name__ == '__main__':
         'mx_lead': args.mx_lead,
         'size': args.size,
         'lead_time': args.lead_time,
-        'early_stop': 5,
+        'early_stop': 10,
         'categorical': args.categorical,
         'model_type': 'seq',
         'pix_mask': '/mnt/e/PycharmProjects/DroughtCast/data/pix_mask.dat'

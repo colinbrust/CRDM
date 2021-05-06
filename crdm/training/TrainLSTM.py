@@ -1,5 +1,6 @@
 import argparse
 from crdm.models.SeqToSeq import Seq2Seq
+from crdm.models.SeqTest import Seq2Seq as SeqTest
 from crdm.training.MakeTrainingData import make_training_data
 from crdm.training.TrainModel import train_model
 from crdm.loaders.LSTMLoader import LSTMLoader
@@ -26,8 +27,12 @@ def train_lstm(setup):
 
     # Define model, loss and optimizer.
 
-    model = Seq2Seq(1, shps['train_x.dat'][1], shps['train_x.dat'][-1],
-                    setup['hidden_size'], setup['mx_lead'], categorical=setup['categorical'])
+    if setup['seq_test']:
+        print('Using Luong Attention.')
+        model = SeqTest(shps['train_x.dat'][1], setup['hidden_size'], setup['mx_lead'], False, setup['batch_size'])
+    else:
+        model = Seq2Seq(1, shps['train_x.dat'][1], shps['train_x.dat'][-1],
+                        setup['hidden_size'], setup['mx_lead'], categorical=setup['categorical'])
 
     if setup['categorical']:
         y = np.memmap(os.path.join(setup['dirname'], 'train_y.dat'), dtype='float32')
@@ -89,7 +94,8 @@ if __name__ == '__main__':
         'early_stop': 10,
         'categorical': args.categorical,
         'model_type': 'seq',
-        'pix_mask': '/mnt/e/PycharmProjects/DroughtCast/data/pix_mask.dat'
+        'pix_mask': '/mnt/e/PycharmProjects/DroughtCast/data/pix_mask.dat',
+        'seq_test': True
     }
 
     if args.dirname is None:
@@ -105,7 +111,7 @@ if __name__ == '__main__':
 
     setup['index'] = i
 
-    with open(os.path.join(setup['dirname'], 'metadata_{}_{}.p'.format(setup['index'],setup['model_type'])), 'wb') as f:
+    with open(os.path.join(setup['dirname'], 'metadata_{}_{}.p'.format(setup['index'], setup['model_type'])), 'wb') as f:
         pickle.dump(setup, f)
     train_lstm(setup)
 

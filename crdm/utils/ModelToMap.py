@@ -56,20 +56,20 @@ class Mapper(object):
             except AssertionError as e:
                 print(e)
                 continue
-            for i in tqdm(range(len(mapper.indices)-1)):
+            for i in tqdm(range(len(self.indices)-1)):
 
-                idx = list(range(mapper.indices[i], mapper.indices[i+1]))
+                idx = list(range(self.indices[i], self.indices[i+1]))
 
                 x = x_full[:, :, idx]
 
                 # Batch, Seq, Feature
                 x = x.swapaxes(0, 2)
                 # Replace variable with a random value if specified in init.
-                if mapper.holdout is not None:
-                    x[:, :, holdouts[mapper.holdout]] = np.random.uniform(-1, 1, fill_shp)
-                x = mapper.dtype(x)
+                if self.holdout is not None:
+                    x[:, :, holdouts[self.holdout]] = np.random.uniform(-1, 1, fill_shp)
+                x = self.dtype(x)
 
-                outputs = mapper.model(x)
+                outputs = self.model(x)
                 outputs = outputs.detach().cpu().numpy()
                 outputs = np.argmax(outputs, 1) if self.categorical else outputs
 

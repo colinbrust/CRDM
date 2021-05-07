@@ -21,9 +21,9 @@ def train_lstm(setup):
 
     # Make train and test set data loaders and add them to model setup
     train_loader = LSTMLoader(dirname=setup['dirname'], train=True, categorical=setup['categorical'],
-                              n_weeks=setup['n_weeks'], sample=2000)# sample=131072)
+                              n_weeks=setup['n_weeks'], sample=2000, mx_lead=setup['mx_lead'])# sample=131072)
     test_loader = LSTMLoader(dirname=setup['dirname'], train=False, categorical=setup['categorical'],
-                             n_weeks=setup['n_weeks'], sample=2000)# sample=131072)
+                             n_weeks=setup['n_weeks'], sample=2000, mx_lead=setup['mx_lead'])# sample=131072)
     setup['train'] = DataLoader(dataset=train_loader, batch_size=setup['batch_size'], shuffle=True, drop_last=True)
     setup['test'] = DataLoader(dataset=test_loader, batch_size=setup['batch_size'], shuffle=True, drop_last=True)
 
@@ -43,7 +43,7 @@ def train_lstm(setup):
         y = np.memmap(os.path.join(setup['dirname'], 'train_y.dat'), dtype='float32')
         y = y*5
         y = y.astype(np.int8)
-        class_weights = compute_class_weight('balanced', np.unique(y), y)
+        class_weights = compute_class_weight('balanced', classes=np.unique(y), y=y)
         print('Class Weights: {}'.format(class_weights))
         weights = torch.Tensor(class_weights).type(
             torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor)
@@ -65,7 +65,7 @@ def train_lstm(setup):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train Drought Prediction Model')
     parser.add_argument('-if', '--in_features', type=str, help='Directory containing training features.')
-    parser.add_argument('-t', '--targets', type=str, help='Directory with targets')
+    parser.add_argument('-t', '--out_classes', type=str, help='Directory with targets')
     parser.add_argument('-e', '--epochs', type=int, default=25, help='Number of epochs.')
     parser.add_argument('-dn', '--dirname', type=str, default=None,
                         help='Directory with training data to use. If left blank, training data will be created.')
@@ -82,11 +82,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     setup = {'in_features': args.in_features, 'out_classes': args.out_classes, 'epochs': args.epochs,
-             'batch_size': args.batch_size, 'hidden_size': args.hidden_size, 'n_weeks': args.n_weeks,
-             'mx_lead': args.mx_lead, 'size': args.size, 'lead_time': args.lead_time, 'early_stop': 10,
-             'categorical': args.categorical, 'pix_mask': '/mnt/e/PycharmProjects/DroughtCast/data/pix_mask.dat',
+             'early_stop': 10, 'categorical': args.categorical,
+             'pix_mask': '/mnt/e/PycharmProjects/DroughtCast/data/pix_mask.dat', 
              'model': 'vanilla' if args.vanilla else 'attention', 'dirname': args.dirname}
-
     # global, con
     # global, cat
     # pix, cat
@@ -117,6 +115,6 @@ if __name__ == '__main__':
                     print(setup)
                     model = train_lstm(setup)
                     out_dir = os.path.join(setup['dirname'], 'preds_{}'.format(setup['index']))
-                    mpr = Mapper(model, setup, args.in_features, args.targets, out_dir, shps, True, None, setup['categorical'])
+                    mpr = Mapper(model, setup, args.in_features, args.out_classes, out_dir, shps, True, None, setup['categorical'])
                     mpr.get_preds()
 

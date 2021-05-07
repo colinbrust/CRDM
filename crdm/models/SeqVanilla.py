@@ -75,7 +75,6 @@ class Seq2Seq(nn.Module):
             outputs.append(y_prev)
 
         outputs = torch.stack(outputs, 1)
-        print(outputs)
         outputs = F.relu(outputs)
         outputs = self.out(outputs)
 

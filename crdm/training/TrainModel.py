@@ -10,11 +10,8 @@ def train_model(setup):
     criterion = setup['criterion']
     scheduler = setup['scheduler']
     early_stop = setup['early_stop']
-    lead_time = setup['lead_time']
     batch_first = setup['batch_first']
 
-    if lead_time is not None:
-        lead_time = lead_time - 1
     err_out = {}
 
     if torch.cuda.is_available():
@@ -37,7 +34,8 @@ def train_model(setup):
                 x = x.transpose(0, 1)
             # Zero out the optimizer's gradient buffer
             optimizer.zero_grad()
-
+            print(x.shape)
+            print(y.shape)
             # Make prediction with model
             outputs = model(x)
             outputs = outputs.squeeze()
@@ -64,8 +62,6 @@ def train_model(setup):
             outputs = model(x)
             outputs = outputs.squeeze()
 
-            if lead_time is not None:
-                y = y[:, lead_time]
             loss = criterion(outputs, y)
 
             if idx % 100 == 0:

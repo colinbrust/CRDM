@@ -44,8 +44,7 @@ class LSTMLoader(Dataset):
     def __getitem__(self, idx):
 
         x = self.x[idx]
-        y = self.y[idx]
-        y = self.y[:, :self.mx_lead]
+        y = self.y[idx, :self.mx_lead]
 
         y = y*5 if self.categorical else y
 

@@ -1,7 +1,7 @@
 import argparse
 import os
 import numpy as np
-from crdm.models.SeqToSeq import Seq2Seq
+from crdm.models.SeqAttn import Seq2Seq
 from crdm.loaders.AggregatePixels import PremakeTrainingPixels
 from crdm.utils.ImportantVars import DIMS, LENGTH, holdouts
 import pickle

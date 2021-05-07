@@ -1,6 +1,6 @@
 import argparse
 from crdm.models.LSTM import LSTM
-from crdm.models.SeqToSeq import Seq2Seq
+from crdm.models.SeqAttn import Seq2Seq
 from crdm.training.MakeTrainingData import make_training_data
 from crdm.training.TrainModel import train_model
 from crdm.loaders.LSTMLoader import LSTMLoader

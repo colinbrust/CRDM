@@ -1,6 +1,7 @@
 import argparse
-from crdm.models.SeqToSeq import Seq2Seq
-from crdm.models.SeqTest import Seq2Seq as SeqTest
+from crdm.models.SeqAttn import Seq2Seq
+from crdm.models.SeqLuong import Seq2Seq as luong
+from crdm.models.SeqVanilla import Seq2Seq as vanilla
 from crdm.training.MakeTrainingData import make_training_data
 from crdm.training.TrainModel import train_model
 from crdm.loaders.LSTMLoader import LSTMLoader
@@ -25,12 +26,14 @@ def train_lstm(setup):
     setup['train'] = DataLoader(dataset=train_loader, batch_size=setup['batch_size'], shuffle=True, drop_last=True)
     setup['test'] = DataLoader(dataset=test_loader, batch_size=setup['batch_size'], shuffle=True, drop_last=True)
 
-    # Define model, loss and optimizer.
-
-    if setup['luong']:
+    if setup['model'] == 'luong':
         print('Using Luong attention.')
         setup['batch_first'] = False
-        model = SeqTest(shps['train_x.dat'][1], setup['hidden_size'], setup['mx_lead'], False, setup['batch_size'])
+        model = luong(shps['train_x.dat'][1], setup['hidden_size'], setup['mx_lead'], False, setup['batch_size'])
+    elif setup['model'] == 'vanilla':
+        print('Using vanilla model.')
+        setup['batch_first'] = True
+        model = vanilla(1, shps['train_x.dat'][1], setup['hidden_size'], setup['mx_lead'], setup['categorical'])
     else:
         print('Using simple attention.')
         setup['batch_first'] = True
@@ -98,7 +101,7 @@ if __name__ == '__main__':
         'categorical': args.categorical,
         'model_type': 'seq',
         'pix_mask': '/mnt/e/PycharmProjects/DroughtCast/data/pix_mask.dat',
-        'luong': True
+        'model': 'vanilla'
     }
 
     if args.dirname is None:

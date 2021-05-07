@@ -7,7 +7,7 @@ from torch.utils.data import Dataset
 
 class LSTMLoader(Dataset):
 
-    def __init__(self, dirname, train=True, categorical=False, n_weeks=30, batch_first=True):
+    def __init__(self, dirname, train=True, categorical=False, n_weeks=30):
 
         print('Train: {}\nCategorical: {}\nWeek History: {}'.format(train, categorical, n_weeks))
 
@@ -17,7 +17,6 @@ class LSTMLoader(Dataset):
         x = 'train_x.dat' if train else 'test_x.dat'
         y = 'train_y.dat' if train else 'test_y.dat'
 
-        self.batch_first = batch_first
         self.categorical = categorical
 
         self.xtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
@@ -32,22 +31,13 @@ class LSTMLoader(Dataset):
 
         # Batch, seq, feature
         self.x = self.x.swapaxes(1, 2)
-        if not self.batch_first:
-            self.x = self.x.swapaxes(0, 1)
-
 
     def __len__(self):
-        if self.batch_first:
-            return len(self.x)
-        else:
-            return self.x.shape[1]
+        return len(self.x)
 
     def __getitem__(self, idx):
 
-        if self.batch_first:
-            x = self.x[idx]
-        else:
-            x = self.x[:, idx, :]
+        x = self.x[idx]
         y = self.y[idx]
 
         y = y*5 if self.categorical else y

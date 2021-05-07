@@ -11,6 +11,7 @@ def train_model(setup):
     scheduler = setup['scheduler']
     early_stop = setup['early_stop']
     lead_time = setup['lead_time']
+    batch_first = setup['batch_first']
 
     if lead_time is not None:
         lead_time = lead_time - 1
@@ -32,6 +33,8 @@ def train_model(setup):
         # Loop over each subset of data
         for idx, item in enumerate(setup['train']):
             x, y = item
+            if not batch_first:
+                x = x.transpose(0, 1)
             # Zero out the optimizer's gradient buffer
             optimizer.zero_grad()
 
@@ -55,7 +58,8 @@ def train_model(setup):
 
         for idx, item in enumerate(setup['test']):
             x, y = item
-
+            if not batch_first:
+                x = x.transpose(0, 1)
             outputs = model(x)
             outputs = outputs.squeeze()
 

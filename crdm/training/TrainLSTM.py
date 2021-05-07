@@ -20,17 +20,20 @@ def train_lstm(setup):
         shps = pickle.load(f)
 
     # Make train and test set data loaders and add them to model setup
-    train_loader = LSTMLoader(dirname=setup['dirname'], train=True, categorical=setup['categorical'], n_weeks=setup['n_weeks'], batch_first=False)
-    test_loader = LSTMLoader(dirname=setup['dirname'], train=False, categorical=setup['categorical'], n_weeks=setup['n_weeks'], batch_first=False)
+    train_loader = LSTMLoader(dirname=setup['dirname'], train=True, categorical=setup['categorical'], n_weeks=setup['n_weeks'])
+    test_loader = LSTMLoader(dirname=setup['dirname'], train=False, categorical=setup['categorical'], n_weeks=setup['n_weeks'])
     setup['train'] = DataLoader(dataset=train_loader, batch_size=setup['batch_size'], shuffle=True, drop_last=True)
     setup['test'] = DataLoader(dataset=test_loader, batch_size=setup['batch_size'], shuffle=True, drop_last=True)
 
     # Define model, loss and optimizer.
 
-    if setup['seq_test']:
-        print('Using Luong Attention.')
+    if setup['luong']:
+        print('Using Luong attention.')
+        setup['batch_first'] = False
         model = SeqTest(shps['train_x.dat'][1], setup['hidden_size'], setup['mx_lead'], False, setup['batch_size'])
     else:
+        print('Using simple attention.')
+        setup['batch_first'] = True
         model = Seq2Seq(1, shps['train_x.dat'][1], shps['train_x.dat'][-1],
                         setup['hidden_size'], setup['mx_lead'], categorical=setup['categorical'])
 
@@ -95,7 +98,7 @@ if __name__ == '__main__':
         'categorical': args.categorical,
         'model_type': 'seq',
         'pix_mask': '/mnt/e/PycharmProjects/DroughtCast/data/pix_mask.dat',
-        'seq_test': True
+        'luong': True
     }
 
     if args.dirname is None:
@@ -106,7 +109,7 @@ if __name__ == '__main__':
 
     i = 0
 
-    while os.path.exists(os.path.join(setup['dirname'], 'model_{}_{}.p'.format(i, setup['model_type']))):
+    while os.path.exists(os.path.join(setup['dirname'], 'metadata_{}_{}.p'.format(i, setup['model_type']))):
         i += 1
 
     setup['index'] = i

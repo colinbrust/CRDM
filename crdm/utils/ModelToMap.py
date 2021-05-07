@@ -28,6 +28,10 @@ class Mapper(object):
         self.holdout = holdout
         self.categorical = categorical
 
+        if not os.path.exists(out_dir):
+            print('{} does not exist. Creating directory.')
+            os.makedirs(out_dir)
+
         targets = sorted([str(x) for x in Path(classes).glob('*.dat')])
         targets = [targets[i:i + metadata['mx_lead']] for i in range(len(targets))]
         targets = list(filter(lambda x: len(x) == metadata['mx_lead'], targets))
@@ -110,6 +114,7 @@ if __name__ == '__main__':
 
     shps = pickle.load(open(os.path.join(args.model_dir, 'shps.p'), 'rb'))
     metadata = pickle.load(open(os.path.join(args.model_dir, 'metadata_{}_seq.p'.format(args.num)), 'rb'))
+    print(metadata)
 
     model = Seq2Seq(1, shps['train_x.dat'][1], shps['train_x.dat'][-1],
                     metadata['hidden_size'], metadata['mx_lead'], categorical=metadata['categorical'])
@@ -122,11 +127,6 @@ if __name__ == '__main__':
         print('GPU')
         model.cuda()
 
-    out_dir = os.path.join(args.model_dir, 'preds_{}'.format(args.num))
-    if not os.path.exists(out_dir):
-        print('{} does not exist. Creating directory.')
-        os.makedirs(out_dir)
-
-    mapper = Mapper(model, metadata, args.features, args.targets, out_dir,
+    mapper = Mapper(model, metadata, args.features, args.targets, args.out_dir,
                     shps, True, args.holdout, metadata['categorical'])
     mapper.get_preds()

@@ -37,6 +37,7 @@ read_error <- function(f) {
 read_all <- function(pth) {
    
   err <-  list.files(pth, recursive = T, full.names = T, pattern = 'err_') %>%
+    grep('old', ., value = T, invert = T) %>% 
     lapply(read_error) %>%
     dplyr::bind_rows() %>%
     dplyr::mutate(model_id = as.numeric(model_id))
@@ -55,7 +56,7 @@ read_all <- function(pth) {
 
 }
 
-plot_all <- function(pth, ...) {
+plot_all <- function(pth) {
   
 
   read_all(pth) %>%
@@ -67,7 +68,7 @@ plot_all <- function(pth, ...) {
     dplyr::filter(set == 'train') %>% 
     ggplot(aes(x=epoch, y=err, color=model_class)) + 
       geom_line() +
-    facet_wrap(~model_id) + ylim(c(0.1, 1))
+    facet_wrap(~model_id) 
 
     
     

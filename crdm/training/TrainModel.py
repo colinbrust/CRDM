@@ -48,6 +48,7 @@ def train_model(setup):
             optimizer.step()
 
             if idx % 100 == 0:
+                print(x.shape, outputs.shape, y.shape)
                 print('Epoch: {}, Train Loss: {}'.format(epoch, loss.item()))
 
             # Store loss info
@@ -78,7 +79,7 @@ def train_model(setup):
         err_out[epoch] = {'train': train_loss,
                           'test': test_loss}
 
-        with open(os.path.join(setup['dirname'], 'err_{}_{}.p'.format(setup['index'], setup['model_type'])), 'wb') as f:
+        with open(os.path.join(setup['dirname'], 'err_{}.p'.format(setup['index'])), 'wb') as f:
             pickle.dump(err_out, f)
 
         # If our new loss is better than old loss, save the model. Otherwise, increment the number of times the
@@ -86,7 +87,7 @@ def train_model(setup):
         if prev_best_loss > total_loss:
             torch.save(
                 model.state_dict(),
-                os.path.join(setup['dirname'], 'model_{}_{}.p'.format(setup['index'], setup['model_type']))
+                os.path.join(setup['dirname'], 'model_{}.p'.format(setup['index']))
             )
             prev_best_loss = total_loss
         else:
@@ -103,3 +104,5 @@ def train_model(setup):
     del setup['optimizer']
     del setup['train']
     del setup['test']
+
+    return model

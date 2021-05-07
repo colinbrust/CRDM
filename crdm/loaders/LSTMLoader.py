@@ -17,6 +17,9 @@ class LSTMLoader(Dataset):
         x = 'train_x.dat' if train else 'test_x.dat'
         y = 'train_y.dat' if train else 'test_y.dat'
 
+        self.batch_first = batch_first
+        self.categorical = categorical
+
         self.xtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
         if categorical:
             self.ytype = torch.cuda.LongTensor if torch.cuda.is_available() else torch.LongTensor
@@ -29,18 +32,22 @@ class LSTMLoader(Dataset):
 
         # Batch, seq, feature
         self.x = self.x.swapaxes(1, 2)
-        if not batch_first:
+        if not self.batch_first:
             self.x = self.x.swapaxes(0, 1)
 
 
-        self.categorical = categorical
-
     def __len__(self):
-        return len(self.x)
+        if self.batch_first:
+            return len(self.x)
+        else:
+            return self.x.shape[1]
 
     def __getitem__(self, idx):
 
-        x = self.x[idx]
+        if self.batch_first:
+            x = self.x[idx]
+        else:
+            x = self.x[:, idx, :]
         y = self.y[idx]
 
         y = y*5 if self.categorical else y

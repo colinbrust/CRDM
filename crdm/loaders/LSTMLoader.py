@@ -7,7 +7,7 @@ from torch.utils.data import Dataset
 
 class LSTMLoader(Dataset):
 
-    def __init__(self, dirname, train=True, categorical=False, n_weeks=30):
+    def __init__(self, dirname, train=True, categorical=False, n_weeks=30, batch_first=True):
 
         print('Train: {}\nCategorical: {}\nWeek History: {}'.format(train, categorical, n_weeks))
 
@@ -29,6 +29,9 @@ class LSTMLoader(Dataset):
 
         # Batch, seq, feature
         self.x = self.x.swapaxes(1, 2)
+        if not batch_first:
+            self.x = self.x.swapaxes(0, 1)
+
 
         self.categorical = categorical
 

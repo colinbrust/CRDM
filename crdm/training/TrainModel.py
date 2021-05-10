@@ -96,6 +96,7 @@ def train_model(setup):
         scheduler.step()
 
     del setup['scheduler']
+    del setup['criterion']
     del setup['model']
     del setup['optimizer']
     del setup['train']

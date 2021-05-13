@@ -69,8 +69,6 @@ plot_all <- function(pth) {
     ggplot(aes(x=epoch, y=err, color=model_class)) + 
       geom_line() +
     facet_wrap(~model_id) 
-
-    
     
 }
 

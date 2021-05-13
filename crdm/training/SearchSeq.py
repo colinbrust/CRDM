@@ -86,6 +86,10 @@ if __name__ == '__main__':
     #          'pix_mask': '/mnt/e/PycharmProjects/DroughtCast/data/pix_mask.dat',
     #          'model': 'vanilla' if args.vanilla else 'attention', 'dirname': args.dirname}
 
+    setup = {'in_features': args.in_features, 'out_classes': args.out_classes, 'epochs': args.epochs,
+             'early_stop': 10, 'categorical': args.categorical,
+             'pix_mask': '/mnt/e/PycharmProjects/DroughtCast/data/pix_mask.dat', 
+             'model_type': 'vanilla' if args.vanilla else 'attention', 'dirname': args.dirname}
     # global, con
     # global, cat
     # pix, cat
@@ -107,8 +111,28 @@ if __name__ == '__main__':
 
         setup['index'] = i
 
-        with open(os.path.join(setup['dirname'], 'metadata_{}.p'.format(setup['index'])), 'wb') as f:
-            pickle.dump(setup, f)
+    for batch in [64, 128, 256, 512]:
+        for hidden in [1, 64, 128, 256, 512]:
+            for history in [2, 15, 30]:
+                for lead in [2, 8, 12]:
+                    i = 0
+                    while os.path.exists(os.path.join(setup['dirname'], 'metadata_{}.p'.format(i))):
+                        i += 1
+
+                    setup['index'] = i
+                    setup['batch_size'] = batch
+                    setup['hidden_size'] = hidden
+                    setup['mx_lead'] = lead
+                    setup['n_weeks'] = history
+
+                    with open(os.path.join(setup['dirname'], 'metadata_{}.p'.format(setup['index'])), 'wb') as f:
+                        pickle.dump(setup, f)
+
+                    print(setup.keys())
+                    model = train_lstm(setup)
+                    out_dir = os.path.join(setup['dirname'], 'preds_{}'.format(setup['index']))
+                    mpr = Mapper(model, setup, args.in_features, args.out_classes, out_dir, shps, True, None, setup['categorical'])
+                    mpr.get_preds()
 
         print(setup)
         model = train_lstm(setup)

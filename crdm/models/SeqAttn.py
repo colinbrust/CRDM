@@ -47,8 +47,10 @@ class AttentionDecoderCell(nn.Module):
         self.out = nn.Linear(hidden_size, input_feature_len)
 
     def forward(self, encoder_output, prev_hidden, y):
+        
         attention_input = torch.cat([prev_hidden, y], dim=1)
         attention_weights = F.softmax(self.attention_linear(attention_input), dim=1).unsqueeze(1)
+        
         attention_combine = torch.bmm(attention_weights, encoder_output).squeeze(1)
         rnn_hidden = self.decoder_rnn_cell(attention_combine, prev_hidden)
         output = self.out(rnn_hidden)
@@ -58,6 +60,7 @@ class AttentionDecoderCell(nn.Module):
 class Seq2Seq(nn.Module):
     def __init__(self, rnn_num_layers=1, input_feature_len=1, sequence_len=168, hidden_size=100, output_size=12, categorical=False):
         super().__init__()
+
         self.encoder = RNNEncoder(rnn_num_layers, input_feature_len, sequence_len, hidden_size)
         self.decoder_cell = AttentionDecoderCell(input_feature_len, hidden_size, sequence_len)
         self.output_size = output_size

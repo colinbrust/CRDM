@@ -21,9 +21,9 @@ def train_lstm(setup):
 
     # Make train and test set data loaders and add them to model setup
     train_loader = LSTMLoader(dirname=setup['dirname'], train=True, categorical=setup['categorical'],
-                              n_weeks=setup['n_weeks'], sample=2000, mx_lead=setup['mx_lead'])# sample=131072)
+                              n_weeks=setup['n_weeks'], sample=150000, mx_lead=setup['mx_lead'])# sample=131072)
     test_loader = LSTMLoader(dirname=setup['dirname'], train=False, categorical=setup['categorical'],
-                             n_weeks=setup['n_weeks'], sample=2000, mx_lead=setup['mx_lead'])# sample=131072)
+                             n_weeks=setup['n_weeks'], sample=150000, mx_lead=setup['mx_lead'])# sample=131072)
     setup['train'] = DataLoader(dataset=train_loader, batch_size=setup['batch_size'], shuffle=True, drop_last=True)
     setup['test'] = DataLoader(dataset=test_loader, batch_size=setup['batch_size'], shuffle=True, drop_last=True)
 
@@ -34,7 +34,7 @@ def train_lstm(setup):
     elif setup['model_type'] == 'attention':
         print('Using simple attention.')
         setup['batch_first'] = True
-        model = Seq2Seq(1, shps['train_x.dat'][1], shps['train_x.dat'][-1],
+        model = Seq2Seq(1, shps['train_x.dat'][1], setup['n_weeks'],
                         setup['hidden_size'], setup['mx_lead'], categorical=setup['categorical'])
     else:
         raise ValueError("setup['model_type'] must be one of 'vanilla' or 'attention'.")
@@ -93,7 +93,7 @@ if __name__ == '__main__':
     # pix, attn
     # pix, van
 
-    with open(args.p, 'rb') as f:
+    with open(args.pick, 'rb') as f:
         setups = pickle.load(f)
         
     for setup in setups:
@@ -105,12 +105,13 @@ if __name__ == '__main__':
         while os.path.exists(os.path.join(setup['dirname'], 'metadata_{}.p'.format(i))):
             i += 1
 
+        setup['index'] = i
+
         with open(os.path.join(setup['dirname'], 'metadata_{}.p'.format(setup['index'])), 'wb') as f:
             pickle.dump(setup, f)
 
         print(setup)
         model = train_lstm(setup)
         out_dir = os.path.join(setup['dirname'], 'preds_{}'.format(setup['index']))
-        mpr = Mapper(model, setup, args.in_features, args.out_classes, out_dir, shps, True, None, setup['categorical'])
+        mpr = Mapper(model, setup, setup['in_features'], setup['out_classes'], out_dir, shps, True, None, setup['categorical'])
         mpr.get_preds()
-

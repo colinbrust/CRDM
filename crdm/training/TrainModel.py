@@ -34,8 +34,6 @@ def train_model(setup):
                 x = x.transpose(0, 1)
             # Zero out the optimizer's gradient buffer
             optimizer.zero_grad()
-            print(x.shape)
-            print(y.shape)
             # Make prediction with model
             outputs = model(x)
             outputs = outputs.squeeze()
@@ -46,7 +44,6 @@ def train_model(setup):
             optimizer.step()
 
             if idx % 100 == 0:
-                print(x.shape, outputs.shape, y.shape)
                 print('Epoch: {}, Train Loss: {}'.format(epoch, loss.item()))
 
             # Store loss info

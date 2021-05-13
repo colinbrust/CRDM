@@ -69,10 +69,10 @@ def train_model(setup):
             test_loss.append(loss.item())
 
         # Save out train and test set loss.
-        err_out[epoch] = {'train': train_loss,
-                          'test': test_loss}
+        err_out[epoch] = {'train': sum(train_loss)/len(train_loss),
+                          'test': sum(test_loss)/len(test_loss)}
 
-        with open(os.path.join(setup['dirname'], 'err_{}.p'.format(setup['index'])), 'wb') as f:
+        with open(os.path.join(setup['out_dir'], 'err.p'), 'wb') as f:
             pickle.dump(err_out, f)
 
         # If our new loss is better than old loss, save the model. Otherwise, increment the number of times the
@@ -80,7 +80,8 @@ def train_model(setup):
         if prev_best_loss > total_loss:
             torch.save(
                 model.state_dict(),
-                os.path.join(setup['dirname'], 'model_{}.p'.format(setup['index']))
+                # Save new model every epoch in case the loss in the temporal generalization diverges as model trains.
+                os.path.join(setup['out_dir'], 'model_{}.p'.format(epoch))
             )
             prev_best_loss = total_loss
         else:

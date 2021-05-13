@@ -1,7 +1,8 @@
 import argparse
 import os
 import numpy as np
-from crdm.models.SeqAttn import Seq2Seq
+from crdm.models.SeqAttn import Seq2Seq as attn
+from crdm.models.SeqVanilla import Seq2Seq as vanilla
 from crdm.loaders.AggregatePixels import PremakeTrainingPixels
 from crdm.utils.ImportantVars import DIMS, LENGTH, holdouts
 import pickle
@@ -35,7 +36,7 @@ class Mapper(object):
         targets = sorted([str(x) for x in Path(classes).glob('*.dat')])
         targets = [targets[i:i + metadata['mx_lead']] for i in range(len(targets))]
         targets = list(filter(lambda x: len(x) == metadata['mx_lead'], targets))
-        targets = [x for x in targets if ('/201707' in x[0])] if test else targets
+        targets = [x for x in targets if ('/2017' in x[0])] if test else targets
 
         self.targets = targets
         self.indices = list(range(0, LENGTH+1, BATCH))
@@ -113,11 +114,17 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     shps = pickle.load(open(os.path.join(args.model_dir, 'shps.p'), 'rb'))
-    metadata = pickle.load(open(os.path.join(args.model_dir, 'metadata_{}.p'.format(args.num)), 'rb'))
-    print(metadata)
+    setup = pickle.load(open(os.path.join(args.model_dir, 'metadata_{}.p'.format(args.num)), 'rb'))
 
-    model = Seq2Seq(1, shps['train_x.dat'][1], shps['train_x.dat'][-1],
-                    metadata['hidden_size'], metadata['mx_lead'], categorical=metadata['categorical'])
+    if setup['model_type'] == 'vanilla':
+        print('Using vanilla model.')
+        setup['batch_first'] = True
+        model = vanilla(1, shps['train_x.dat'][1], setup['hidden_size'], setup['mx_lead'], setup['categorical'])
+    else:
+        print('Using simple attention.')
+        setup['batch_first'] = True
+        model = attn(1, shps['train_x.dat'][1], shps['train_x.dat'][-1],
+                        setup['hidden_size'], setup['mx_lead'], categorical=setup['categorical'])
 
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
     model.load_state_dict(torch.load(os.path.join(args.model_dir, 'model_{}.p'.format(args.num)),
@@ -127,6 +134,8 @@ if __name__ == '__main__':
         print('GPU')
         model.cuda()
 
-    mapper = Mapper(model, metadata, args.features, args.targets, args.out_dir,
-                    shps, True, args.holdout, metadata['categorical'])
+    out_dir = os.path.join(args.model_dir, 'preds_{}'.format(args.num))
+
+    mapper = Mapper(model, setup, args.features, args.targets, out_dir,
+                    shps, True, args.holdout, setup['categorical'])
     mapper.get_preds()

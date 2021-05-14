@@ -82,5 +82,9 @@ if __name__ == '__main__':
     os.mkdir(out_dir)
     setup['out_dir'] = out_dir
 
+    model = vanilla(1, 32, setup['hidden_size'], setup['mx_lead'], setup['categorical'])
+
     train_lstm(setup)
 
+if not None:
+    print('a')

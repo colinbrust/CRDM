@@ -19,6 +19,7 @@ class LSTMLoader(Dataset):
 
         self.categorical = categorical
         self.mx_lead = mx_lead
+        self.sample = sample
 
         self.xtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
         if categorical:
@@ -33,16 +34,17 @@ class LSTMLoader(Dataset):
         # Batch, seq, feature
         self.x = self.x.swapaxes(1, 2)
 
-        if sample is not None:
-            samps = np.random.randint(0, len(self.x), sample)
-            self.x = self.x[samps]
-            self.y = self.y[samps]
+        # if sample is not None:
+        #     samps = np.random.randint(0, len(self.x), sample)
+        #     self.x = self.x[samps]
+        #     self.y = self.y[samps]
 
     def __len__(self):
-        return len(self.x)
+        return len(self.x) if self.sample is not None else self.sample
 
     def __getitem__(self, idx):
 
+        idx = np.random.randint(0, len(self.x), 1) if self.sample else idx
         x = self.x[idx]
         y = self.y[idx, :self.mx_lead]
 

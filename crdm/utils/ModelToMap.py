@@ -30,13 +30,13 @@ class Mapper(object):
         self.categorical = categorical
 
         if not os.path.exists(out_dir):
-            print('{} does not exist. Creating directory.')
+            print('{} does not exist. Creating directory.'.format(out_dir))
             os.makedirs(out_dir)
 
         targets = sorted([str(x) for x in Path(classes).glob('*.dat')])
         targets = [targets[i:i + metadata['mx_lead']] for i in range(len(targets))]
         targets = list(filter(lambda x: len(x) == metadata['mx_lead'], targets))
-        targets = [x for x in targets if ('/2017' in x[0])] if test else targets
+        targets = [x for x in targets if ('/201706' in x[0])] if test else targets
 
         self.targets = targets
         self.indices = list(range(0, LENGTH+1, BATCH))
@@ -110,11 +110,28 @@ if __name__ == '__main__':
     parser.add_argument('-n', '--num', type=int, help='Model number to run.')
     parser.add_argument('-ho', '--holdout', type=str, default=None,
                         help='Which variable should be held out to run the model')
+    parser.add_argument('--opt', dest='opt', action='store_true', help='Use optimized parameters.')
+    parser.add_argument('--no-opt', dest='opt', action='store_false', help="Don't use optimized parameters.")
+
+    parser.set_defaults(opt=False)
 
     args = parser.parse_args()
 
     shps = pickle.load(open(os.path.join(args.model_dir, 'shps.p'), 'rb'))
-    setup = pickle.load(open(os.path.join(args.model_dir, 'metadata_{}.p'.format(args.num)), 'rb'))
+    if args.opt:
+        setup = {
+            'in_features': args.features,
+            'out_classes': args.targets,
+            'batch_size': 128,
+            'hidden_size': 128,
+            'n_weeks': 30,
+            'mx_lead': 12,
+            'size': 1024,
+            'categorical': False,
+            'model_type': 'vanilla'
+        }
+    else:
+        setup = pickle.load(open(os.path.join(args.model_dir, 'metadata_{}.p'.format(args.num)), 'rb'))
 
     if setup['model_type'] == 'vanilla':
         print('Using vanilla model.')

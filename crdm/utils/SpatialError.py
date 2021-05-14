@@ -6,13 +6,15 @@ import os
 from pathlib import Path
 import rasterio as rio
 from sklearn.metrics import mean_squared_error as mse
+from tqdm import tqdm
 
 pred_dir = './data/old/old/model3/preds_1'
 true_dir = './data/targets'
 variable = 'None'
+out_dir = './data/err_maps/annual'
 
 
-def calc_entire_ts_error(pred_dir, true_dir, variable):
+def calc_entire_ts_error(pred_dir, true_dir, variable, out_dir):
 
     preds = list(sorted([x.as_posix() for x in Path(pred_dir).glob('*'+variable+'.tif')]))
 
@@ -36,11 +38,33 @@ def calc_entire_ts_error(pred_dir, true_dir, variable):
     targets = targets.reshape((len(targets), 12, -1))
     preds = preds.reshape((len(preds), 12, -1))
 
+    arr_stack = []
     for lead_time in range(12):
+        print('Lead Time: {}, Variable: {}'.format(lead_time, variable))
         tmp_targ = targets[:, lead_time, :]
         tmp_pred = preds[:, lead_time, :]
-        test = []
-        for pix in range(LENGTH):
-            print(pix)
-            test.append(mse(tmp_targ[:, pix], tmp_pred[:, pix]))
-        break
+        tmp = []
+        for pix in tqdm(range(LENGTH)):
+            tmp.append(mse(tmp_targ[:, pix], tmp_pred[:, pix]))
+        arr_stack.append(np.array(tmp).reshape(DIMS))
+
+    err = np.array(arr_stack)
+
+    out_dst = rio.open(
+        os.path.join(out_dir, 'err_'+variable+'.tif'),
+        'w',
+        driver='GTiff',
+        height=DIMS[0],
+        width=DIMS[1],
+        count=len(err),
+        dtype='float32',
+        transform=rio.Affine(9000.0, 0.0, -12048530.45, 0.0, -9000.0, 5568540.83),
+        crs='+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs'
+    )
+
+    out_dst.write(err.astype(np.float32))
+    out_dst.close()
+
+
+for v in ['sm-rootzone', 'sm-surface', 'srad', 'vpd']:
+    calc_entire_ts_error(pred_dir, true_dir, v, out_dir)

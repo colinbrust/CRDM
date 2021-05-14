@@ -15,7 +15,9 @@ read_metadata <- function(f) {
                   model_id = basename(f) %>% 
                     stringr::str_split('_') %>% 
                     unlist() %>% 
-                    magrittr::extract(2)) 
+                    magrittr::extract(2)%>%
+                    stringr::str_replace('.p', '') %>%
+                    as.numeric()) 
 }
 
 read_error <- function(f) {
@@ -28,7 +30,9 @@ read_error <- function(f) {
                   model_id = basename(f) %>% 
                     stringr::str_split('_') %>% 
                     unlist() %>% 
-                    magrittr::extract(2)) %>%
+                    magrittr::extract(2) %>%
+                    stringr::str_replace('.p', '') %>%
+                    as.numeric()) %>%
     tibble::rowid_to_column() %>%
     dplyr::rename(epoch=rowid)
   
@@ -72,3 +76,4 @@ plot_all <- function(pth) {
     
 }
 
+good_ex_fig <- './data/models/global_norm/model4/preds_87/20170627_preds_None.tif'

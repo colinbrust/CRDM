@@ -40,14 +40,14 @@ class LSTMLoader(Dataset):
         #     self.y = self.y[samps]
 
     def __len__(self):
-        return len(self.x) if self.sample is not None else self.sample
+        return self.sample if self.sample is not None else len(self.x)
 
     def __getitem__(self, idx):
 
         idx = np.random.randint(0, len(self.x), 1) if self.sample else idx
-        x = self.x[idx]
-        y = self.y[idx, :self.mx_lead]
-
+        x = self.x[idx].squeeze()
+        y = self.y[idx, :self.mx_lead].squeeze()
+        
         y = y*5 if self.categorical else y
 
         # Copy so we only have to copy one slice into memory rather than the entire train/test dataset.

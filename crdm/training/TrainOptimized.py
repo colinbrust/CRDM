@@ -3,10 +3,11 @@ from crdm.models.SeqAttn import Seq2Seq
 from crdm.models.SeqVanilla import Seq2Seq as vanilla
 from crdm.training.TrainModel import train_model
 from crdm.loaders.LSTMLoader import LSTMLoader
+from crdm.utils.ModelToMap import Mapper
 import os
 import torch
 from torch import nn
-from torch.optim.lr_scheduler import StepLR
+from torch.optim.lr_scheduler import StepLR, CyclicLR
 from torch.utils.data import DataLoader
 import pickle
 
@@ -17,12 +18,12 @@ def train_lstm(setup):
         shps = pickle.load(f)
 
     # Make train and test set data loaders and add them to model setup
-    train_loader = LSTMLoader(dirname=setup['dirname'], train=True, categorical=setup['categorical'], n_weeks=setup['n_weeks'])
-    test_loader = LSTMLoader(dirname=setup['dirname'], train=False, categorical=setup['categorical'], n_weeks=setup['n_weeks'])
+    train_loader = LSTMLoader(dirname=setup['dirname'], train=True, categorical=setup['categorical'], n_weeks=setup['n_weeks'], sample=200000)
+    test_loader = LSTMLoader(dirname=setup['dirname'], train=False, categorical=setup['categorical'], n_weeks=setup['n_weeks'], sample=200000)
     setup['train'] = DataLoader(dataset=train_loader, batch_size=setup['batch_size'], shuffle=True, drop_last=True)
     setup['test'] = DataLoader(dataset=test_loader, batch_size=setup['batch_size'], shuffle=True, drop_last=True)
 
-    if setup['model'] == 'vanilla':
+    if setup['model_type'] == 'vanilla':
         print('Using vanilla model.')
         setup['batch_first'] = True
         model = vanilla(1, shps['train_x.dat'][1], setup['hidden_size'], setup['mx_lead'], setup['categorical'])
@@ -72,19 +73,25 @@ if __name__ == '__main__':
         'model_type': 'vanilla',
         'dirname': args.dirname
     }
+    
+    with open(os.path.join(setup['dirname'], 'shps.p'), 'rb') as f:
+        shps = pickle.load(f)
+    
+    for ensemble in range(100):
+    
+        i = 0
 
-    i = 0
+        while os.path.exists('ensemble_{}'.format(i)):
+            i += 1
 
-    while os.path.exists('ensemble_{}'.format(i)):
-        i += 1
+        out_dir = 'ensemble_{}'.format(i)
+        os.mkdir(out_dir)
+        setup['out_dir'] = out_dir
 
-    out_dir = 'ensemble_{}'.format(i)
-    os.mkdir(out_dir)
-    setup['out_dir'] = out_dir
+        model = vanilla(1, 32, setup['hidden_size'], setup['mx_lead'], setup['categorical'])
 
-    model = vanilla(1, 32, setup['hidden_size'], setup['mx_lead'], setup['categorical'])
+        train_lstm(setup)
+        map_dir = os.path.join(out_dir, 'preds')
+        # mpr = Mapper(model, setup, setup['in_features'], setup['out_classes'], map_dir, shps, True, None, setup['categorical'])
+        # mpr.get_preds()
 
-    train_lstm(setup)
-
-if not None:
-    print('a')

@@ -36,7 +36,7 @@ class Mapper(object):
         targets = sorted([str(x) for x in Path(classes).glob('*.dat')])
         targets = [targets[i:i + metadata['mx_lead']] for i in range(len(targets))]
         targets = list(filter(lambda x: len(x) == metadata['mx_lead'], targets))
-        targets = [x for x in targets if ('/201706' in x[0])] if test else targets
+        targets = [x for x in targets if ('/201706' in x[0] or '/201707' in x[0])] if test else targets
 
         self.targets = targets
         self.indices = list(range(0, LENGTH+1, BATCH))

@@ -104,7 +104,7 @@ class Mapper(object):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run model for entire domain for all target images.')
-
+    
     parser.add_argument('-md', '--model_dir', type=str, help='Path to the directory containing model results.')
     parser.add_argument('-t', '--targets', type=str, help='Directory containing memmaps of all target images.')
     parser.add_argument('-f', '--features', type=str, help='Directory contining all memmap input features.')
@@ -134,6 +134,9 @@ if __name__ == '__main__':
     else:
         setup = pickle.load(open(os.path.join(args.model_dir, 'metadata_{}.p'.format(args.num)), 'rb'))
 
+    
+    ens = [x.as_posix() for x in Path('.').glob('ensemble*')]
+    
     if setup['model_type'] == 'vanilla':
         print('Using vanilla model.')
         setup['batch_first'] = True
@@ -144,16 +147,29 @@ if __name__ == '__main__':
         model = attn(1, shps['train_x.dat'][1], shps['train_x.dat'][-1],
                         setup['hidden_size'], setup['mx_lead'], categorical=setup['categorical'])
 
-    device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-    model.load_state_dict(torch.load(os.path.join(args.model_dir, 'model_{}.p'.format(args.num)),
-                                     map_location=torch.device(device)))
 
-    if torch.cuda.is_available():
-        print('GPU')
-        model.cuda()
+    for model_dir in ens:
+        
 
-    out_dir = os.path.join(args.model_dir, 'preds_{}'.format(args.num))
+        models = [x.as_posix() for x in Path(model_dir).glob('model*')]
+        model_num = max([int(x.split('_')[-1].replace('.p', '')) for x in models])
+        model_name = os.path.join(model_dir, 'model_{}.p'.format(model_num))
+        device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+        model.load_state_dict(torch.load(os.path.join(model_name),
+                                         map_location=torch.device(device)))
 
-    mapper = Mapper(model, setup, args.features, args.targets, out_dir,
-                    shps, True, args.holdout, setup['categorical'])
-    mapper.get_preds()
+        if torch.cuda.is_available():
+            print('GPU')
+            model.cuda()
+            model.eval()
+
+
+        if int(os.path.basename(model_name).split('_')[-1].replace('.p', '')) < 20: 
+            print('Skipping {}. Not good enough.'.format(model_num))
+            continue
+
+        out_dir = os.path.join(model_name.replace('model_', 'preds_'))
+
+        mapper = Mapper(model, setup, args.features, args.targets, out_dir,
+                        shps, True, args.holdout, setup['categorical'])
+        mapper.get_preds()

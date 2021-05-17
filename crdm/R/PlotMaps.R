@@ -58,6 +58,7 @@ map_to_tidy <- function(stack, day) {
       lead_time = as.numeric(lead_time) - 1) 
 }
 
+
 label_model <- function(data) {
   
   data %>% 

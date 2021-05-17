@@ -38,6 +38,7 @@ class Mapper(object):
         targets = list(filter(lambda x: len(x) == metadata['mx_lead'], targets))
         targets = [x for x in targets if ('/201706' in x[0] or '/201707' in x[0])] if test else targets
 
+
         self.targets = targets
         self.indices = list(range(0, LENGTH+1, BATCH))
 

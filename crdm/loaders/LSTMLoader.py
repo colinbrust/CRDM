@@ -7,7 +7,7 @@ from torch.utils.data import Dataset
 
 class LSTMLoader(Dataset):
 
-    def __init__(self, dirname, train=True, categorical=False, n_weeks=30, sample=None, mx_lead=12, even_sample=False):
+    def __init__(self, dirname, train=True, categorical=False, n_weeks=30, sample=None, mx_lead=12, even_sample=False, batch_size=None):
 
         print('Train: {}\nCategorical: {}\nWeek History: {}'.format(train, categorical, n_weeks))
 
@@ -21,6 +21,7 @@ class LSTMLoader(Dataset):
         self.mx_lead = mx_lead
         self.sample = sample
         self.even_sample = even_sample
+        self.batch_size = batch_size
 
         self.xtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
         if categorical:
@@ -52,8 +53,8 @@ class LSTMLoader(Dataset):
 
     def __getitem__(self, idx):
 
-        if self.sample:
-            idx = np.random.choice(range(len(self.y)), 1, p=self.p, replace=False)
+        if self.even_sample:
+            idx = np.random.choice(range(len(self.y)), self.batch_size, p=self.p, replace=False)
         else:
             idx = np.random.randint(0, len(self.x), 1) if self.sample else idx
 

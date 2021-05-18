@@ -8,7 +8,7 @@ import os
 import torch
 from torch import nn
 from torch.optim.lr_scheduler import StepLR, CyclicLR
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, BatchSampler, SubsetRandomSampler
 import pickle
 
 
@@ -18,9 +18,15 @@ def train_lstm(setup):
         shps = pickle.load(f)
 
     # Make train and test set data loaders and add them to model setup
-    train_loader = LSTMLoader(dirname=setup['dirname'], train=True, categorical=setup['categorical'], n_weeks=setup['n_weeks'], sample=200000, even_sample=True)
-    test_loader = LSTMLoader(dirname=setup['dirname'], train=False, categorical=setup['categorical'], n_weeks=setup['n_weeks'], sample=200000, even_sample=False)
-    setup['train'] = DataLoader(dataset=train_loader, batch_size=setup['batch_size'], shuffle=True, drop_last=True)
+    train_loader = LSTMLoader(dirname=setup['dirname'], train=True, categorical=setup['categorical'],
+                              n_weeks=setup['n_weeks'], sample=200000, even_sample=True, batch_size=setup['batch_size'])
+
+    test_loader = LSTMLoader(dirname=setup['dirname'], train=False, categorical=setup['categorical'],
+                             n_weeks=setup['n_weeks'], sample=200000, even_sample=False)
+
+    setup['train'] = DataLoader(dataset=train_loader, batch_size=setup['batch_size'], shuffle=True, drop_last=True,
+                                sampler=BatchSampler(train_loader, batch_size=setup['batch_size'], drop_last=False))
+
     setup['test'] = DataLoader(dataset=test_loader, batch_size=setup['batch_size'], shuffle=True, drop_last=True)
 
     if setup['model_type'] == 'vanilla':

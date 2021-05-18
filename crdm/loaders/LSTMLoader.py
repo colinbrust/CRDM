@@ -7,7 +7,7 @@ from torch.utils.data import Dataset
 
 class LSTMLoader(Dataset):
 
-    def __init__(self, dirname, train=True, categorical=False, n_weeks=30, sample=None, mx_lead=12, even_sample=False, batch_size=None):
+    def __init__(self, dirname, train=True, categorical=False, n_weeks=30, sample=None, mx_lead=12, even_sample=False):
 
         print('Train: {}\nCategorical: {}\nWeek History: {}'.format(train, categorical, n_weeks))
 
@@ -21,7 +21,6 @@ class LSTMLoader(Dataset):
         self.mx_lead = mx_lead
         self.sample = sample
         self.even_sample = even_sample
-        self.batch_size = batch_size
 
         self.xtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
         if categorical:
@@ -31,6 +30,9 @@ class LSTMLoader(Dataset):
 
         self.x = np.memmap(os.path.join(dirname, x), dtype='float32', shape=shps[x], mode='r')
         self.x = self.x[..., -n_weeks:]
+        # Batch, seq, feature
+        self.x = self.x.swapaxes(1, 2)
+
         self.y = np.memmap(os.path.join(dirname, y), dtype='float32', shape=shps[y], mode='r')
 
         if self.even_sample:
@@ -45,18 +47,17 @@ class LSTMLoader(Dataset):
                 np.putmask(p, temp, weights[i])
 
             self.p = np.sum(p.reshape(self.y.shape), axis=1)
-        # Batch, seq, feature
-        self.x = self.x.swapaxes(1, 2)
+
+            idx = np.random.choice(range(len(self.x)), self.sample, p=self.p, replace=False)
+            self.x = self.x[idx]
+            self.y = self.y[idx]
 
     def __len__(self):
         return self.sample if self.sample is not None else len(self.x)
 
     def __getitem__(self, idx):
 
-        if self.even_sample:
-            idx = np.random.choice(range(len(self.y)), self.batch_size, p=self.p, replace=False)
-        else:
-            idx = np.random.randint(0, len(self.x), 1) if self.sample else idx
+        idx = np.random.randint(0, len(self.x), 1) if self.sample else idx
 
         x = self.x[idx].squeeze()
         y = self.y[idx, :self.mx_lead].squeeze()

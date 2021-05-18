@@ -18,8 +18,8 @@ def train_lstm(setup):
         shps = pickle.load(f)
 
     # Make train and test set data loaders and add them to model setup
-    train_loader = LSTMLoader(dirname=setup['dirname'], train=True, categorical=setup['categorical'], n_weeks=setup['n_weeks'], sample=200000)
-    test_loader = LSTMLoader(dirname=setup['dirname'], train=False, categorical=setup['categorical'], n_weeks=setup['n_weeks'], sample=200000)
+    train_loader = LSTMLoader(dirname=setup['dirname'], train=True, categorical=setup['categorical'], n_weeks=setup['n_weeks'], sample=200000, even_sample=True)
+    test_loader = LSTMLoader(dirname=setup['dirname'], train=False, categorical=setup['categorical'], n_weeks=setup['n_weeks'], sample=200000, even_sample=False)
     setup['train'] = DataLoader(dataset=train_loader, batch_size=setup['batch_size'], shuffle=True, drop_last=True)
     setup['test'] = DataLoader(dataset=test_loader, batch_size=setup['batch_size'], shuffle=True, drop_last=True)
 
@@ -77,7 +77,7 @@ if __name__ == '__main__':
     with open(os.path.join(setup['dirname'], 'shps.p'), 'rb') as f:
         shps = pickle.load(f)
     
-    for ensemble in range(100):
+    for ensemble in range(10):
     
         i = 0
 

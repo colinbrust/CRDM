@@ -33,6 +33,7 @@ class LSTMLoader(Dataset):
         self.y = np.memmap(os.path.join(dirname, y), dtype='float32', shape=shps[y], mode='r')
 
         if self.even_sample:
+            print('Evenly Sampling')
             yr = (self.y.ravel() * 5).astype(np.int)
             p = np.zeros_like(yr).astype(np.float64)
             c = np.bincount(yr)

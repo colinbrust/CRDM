@@ -7,7 +7,7 @@ from torch.utils.data import Dataset
 
 class LSTMLoader(Dataset):
 
-    def __init__(self, dirname, train=True, categorical=False, n_weeks=30, sample=None, mx_lead=12):
+    def __init__(self, dirname, train=True, categorical=False, n_weeks=30, sample=None, mx_lead=12, even_sample=False):
 
         print('Train: {}\nCategorical: {}\nWeek History: {}'.format(train, categorical, n_weeks))
 
@@ -20,6 +20,7 @@ class LSTMLoader(Dataset):
         self.categorical = categorical
         self.mx_lead = mx_lead
         self.sample = sample
+        self.even_sample = even_sample
 
         self.xtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
         if categorical:
@@ -31,20 +32,30 @@ class LSTMLoader(Dataset):
         self.x = self.x[..., -n_weeks:]
         self.y = np.memmap(os.path.join(dirname, y), dtype='float32', shape=shps[y], mode='r')
 
+        if self.even_sample:
+            yr = (self.y.ravel() * 5).astype(np.int)
+            p = np.zeros_like(yr).astype(np.float64)
+            c = np.bincount(yr)
+            weights = (1/c)/6
+
+            for i in range(6):
+                temp = np.equal(yr, i)
+                np.putmask(p, temp, weights[i])
+
+            self.p = np.sum(p.reshape(self.y.shape), axis=1)
         # Batch, seq, feature
         self.x = self.x.swapaxes(1, 2)
-
-        # if sample is not None:
-        #     samps = np.random.randint(0, len(self.x), sample)
-        #     self.x = self.x[samps]
-        #     self.y = self.y[samps]
 
     def __len__(self):
         return self.sample if self.sample is not None else len(self.x)
 
     def __getitem__(self, idx):
 
-        idx = np.random.randint(0, len(self.x), 1) if self.sample else idx
+        if self.sample:
+            idx = np.random.choice(range(len(self.y)), 1, p=self.p, replace=False)
+        else:
+            idx = np.random.randint(0, len(self.x), 1) if self.sample else idx
+
         x = self.x[idx].squeeze()
         y = self.y[idx, :self.mx_lead].squeeze()
         

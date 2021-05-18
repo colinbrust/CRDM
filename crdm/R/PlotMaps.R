@@ -139,3 +139,12 @@ plot_data <- function(data, states) {
     theme(axis.text.x = element_text(angle = 45),
           strip.placement = "outside")
 }
+
+
+list.files('./data/models', pattern = 'ensemble', full.names = T) %>%
+  list.files(full.names = T, pattern = 'preds', include.dirs = T) %>% 
+  tibble::tibble(f = .) %>%
+  dplyr::mutate(new = stringr::str_replace(f, '\\.p', '')) -> a
+
+
+file.rename(a$f, a$new)

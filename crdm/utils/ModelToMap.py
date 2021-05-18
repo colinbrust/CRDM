@@ -133,7 +133,6 @@ if __name__ == '__main__':
         }
     else:
         setup = pickle.load(open(os.path.join(args.model_dir, 'metadata_{}.p'.format(args.num)), 'rb'))
-
     
     ens = [x.as_posix() for x in Path('.').glob('ensemble*')]
     
@@ -147,29 +146,22 @@ if __name__ == '__main__':
         model = attn(1, shps['train_x.dat'][1], shps['train_x.dat'][-1],
                         setup['hidden_size'], setup['mx_lead'], categorical=setup['categorical'])
 
+    model_dir = args.model_dir
+    models = [x.as_posix() for x in Path(model_dir).glob('model*')]
+    model_num = max([int(x.split('_')[-1].replace('.p', '')) for x in models])
+    model_name = os.path.join(model_dir, 'model_{}.p'.format(model_num))
+    device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+    model.load_state_dict(torch.load(os.path.join(model_name),
+                                     map_location=torch.device(device)))
 
-    for model_dir in ens:
-        
+    if torch.cuda.is_available():
+        print('GPU')
+        model.cuda()
+        model.eval()
 
-        models = [x.as_posix() for x in Path(model_dir).glob('model*')]
-        model_num = max([int(x.split('_')[-1].replace('.p', '')) for x in models])
-        model_name = os.path.join(model_dir, 'model_{}.p'.format(model_num))
-        device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-        model.load_state_dict(torch.load(os.path.join(model_name),
-                                         map_location=torch.device(device)))
+    out_dir = os.path.join(model_name.replace('model_', 'preds_').replace('.p', ''))
 
-        if torch.cuda.is_available():
-            print('GPU')
-            model.cuda()
-            model.eval()
-
-
-        if int(os.path.basename(model_name).split('_')[-1].replace('.p', '')) < 20: 
-            print('Skipping {}. Not good enough.'.format(model_num))
-            continue
-
-        out_dir = os.path.join(model_name.replace('model_', 'preds_'))
-
+    for holdout in ['pr', 'sm-rootzone', 'sm-surface', 'vpd', 'srad']:
         mapper = Mapper(model, setup, args.features, args.targets, out_dir,
-                        shps, True, args.holdout, setup['categorical'])
+                        shps, False, holdout, setup['categorical'])
         mapper.get_preds()

@@ -58,36 +58,28 @@ def calc_error(arr, f, target_dir):
 
 def get_model_runs(base_dir, target_dir):
 
+    mx_lead = 12
     pth = Path(base_dir)
 
     out = []
-    for sub in pth.iterdir():
-        for subsub in sub.iterdir():
-            unq = set([os.path.basename(x.as_posix()).split('_')[-1].replace('.p', '') for x in subsub.glob('preds_*')])
-            for match in unq:
-                print(subsub.as_posix(), match)
+    for sub in pth.glob('ensemble*'):
+        for subsub in sub.glob('preds*'):
+            for pred in subsub.glob('*.tif'):
+                print(pred)
+                info = [pred.as_posix()] * mx_lead
+                metadata = {'name': info}
 
-                metadata = [x.as_posix() for x in subsub.glob('metadata_'+match+'.p')][0]
-                with open(metadata, 'rb') as f:
-                    metadata = pickle.load(f)
+                arr = rio.open(pred)
+                mse, r2 = calc_error(arr, pred, target_dir)
 
-                preds = [y.as_posix() for y in ([x for x in subsub.glob('*_'+match)][0]).iterdir()]
-                mx_lead = metadata['mx_lead']
-                for k, v in metadata.items():
-                    metadata[k] = [v] * mx_lead
-                for pred in preds:
-
-                    arr = rio.open(pred)
-                    mse, r2 = calc_error(arr, pred, target_dir)
-
-                    metadata['mse'], metadata['r2'] = mse, r2
-                    df = pd.DataFrame(metadata)
-                    df['lead_time'] = list(range(1, mx_lead+1))
-                    df['pred'] = os.path.basename(pred)
-                    out.append(df)
+                metadata['mse'], metadata['r2'] = mse, r2
+                df = pd.DataFrame(metadata)
+                df['lead_time'] = list(range(1, mx_lead+1))
+                df['pred'] = os.path.basename(pred)
+                out.append(df)
 
     out_dat = pd.concat(out, ignore_index=True)
-    out_dat.to_csv('./data/err_search.csv', index=False)
+    out_dat.to_csv('./data/ensemble_results.csv', index=False)
 
 f = '/mnt/e/PycharmProjects/DroughtCast/data/models/global_norm/model0/preds_0/20170704_preds_None.tif'
 target_dir = '/mnt/e/PycharmProjects/DroughtCast/data/targets'

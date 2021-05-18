@@ -77,3 +77,11 @@ plot_all <- function(pth) {
 }
 
 good_ex_fig <- './data/models/global_norm/model4/preds_87/20170627_preds_None.tif'
+
+readr::read_csv('./data/ensemble_results.csv') %>%
+  tidyr::separate(pred, c('date', 'drop', 'holdout'), sep = '_') %>%
+  dplyr::mutate(model = dirname(name)) %>%
+  dplyr::group_by(lead_time, model) %>%
+  dplyr::summarise(mse = mean(mse), r2 = mean(r2)) %>%
+  dplyr::group_by(lead_time) %>%
+  dplyr::slice(which.max(r2))

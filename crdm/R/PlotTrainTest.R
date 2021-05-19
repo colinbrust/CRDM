@@ -9,7 +9,7 @@ states <- urbnmapr::get_urbn_map(sf = TRUE) %>%
   dplyr::filter(state_abbv != 'AK', state_abbv != 'HI') %>%
   sf::st_transform(6933) 
 
-f <-  '/mnt/e/PycharmProjects/DroughtCast/data/models/model1/locs.p'
+f <-  '/mnt/e/PycharmProjects/DroughtCast/data/models/final_model/locs.p'
 tmp <-  './data/tif_targets/20000104_USDM.tif' %>%
   raster::raster() %>%
   raster::rasterToPoints() %>%

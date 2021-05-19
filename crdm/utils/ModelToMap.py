@@ -161,7 +161,7 @@ if __name__ == '__main__':
 
     out_dir = os.path.join(model_name.replace('model_', 'preds_').replace('.p', ''))
 
-    for holdout in ['pr', 'sm-rootzone', 'sm-surface', 'vpd', 'srad']:
+    for holdout in [None]:
         mapper = Mapper(model, setup, args.features, args.targets, out_dir,
-                        shps, False, holdout, setup['categorical'])
+                        shps, True, holdout, setup['categorical'])
         mapper.get_preds()

@@ -23,13 +23,15 @@ class RNNEncoder(nn.Module):
         )
 
     def forward(self, input_seq):
+
         ht = torch.zeros(self.num_layers * self.rnn_directions, input_seq.size(0), self.hidden_size, device=device)
-        if input_seq.ndim < 3:
-            input_seq.unsqueeze_(2)
+
         gru_out, hidden = self.gru(input_seq, ht)
+
         if self.rnn_directions > 1:
-            gru_out = gru_out.view(input_seq.size(0), self.sequence_len, self.rnn_directions, self.hidden_size)
+            gru_out = gru_out.view(input_seq.size(0), input_seq.shape[1], self.rnn_directions, self.hidden_size)
             gru_out = torch.sum(gru_out, dim=2)
+
         return gru_out, hidden.squeeze(0)
 
 
@@ -52,9 +54,9 @@ class AttentionDecoderCell(nn.Module):
 
 
 class Seq2Seq(nn.Module):
-    def __init__(self, rnn_num_layers=1, input_feature_len=1, hidden_size=100, output_size=12, categorical=False):
+    def __init__(self, rnn_num_layers=1, input_feature_len=1, hidden_size=100, output_size=12, categorical=False, bi=False):
         super().__init__()
-        self.encoder = RNNEncoder(rnn_num_layers, input_feature_len, hidden_size)
+        self.encoder = RNNEncoder(rnn_num_layers, input_feature_len, hidden_size, bidirectional=bi)
         self.decoder_cell = AttentionDecoderCell(input_feature_len, hidden_size)
         self.output_size = output_size
 

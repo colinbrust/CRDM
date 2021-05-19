@@ -25,3 +25,4 @@ tidy_drought_plot <- function(f) {
     labs(x='', y='', fill='Drought\nCategory') + 
     scale_y_discrete(guide = guide_axis(check.overlap = TRUE)) 
 }
+

@@ -2,6 +2,32 @@ source('./R/TidyRaster.R')
 source('./crdm/R/PlotTheme.R')
 
 
+parse_data <- function(d, mon='*') {
+  
+  d %>%
+    list.files(full.names = T) %>%
+    grep(mon, ., value = T) %>%
+    lapply(function(x) {
+      
+      variable <- basename(x) %>%
+        stringr::str_split('_') %>%
+        unlist() %>%
+        tail(1) %>%
+        stringr::str_replace('.tif', '')
+      
+      x %>%
+        tidy_raster(stack = FALSE, band = lead_time) %>%
+        dplyr::mutate(holdout = variable)
+    }) %>% 
+    dplyr::bind_rows() %>% 
+    tidyr::pivot_wider(names_from = holdout, values_from = val) %>% 
+    tidyr::pivot_longer(
+      cols = !c(x, y, None),
+      names_to = 'holdout', 
+      values_to = 'val'
+    ) %>% 
+    dplyr::mutate(diff = None - val)
+}
 
 ann_map_plot <- function(r) {
   
@@ -25,28 +51,7 @@ ann_map_plot <- function(r) {
 
 ann_map_all <- function(ann_dir, lead_time) {
   
-  dat <- ann_dir %>%
-    list.files(full.names = T) %>%
-    lapply(function(x) {
-      
-      variable <- basename(x) %>%
-        stringr::str_split('_') %>%
-        unlist() %>%
-        tail(1) %>%
-        stringr::str_replace('.tif', '')
-      
-      x %>%
-        tidy_raster(stack = FALSE, band = lead_time) %>%
-        dplyr::mutate(holdout = variable)
-    }) %>% 
-    dplyr::bind_rows() %>% 
-    tidyr::pivot_wider(names_from = holdout, values_from = val) %>% 
-    tidyr::pivot_longer(
-      cols = !c(x, y, None),
-      names_to = 'holdout', 
-      values_to = 'val'
-    ) %>% 
-    dplyr::mutate(diff = None - val)
+  dat <- parse_data(ann_dir)
   
   filt <- dplyr::filter(dat, holdout != 'pr')
   ggplot() + 
@@ -58,4 +63,11 @@ ann_map_all <- function(ann_dir, lead_time) {
     labs(x='', y='', fill='MSE\n(USDM Categories)') 
     
 }
+
+mon_plot <- function(mon_dir, mon) {
+  
+  dat <- mon_dir %>%
+    parse_data(mon = '*_05.tif')
+}
+
 ann_map_plot("./data/err_maps/annual/err_pr.tif")

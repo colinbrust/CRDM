@@ -47,7 +47,11 @@ class Mapper(object):
         fill_shp = (BATCH, self.shps['train_x.dat'][-1])
 
         for target in self.targets:
-            print(target[0])
+            name = os.path.join(self.out_dir, os.path.basename(target[0]).replace('USDM.dat',  'preds_{}.tif'.format(self.holdout)))
+            if os.path.exists(name):
+                continue
+
+            print('Target: {}\nHoldout: {}'.format(target[0], self.holdout))
             x_out = []
             try:
                 agg = PremakeTrainingPixels(in_features=self.features, targets=target,
@@ -79,13 +83,13 @@ class Mapper(object):
 
             x = np.concatenate(x_out, axis=0)
             x = x.swapaxes(0, 1).reshape(self.metadata['mx_lead'], *DIMS)
-            x = x if self.categorical else np.clip(np.round(x * 5), 0, 5)
+            x = x if self.categorical else x * 5
             self.save_arrays(x, target)
 
     def save_arrays(self, data, target):
 
         suffix = 'preds_{}.tif'.format(self.holdout)
-        dt = 'int8'
+        dt = 'float32'
         out_dst = rio.open(
             os.path.join(self.out_dir, os.path.basename(target[0]).replace('USDM.dat', suffix)),
             'w',
@@ -98,7 +102,7 @@ class Mapper(object):
             crs='+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs'
         )
 
-        out_dst.write(data.astype(np.int8))
+        out_dst.write(data.astype(np.float32))
         out_dst.close()
 
 
@@ -133,9 +137,7 @@ if __name__ == '__main__':
         }
     else:
         setup = pickle.load(open(os.path.join(args.model_dir, 'metadata_{}.p'.format(args.num)), 'rb'))
-    
-    ens = [x.as_posix() for x in Path('.').glob('ensemble*')]
-    
+
     if setup['model_type'] == 'vanilla':
         print('Using vanilla model.')
         setup['batch_first'] = True
@@ -161,7 +163,7 @@ if __name__ == '__main__':
 
     out_dir = os.path.join(model_name.replace('model_', 'preds_').replace('.p', ''))
 
-    for holdout in [None]:
+    for holdout in [None, 'pr', 'sm-rootzone', 'sm-surface']:
         mapper = Mapper(model, setup, args.features, args.targets, out_dir,
-                        shps, True, holdout, setup['categorical'])
+                        shps, False, holdout, setup['categorical'])
         mapper.get_preds()

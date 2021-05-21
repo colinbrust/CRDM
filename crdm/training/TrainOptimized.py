@@ -1,14 +1,13 @@
 import argparse
-from crdm.models.SeqAttn import Seq2Seq
+from crdm.models.SeqTest import Seq2Seq
 from crdm.models.SeqVanilla import Seq2Seq as vanilla
 from crdm.training.TrainModel import train_model
 from crdm.loaders.LSTMLoader import LSTMLoader
-from crdm.utils.ModelToMap import Mapper
 import os
 import torch
 from torch import nn
-from torch.optim.lr_scheduler import StepLR, CyclicLR
-from torch.utils.data import DataLoader, BatchSampler, SubsetRandomSampler
+from torch.optim.lr_scheduler import StepLR
+from torch.utils.data import DataLoader
 import pickle
 
 
@@ -19,7 +18,7 @@ def train_lstm(setup):
 
     # Make train and test set data loaders and add them to model setup
     train_loader = LSTMLoader(dirname=setup['dirname'], train=True, categorical=setup['categorical'],
-                              n_weeks=setup['n_weeks'], sample=200000, even_sample=True)
+                              n_weeks=setup['n_weeks'], sample=200000, even_sample=False)
 
     test_loader = LSTMLoader(dirname=setup['dirname'], train=False, categorical=setup['categorical'],
                              n_weeks=setup['n_weeks'], sample=200000, even_sample=False)
@@ -27,15 +26,8 @@ def train_lstm(setup):
     setup['train'] = DataLoader(dataset=train_loader, batch_size=setup['batch_size'], shuffle=True, drop_last=True)
     setup['test'] = DataLoader(dataset=test_loader, batch_size=setup['batch_size'], shuffle=True, drop_last=True)
 
-    if setup['model_type'] == 'vanilla':
-        print('Using vanilla model.')
-        setup['batch_first'] = True
-        model = vanilla(1, shps['train_x.dat'][1], setup['hidden_size'], setup['mx_lead'], setup['categorical'])
-    else:
-        print('Using simple attention.')
-        setup['batch_first'] = True
-        model = Seq2Seq(1, shps['train_x.dat'][1], shps['train_x.dat'][-1],
-                        setup['hidden_size'], setup['mx_lead'], categorical=setup['categorical'])
+    setup['batch_first'] = True
+    model = Seq2Seq(1, shps['train_x.dat'][1], setup['hidden_size'], setup['mx_lead'], setup['categorical'])
 
     criterion = nn.MSELoss()
     lr = 0.002
@@ -81,7 +73,7 @@ if __name__ == '__main__':
     with open(os.path.join(setup['dirname'], 'shps.p'), 'rb') as f:
         shps = pickle.load(f)
     
-    for ensemble in range(10):
+    for ensemble in range(100):
     
         i = 0
 

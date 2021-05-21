@@ -1,5 +1,5 @@
 import argparse
-from crdm.models.SeqAttn import Seq2Seq
+from crdm.models.SeqTest import Seq2Seq
 from crdm.models.SeqLuong import Seq2Seq as luong
 from crdm.models.SeqVanilla import Seq2Seq as vanilla
 from crdm.training.MakeTrainingData import make_training_data

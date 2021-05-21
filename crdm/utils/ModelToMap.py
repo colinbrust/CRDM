@@ -1,7 +1,7 @@
 import argparse
 import os
 import numpy as np
-from crdm.models.SeqAttn import Seq2Seq as attn
+from crdm.models.SeqTest import Seq2Seq as attn
 from crdm.models.SeqVanilla import Seq2Seq as vanilla
 from crdm.loaders.AggregatePixels import PremakeTrainingPixels
 from crdm.utils.ImportantVars import DIMS, LENGTH, holdouts
@@ -161,7 +161,8 @@ if __name__ == '__main__':
     if torch.cuda.is_available():
         print('GPU')
         model.cuda()
-        model.eval()
+
+    model.eval()
 
     out_dir = os.path.join(model_dir, 'preds')
 

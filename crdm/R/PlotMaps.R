@@ -42,8 +42,8 @@ map_to_tidy <- function(stack, day, agg=1) {
     dplyr::mutate(
       day = lubridate::as_date(day),
       val =  dplyr::case_when(
-        val <= 2 ~ round(val),
-        TRUE ~ ceiling(val)
+        # val <= 2 ~ round(val),
+        TRUE ~ round(val)
       ),
       val = dplyr::recode(
         val,
@@ -56,13 +56,14 @@ map_to_tidy <- function(stack, day, agg=1) {
       lead_time = stringr::str_replace(lead_time, 'lt_', ''),
       lead_time = as.numeric(lead_time) - 1) 
 }
-'./data/models/global_norm/model4/preds_87/20170627_preds_None.tif'
 
-label_model <- function(data) {
+label_model <- function(data, txt=' Drought ') {
+  
+  lab <- txt
   
   data %>% 
     dplyr::mutate(
-      label = paste0(day + lubridate::weeks(lead_time), ' Drought ', '(', lead_time+1, ')'),
+      label = paste0(day + lubridate::weeks(lead_time), lab, '(', lead_time+1, ')'),
       label = factor(label, levels = stringr::str_sort(unique(label), numeric=TRUE))
     )
 } 
@@ -71,7 +72,7 @@ label_targets <- function(data) {
 
     data %>% 
       dplyr::mutate(
-        label = paste0(day + lubridate::weeks(lead_time), ' USDM Drought'),
+        label = paste0(day + lubridate::weeks(lead_time), ' USDM'),
         label = factor(label, levels = stringr::str_sort(unique(label), numeric=TRUE))
       )
 }
@@ -105,39 +106,13 @@ plot_data <- function(data, states) {
     labs(x='', y='', fill='Drought\nCategory') + 
     scale_y_discrete(guide = guide_axis(check.overlap = TRUE)) + 
     theme(axis.text.x = element_text(angle = 45),
-          strip.placement = "outside")
+          strip.placement = "outside",
+          plot.margin= grid::unit(c(0, 0, 0, 0), "in"))
 }
 
-
-get_both <- function(f, target_dir, states, plot_target = TRUE) {
+get_sd <- function(f, day, states) {
   
-  day <- strip_date(f)
-  
-  model <- f %>% 
-    clean_maps(states = states) %>%
-    map_to_tidy(day = day) %>%
-    label_model() %>%
-    dplyr::mutate(src = 'Model')
-  
-  if (plot_target) {
-    targets <- get_targets(target_dir, day, states) %>% 
-      map_to_tidy(day = day) %>%
-      label_model() %>%
-      dplyr::mutate(src = 'Target')
-  } else {
-    targets <- tibble::tibble()
-  }
-  
-  dplyr::bind_rows(model, targets) %>%
-    dplyr::filter(val != 'No Drought') %>%
-    plot_data(states = states)
-}
-
-plot_sd <- function(f, states) {
-  
-  d <- strip_date(f) %>% lubridate::as_date()
-  
-  dat <- f %>% 
+  f %>% 
     clean_maps(states = states) %>%
     raster::rasterToPoints() %>%
     tibble::as_tibble() %>%
@@ -148,16 +123,89 @@ plot_sd <- function(f, states) {
       values_to = 'val'
     ) %>%
     dplyr::mutate(
-      lead_time = stringr::str_replace(lead_time, 'lt_', '') %>% as.numeric(), 
-      lab = paste('Std. Dev. for', d + lubridate::weeks(lead_time-1)),
-      lab = paste0(lab, ' (', lead_time, ')')
+      lead_time = stringr::str_replace(lead_time, 'lt_', '') %>% as.numeric(),
+      lead_time = lead_time - 1,
+      day = lubridate::as_date(day),
     )
+}
+
+plot_sd <- function(sd, states) {
   
-    ggplot() + 
-      geom_raster(aes(x=x, y=y, fill=val), data = dat) + 
-      geom_sf(aes(), data = states, fill = NA) + 
-      facet_wrap(~lab) +
-      plot_theme() + 
-      labs(x='', y='', fill='Std. Dev.') +
-      scale_fill_continuous(type = 'viridis')
+  ggplot() +
+    geom_raster(aes(x=x, y=y, fill=val), sd) + 
+    geom_sf(aes(), states, fill = NA) + 
+    facet_grid(rows = dplyr::vars(src), cols = dplyr::vars(label), switch = 'y') + 
+    plot_theme() + 
+    labs(x='', y='', fill='Std. Dev.\nDrought\nCategory') + 
+    scale_y_discrete(guide = guide_axis(check.overlap = TRUE)) + 
+    theme(axis.text.x = element_text(angle = 45),
+          strip.placement = "outside",
+          plot.margin= grid::unit(c(0, 0, 0, 0), "in")) + 
+    scale_fill_viridis_c()
+}
+
+plot_diff <- function(difference, states) {
+  
+  pal <- colorRampPalette(RColorBrewer::brewer.pal(10, 'RdBu'))
+  
+  ggplot() +
+    geom_raster(aes(x=x, y=y, fill=val), difference) + 
+    geom_sf(aes(), states, fill = NA) + 
+    facet_grid(rows = dplyr::vars(src), cols = dplyr::vars(label), switch = 'y') + 
+    plot_theme() + 
+    labs(x='', y='', fill='Difference') + 
+    scale_fill_gradientn(na.value='grey26', colors = pal(100),limits = c(-3, 3)) + 
+    theme(axis.text.x = element_text(angle = 45),
+          strip.placement = "outside",
+          plot.margin= grid::unit(c(0, 0, 0, 0), "in")) 
+}
+
+plot_all <- function(day="20170620", holdout="None", 
+                     pred_dir="./data/models/averaged", 
+                     target_dir='./data/tif_targets', states) {
+
+  base <- paste0(day, '_preds_', holdout, '.tif')
+  
+  model <- file.path(pred_dir, 'median', base) %>% 
+    clean_maps(states = states) 
+  
+  targets <- get_targets(target_dir, day, states) 
+  
+  difference <- (targets - model) %>%
+    raster::rasterToPoints() %>%
+    tibble::as_tibble() %>%
+    `names<-`(c('x', 'y', 'lt_2', 'lt_4', 'lt_8', 'lt_12')) %>%
+    tidyr::pivot_longer(
+      dplyr::starts_with('lt'),
+      names_to = 'lead_time',
+      values_to = 'val'
+    ) %>%
+    dplyr::mutate(src = 'Difference',
+                  day = lubridate::as_date(day)) %>%
+    label_model(txt = ' Difference ')
+  
+  sd <- file.path(pred_dir, 'sd', base) %>%
+    get_sd(day, states) %>%
+    label_model(txt = ' Std. Dev. ') %>%
+    dplyr::mutate(src = 'Std. Dev.')
+  
+  p1 <- targets %>%
+    map_to_tidy(day = day) 
+    label_targets() %>%
+    dplyr::mutate(src = 'Target') %>%
+    dplyr::filter(val != 'No Drought') %>%
+    plot_data(states = states) 
+    
+  
+  p2 <- model %>%
+    map_to_tidy(day = day) %>%
+    label_model(sd = F) %>%
+    dplyr::mutate(src = 'Model') %>%
+    dplyr::filter(val != 'No Drought') %>%
+    plot_data(states = states) 
+  
+  p3 <- plot_sd(sd, states) 
+  
+  (p1)/(p2)/(p3)
+  
 }

@@ -1,5 +1,5 @@
 import argparse
-from crdm.models.SeqAttn import Seq2Seq
+from crdm.models.SeqTest import Seq2Seq
 from crdm.models.SeqVanilla import Seq2Seq as vanilla
 from crdm.training.TrainModel import train_model
 from crdm.loaders.LSTMLoader import LSTMLoader

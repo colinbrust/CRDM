@@ -26,3 +26,27 @@ tidy_drought_plot <- function(f) {
     scale_y_discrete(guide = guide_axis(check.overlap = TRUE)) 
 }
 
+
+colorRampPalette(c('#ffffff','#FFFF00','#FCD37F','#FFAA00','#E60000','#730000')) -> pal
+
+dat <- tidy_raster('./data/models/ensemble_101/preds_37/20070828_preds_None.tif', T) %>%
+  tidyr::pivot_longer(dplyr::starts_with('lt')) %>% 
+  dplyr::filter(name %in% c('lt_2', 'lt_4', 'lt_8', 'lt_12')) 
+
+library(ggplot2)
+
+ggplot() + 
+  geom_raster(aes(x=x, y=y, fill=value), data = dat2) + 
+  geom_sf(aes(), data = states, fill=NA) + 
+  scale_fill_gradientn(na.value='grey26', colors = pal(100), limits = c(0, 5)) + 
+  facet_wrap(~name) +
+  plot_theme() +
+  labs(x='', y='')
+  
+dat %>%
+  dplyr::mutate(
+    test = dplyr::case_when(
+      value <= 2 ~ round(value),
+      TRUE ~ ceiling(value)
+    )
+  ) -> dat2

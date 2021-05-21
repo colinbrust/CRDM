@@ -140,9 +140,7 @@ if __name__ == '__main__':
         }
     else:
         setup = pickle.load(open(os.path.join(args.model_dir, 'metadata_{}.p'.format(args.num)), 'rb'))
-    
-    ens = [x.as_posix() for x in Path('.').glob('ensemble*')]
-    
+
     if setup['model_type'] == 'vanilla':
         print('Using vanilla model.')
         setup['batch_first'] = True

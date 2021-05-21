@@ -28,7 +28,7 @@ def calc_entire_ts_error(pred_dir, true_dir, variable, ann_dir, mon_dir):
 
     targets = np.array(targ_arr)
 
-    month_indices = np.array([os.path.basename(x)[6:8] for x in preds])
+    month_indices = np.array([os.path.basename(x)[4:6] for x in preds])
     preds = np.array([rio.open(x).read([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]) for x in preds])
 
     targets = targets.reshape((len(targets), 12, -1))
@@ -84,10 +84,10 @@ def calc_entire_ts_error(pred_dir, true_dir, variable, ann_dir, mon_dir):
     out_dst.write(err.astype(np.float32))
     out_dst.close()
 
-# pred_dir = './data/models/ensemble_101/preds_37/'
-# true_dir = './data/targets'
-# variable = 'sm-rootzone'
-# ann_dir = './data/err_maps/annual'
-# mon_dir = './data/err_maps/monthly'
-# for v in ['pr']:
-#     calc_entire_ts_error(pred_dir, true_dir, v, ann_dir, mon_dir)
+pred_dir = './data/models/ensemble_101/preds_37/'
+true_dir = './data/targets'
+variable = 'sm-rootzone'
+ann_dir = './data/err_maps/annual'
+mon_dir = './data/err_maps/monthly'
+for v in ['None', 'pr', 'sm-rootzone', 'sm-surface', 'vpd']:
+    calc_entire_ts_error(pred_dir, true_dir, v, ann_dir, mon_dir)

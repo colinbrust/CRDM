@@ -41,7 +41,10 @@ map_to_tidy <- function(stack, day, agg=1) {
     ) %>% 
     dplyr::mutate(
       day = lubridate::as_date(day),
-      val = round(val),
+      val =  dplyr::case_when(
+        val <= 2 ~ round(val),
+        TRUE ~ ceiling(val)
+      )
       val = dplyr::recode(
         val,
         `0` = 'No Drought',

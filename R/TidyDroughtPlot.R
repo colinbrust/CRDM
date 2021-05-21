@@ -50,3 +50,5 @@ dat %>%
       TRUE ~ ceiling(value)
     )
   ) -> dat2
+
+r

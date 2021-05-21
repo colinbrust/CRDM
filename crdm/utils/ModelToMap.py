@@ -14,6 +14,7 @@ from tqdm import tqdm
 BATCH = 2488
 torch.set_num_threads(16)
 
+
 class Mapper(object):
 
     def __init__(self, model, metadata, features, classes, out_dir, shps, test=True, holdout=None, categorical=False):
@@ -37,7 +38,6 @@ class Mapper(object):
         targets = [targets[i:i + metadata['mx_lead']] for i in range(len(targets))]
         targets = list(filter(lambda x: len(x) == metadata['mx_lead'], targets))
         targets = [x for x in targets if ('/201706' in x[0] or '/201707' in x[0])] if test else targets
-
 
         self.targets = targets
         self.indices = list(range(0, LENGTH+1, BATCH))
@@ -79,7 +79,7 @@ class Mapper(object):
                 x = self.dtype(x)
 
                 outputs = self.model(x)
-                '''
+
                 outputs = outputs.detach().cpu().numpy()
                 outputs = np.argmax(outputs, 1) if self.categorical else outputs
 
@@ -89,7 +89,6 @@ class Mapper(object):
             x = x.swapaxes(0, 1).reshape(self.metadata['mx_lead'], *DIMS)
             x = x if self.categorical else x * 5
             self.save_arrays(x, target)
-            '''
 
     def save_arrays(self, data, target):
 
@@ -113,7 +112,7 @@ class Mapper(object):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run model for entire domain for all target images.')
-    
+
     parser.add_argument('-md', '--model_dir', type=str, help='Path to the directory containing model results.')
     parser.add_argument('-t', '--targets', type=str, help='Directory containing memmaps of all target images.')
     parser.add_argument('-f', '--features', type=str, help='Directory contining all memmap input features.')
@@ -154,9 +153,7 @@ if __name__ == '__main__':
                         setup['hidden_size'], setup['mx_lead'], categorical=setup['categorical'])
 
     model_dir = args.model_dir
-    models = [x.as_posix() for x in Path(model_dir).glob('model*')]
-    model_num = max([int(x.split('_')[-1].replace('.p', '')) for x in models])
-    model_name = os.path.join(model_dir, 'model_{}.p'.format(model_num))
+    model_name = os.path.join(model_dir, 'model.p')
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
     model.load_state_dict(torch.load(os.path.join(model_name),
                                      map_location=torch.device(device)))
@@ -166,7 +163,11 @@ if __name__ == '__main__':
         model.cuda()
         model.eval()
 
-    out_dir = os.path.join(model_name.replace('model_', 'preds_').replace('.p', ''))
+    out_dir = os.path.join(model_dir, 'preds')
+
+    mapper = Mapper(model, setup, args.features, args.targets, out_dir,
+                    shps, False, None, setup['categorical'])
+    mapper.get_preds()
 
     for holdout in list(holdouts.keys()):
         mapper = Mapper(model, setup, args.features, args.targets, out_dir,

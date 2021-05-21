@@ -56,7 +56,7 @@ map_to_tidy <- function(stack, day, agg=1) {
       lead_time = stringr::str_replace(lead_time, 'lt_', ''),
       lead_time = as.numeric(lead_time) - 1) 
 }
-
+'./data/models/global_norm/model4/preds_87/20170627_preds_None.tif'
 
 label_model <- function(data) {
   

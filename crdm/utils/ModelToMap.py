@@ -79,6 +79,7 @@ class Mapper(object):
                 x = self.dtype(x)
 
                 outputs = self.model(x)
+                '''
                 outputs = outputs.detach().cpu().numpy()
                 outputs = np.argmax(outputs, 1) if self.categorical else outputs
 
@@ -88,6 +89,7 @@ class Mapper(object):
             x = x.swapaxes(0, 1).reshape(self.metadata['mx_lead'], *DIMS)
             x = x if self.categorical else x * 5
             self.save_arrays(x, target)
+            '''
 
     def save_arrays(self, data, target):
 

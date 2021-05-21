@@ -12,12 +12,12 @@ import torch
 from tqdm import tqdm
 
 BATCH = 2488
-
+torch.set_num_threads(16)
 
 class Mapper(object):
 
     def __init__(self, model, metadata, features, classes, out_dir, shps, test=True, holdout=None, categorical=False):
-
+        print(holdout)
         self.model = model
         self.features = features
         self.classes = classes
@@ -47,7 +47,14 @@ class Mapper(object):
         fill_shp = (BATCH, self.shps['train_x.dat'][-1])
 
         for target in self.targets:
-            print(target[0])
+            
+            name = os.path.join(self.out_dir, os.path.basename(target[0]).replace('USDM.dat',  'preds_{}.tif'.format(self.holdout)))
+            if os.path.exists(name):
+                print('{} exists, skipping this image.'.format(name))
+                continue
+
+            print('Target: {}\nHoldout: {}'.format(target[0], self.holdout))
+
             x_out = []
             try:
                 agg = PremakeTrainingPixels(in_features=self.features, targets=target,
@@ -79,13 +86,13 @@ class Mapper(object):
 
             x = np.concatenate(x_out, axis=0)
             x = x.swapaxes(0, 1).reshape(self.metadata['mx_lead'], *DIMS)
-            x = x if self.categorical else np.clip(np.round(x * 5), 0, 5)
+            x = x if self.categorical else x * 5
             self.save_arrays(x, target)
 
     def save_arrays(self, data, target):
 
         suffix = 'preds_{}.tif'.format(self.holdout)
-        dt = 'int8'
+        dt = 'float32'
         out_dst = rio.open(
             os.path.join(self.out_dir, os.path.basename(target[0]).replace('USDM.dat', suffix)),
             'w',
@@ -98,7 +105,7 @@ class Mapper(object):
             crs='+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs'
         )
 
-        out_dst.write(data.astype(np.int8))
+        out_dst.write(data.astype(np.float32))
         out_dst.close()
 
 
@@ -161,7 +168,7 @@ if __name__ == '__main__':
 
     out_dir = os.path.join(model_name.replace('model_', 'preds_').replace('.p', ''))
 
-    for holdout in [None]:
+    for holdout in list(holdouts.keys()):
         mapper = Mapper(model, setup, args.features, args.targets, out_dir,
-                        shps, True, holdout, setup['categorical'])
+                        shps, False, holdout, setup['categorical'])
         mapper.get_preds()

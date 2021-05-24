@@ -1,7 +1,7 @@
 import argparse
 import os
 import numpy as np
-from crdm.models.SeqTest import Seq2Seq as attn
+from crdm.models.SeqTest import Seq2Seq as seqFc
 from crdm.models.SeqVanilla import Seq2Seq as vanilla
 from crdm.loaders.AggregatePixels import PremakeTrainingPixels
 from crdm.utils.ImportantVars import DIMS, LENGTH, holdouts
@@ -12,7 +12,7 @@ import torch
 from tqdm import tqdm
 
 BATCH = 2488
-torch.set_num_threads(16)
+torch.set_num_threads(2)
 
 
 class Mapper(object):
@@ -37,7 +37,7 @@ class Mapper(object):
         targets = sorted([str(x) for x in Path(classes).glob('*.dat')])
         targets = [targets[i:i + metadata['mx_lead']] for i in range(len(targets))]
         targets = list(filter(lambda x: len(x) == metadata['mx_lead'], targets))
-        targets = [x for x in targets if ('/201706' in x[0] or '/201707' in x[0])] if test else targets
+        targets = [x for x in targets if ('/201706' in x[0] or '/201707' in x[0] or '/200705' in x[0] or '/201405' in x[0])] if test else targets
 
         self.targets = targets
         self.indices = list(range(0, LENGTH+1, BATCH))
@@ -117,12 +117,16 @@ if __name__ == '__main__':
     parser.add_argument('-t', '--targets', type=str, help='Directory containing memmaps of all target images.')
     parser.add_argument('-f', '--features', type=str, help='Directory contining all memmap input features.')
     parser.add_argument('-n', '--num', type=int, help='Model number to run.')
-    parser.add_argument('-ho', '--holdout', type=str, default=None,
-                        help='Which variable should be held out to run the model')
+    parser.add_argument('--ho', dest='holdout', action='store_true', help='Run all holdouts.')
+    parser.add_argument('--no-ho', dest='holdout', action='store_false', help='Only run baseline model.')
     parser.add_argument('--opt', dest='opt', action='store_true', help='Use optimized parameters.')
     parser.add_argument('--no-opt', dest='opt', action='store_false', help="Don't use optimized parameters.")
+    parser.add_argument('--tr', dest='train', action='store_true', help='Only run model for training data.')
+    parser.add_argument('--no-tr', dest='train', action='store_false', help="Run model for entire dataset.")
 
     parser.set_defaults(opt=False)
+    parser.set_defaults(holdout=False)
+    parser.set_defaults(train=True)
 
     args = parser.parse_args()
 
@@ -137,7 +141,7 @@ if __name__ == '__main__':
             'mx_lead': 12,
             'size': 1024,
             'categorical': False,
-            'model_type': 'vanilla'
+            'model_type': 'test'
         }
     else:
         setup = pickle.load(open(os.path.join(args.model_dir, 'metadata_{}.p'.format(args.num)), 'rb'))
@@ -149,11 +153,13 @@ if __name__ == '__main__':
     else:
         print('Using simple attention.')
         setup['batch_first'] = True
-        model = attn(1, shps['train_x.dat'][1], shps['train_x.dat'][-1],
-                        setup['hidden_size'], setup['mx_lead'], categorical=setup['categorical'])
+        model = seqFc(1, shps['train_x.dat'][1], setup['n_weeks'], setup['hidden_size'], setup['mx_lead'], setup['categorical'])
 
     model_dir = args.model_dir
-    model_name = os.path.join(model_dir, 'model.p')
+    models = [x.as_posix() for x in Path(model_dir).glob('model*')]
+    model_num = max([int(x.split('_')[-1].replace('.p', '')) for x in models])
+    model_name = os.path.join(model_dir, 'model_{}.p'.format(model_num))
+    # model_name = os.path.join(model_dir, 'model.p')
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
     model.load_state_dict(torch.load(os.path.join(model_name),
                                      map_location=torch.device(device)))
@@ -166,11 +172,14 @@ if __name__ == '__main__':
 
     out_dir = os.path.join(model_dir, 'preds')
 
-    mapper = Mapper(model, setup, args.features, args.targets, out_dir,
-                    shps, False, None, setup['categorical'])
-    mapper.get_preds()
-
-    for holdout in list(holdouts.keys()):
-        mapper = Mapper(model, setup, args.features, args.targets, out_dir,
-                        shps, False, holdout, setup['categorical'])
+    if args.holdout:
+        for holdout in list(holdouts.keys()):
+            mapper = Mapper(model, setup, setup['in_features'], setup['out_classes'], out_dir,
+                            shps, args.train, holdout, setup['categorical'])
+            mapper.get_preds()
+    else:
+        mapper = Mapper(model, setup, setup['in_features'], setup['out_classes'], out_dir,
+                        shps, args.train, None, setup['categorical'])
         mapper.get_preds()
+
+

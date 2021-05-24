@@ -26,8 +26,15 @@ def train_lstm(setup):
     setup['train'] = DataLoader(dataset=train_loader, batch_size=setup['batch_size'], shuffle=True, drop_last=True)
     setup['test'] = DataLoader(dataset=test_loader, batch_size=setup['batch_size'], shuffle=True, drop_last=True)
 
-    setup['batch_first'] = True
-    model = Seq2Seq(1, shps['train_x.dat'][1], setup['hidden_size'], setup['mx_lead'], setup['categorical'])
+    if setup['model_type'] == 'vanilla':
+        print('Using vanilla model.')
+        setup['batch_first'] = True
+        model = vanilla(1, shps['train_x.dat'][1], setup['hidden_size'], setup['mx_lead'], setup['categorical'])
+    else:
+        print('Using simple attention.')
+        setup['batch_first'] = True
+        model = Seq2Seq(1, shps['train_x.dat'][1], shps['train_x.dat'][-1],
+                        setup['hidden_size'], setup['mx_lead'], categorical=setup['categorical'])
 
     criterion = nn.MSELoss()
     lr = 0.002
@@ -73,7 +80,7 @@ if __name__ == '__main__':
     with open(os.path.join(setup['dirname'], 'shps.p'), 'rb') as f:
         shps = pickle.load(f)
     
-    for ensemble in range(100):
+    for ensemble in range(10):
     
         i = 0
 

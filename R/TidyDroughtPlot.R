@@ -29,14 +29,14 @@ tidy_drought_plot <- function(f) {
 
 colorRampPalette(c('#ffffff','#FFFF00','#FCD37F','#FFAA00','#E60000','#730000')) -> pal
 
-dat <- tidy_raster('./data/models/ensemble_101/preds_37/20070828_preds_None.tif', T) %>%
+dat <- tidy_raster('./data/models/big_test/ensemble_0/preds/20170725_preds_None.tif', T) %>%
   tidyr::pivot_longer(dplyr::starts_with('lt')) %>% 
   dplyr::filter(name %in% c('lt_2', 'lt_4', 'lt_8', 'lt_12')) 
 
 library(ggplot2)
 
 ggplot() + 
-  geom_raster(aes(x=x, y=y, fill=value), data = dat2) + 
+  geom_raster(aes(x=x, y=y, fill=value), data = dat) + 
   geom_sf(aes(), data = states, fill=NA) + 
   scale_fill_gradientn(na.value='grey26', colors = pal(100), limits = c(0, 5)) + 
   facet_wrap(~name) +
@@ -51,4 +51,3 @@ dat %>%
     )
   ) -> dat2
 
-r

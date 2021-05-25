@@ -80,6 +80,3 @@ def get_model_runs(base_dir, target_dir):
 
     out_dat = pd.concat(out, ignore_index=True)
     out_dat.to_csv('./data/ensemble_results.csv', index=False)
-
-f = '/mnt/e/PycharmProjects/DroughtCast/data/models/global_norm/model0/preds_0/20170704_preds_None.tif'
-target_dir = '/mnt/e/PycharmProjects/DroughtCast/data/targets'

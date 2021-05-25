@@ -2,7 +2,7 @@ library(magrittr)
 library(ggplot2)
 source('./crdm/R/PlotTheme.R')
 
-plot_ts_density <- function(f = './data/err_maps/bin_counts.csv') {
+plot_ts_density <- function(f = './data/plot_data/bin_counts.csv') {
   
   dat <- f %>%
     readr::read_csv() %>%
@@ -56,11 +56,12 @@ plot_ts_density <- function(f = './data/err_maps/bin_counts.csv') {
       mapping = aes(x=day, y=pct, fill=category), 
       stat='identity',
       width = 7.5) +
-    geom_rect(
-      data = dateRanges,
-      mapping = aes(xmin = from, xmax = to, ymin = 0, ymax = 1),
-      alpha = 0.4
-    ) +
+    # geom_rect(
+    #   data = dateRanges,
+    #   mapping = aes(xmin = from, xmax = to, ymin = 0, ymax = 1),
+    #   alpha = 0.4,
+    #   show.legend = T
+    # ) +
     scale_fill_manual(values = c('No Drought' = NA,
                                  'D0' = '#FFFF00',
                                  'D1' = '#FCD37F',
@@ -69,7 +70,13 @@ plot_ts_density <- function(f = './data/err_maps/bin_counts.csv') {
                                  'D4' = '#730000')) + 
     facet_wrap(~name, nrow=5) + 
     plot_theme() + 
-    labs(x='', y='Percent Coverage', fill = 'USDM\nCategory') +
-    scale_y_continuous(labels = scales::percent_format())
+    labs(x='', y='Percent Coverage', fill = 'USDM\nCategory',
+         title = 'CONUS Areal Drought Coverage (%)') +
+    scale_y_continuous(labels = scales::percent_format()) +
+    scale_color_manual()
+    # scale_fill_manual(
+    #   'Holdout Data', 
+    #   values = 'grey', 
+    #   guide = guide_legend(override.aes = list(alpha = 1)))
     
 }

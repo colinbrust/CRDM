@@ -84,10 +84,9 @@ def calc_entire_ts_error(pred_dir, true_dir, variable, ann_dir, mon_dir):
     out_dst.write(err.astype(np.float32))
     out_dst.close()
 
-pred_dir = './data/models/ensemble_101/preds_37/'
+pred_dir = './data/models/best/model_00/preds'
 true_dir = './data/targets'
-variable = 'sm-rootzone'
 ann_dir = './data/err_maps/annual'
 mon_dir = './data/err_maps/monthly'
-for v in ['None', 'pr', 'sm-rootzone', 'sm-surface', 'vpd']:
+for v in ['None'] + list(holdouts.keys()):
     calc_entire_ts_error(pred_dir, true_dir, v, ann_dir, mon_dir)

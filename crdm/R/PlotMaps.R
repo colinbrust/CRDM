@@ -1,16 +1,11 @@
 library(ggplot2)
 library(magrittr)
+library(patchwork)
 source('./crdm/R/PlotTheme.R')
 
 states <- urbnmapr::get_urbn_map(sf = TRUE) %>%
   dplyr::filter(state_abbv != 'AK', state_abbv != 'HI') %>%
   sf::st_transform(6933) 
-
-# Have to include na.rm for compatibility with stackApply
-mode_calc <- function(x, na.rm) {
-  uniqv <- unique(x)
-  uniqv[which.max(tabulate(match(x, uniqv)))]
-}
 
 strip_date <- function(f) {
   f %>% 
@@ -20,7 +15,7 @@ strip_date <- function(f) {
     head(1)
 }
 
-clean_maps <- function(f, states, agg = 1) {
+clean_maps <- function(f, states) {
   
   f %>% 
     raster::stack() %>% 
@@ -28,7 +23,7 @@ clean_maps <- function(f, states, agg = 1) {
     raster::mask(states)
 }
 
-map_to_tidy <- function(stack, day, agg=1) {
+map_to_tidy <- function(stack, day) {
   
   stack %>% 
     raster::rasterToPoints() %>%
@@ -41,10 +36,10 @@ map_to_tidy <- function(stack, day, agg=1) {
     ) %>% 
     dplyr::mutate(
       day = lubridate::as_date(day),
-      val =  dplyr::case_when(
-        # val <= 2 ~ round(val),
-        TRUE ~ round(val)
-      ),
+      val = dplyr::case_when(
+          val <= 2 ~ round(val),
+          TRUE ~ ceiling(val)
+          ),
       val = dplyr::recode(
         val,
         `0` = 'No Drought',
@@ -166,7 +161,8 @@ plot_all <- function(day="20170620", holdout="None",
 
   base <- paste0(day, '_preds_', holdout, '.tif')
   
-  model <- file.path(pred_dir, 'median', base) %>% 
+  #   model <- file.path(pred_dir, 'mean', base) %>% 
+  model <- file.path( './data/models/global_norm/model4/preds_87/20170627_preds_None.tif') %>% 
     clean_maps(states = states) 
   
   targets <- get_targets(target_dir, day, states) 
@@ -180,8 +176,12 @@ plot_all <- function(day="20170620", holdout="None",
       names_to = 'lead_time',
       values_to = 'val'
     ) %>%
-    dplyr::mutate(src = 'Difference',
-                  day = lubridate::as_date(day)) %>%
+    dplyr::mutate(
+      lead_time = as.numeric(stringr::str_replace(lead_time, 'lt_', '')) - 1,
+      src = 'Difference',
+      day = lubridate::as_date(day)
+    ) %>%) + 
+
     label_model(txt = ' Difference ')
   
   sd <- file.path(pred_dir, 'sd', base) %>%
@@ -190,7 +190,7 @@ plot_all <- function(day="20170620", holdout="None",
     dplyr::mutate(src = 'Std. Dev.')
   
   p1 <- targets %>%
-    map_to_tidy(day = day) 
+    map_to_tidy(day = day) %>%
     label_targets() %>%
     dplyr::mutate(src = 'Target') %>%
     dplyr::filter(val != 'No Drought') %>%
@@ -199,13 +199,14 @@ plot_all <- function(day="20170620", holdout="None",
   
   p2 <- model %>%
     map_to_tidy(day = day) %>%
-    label_model(sd = F) %>%
+    label_model(txt = ' Drought ') %>%
     dplyr::mutate(src = 'Model') %>%
     dplyr::filter(val != 'No Drought') %>%
-    plot_data(states = states) 
+    plot_data(states = states)
   
   p3 <- plot_sd(sd, states) 
+  p4 <- plot_diff(difference, states)
   
-  (p1)/(p2)/(p3)
+  (p1)/(p2)/(p3)/(p4)
   
 }

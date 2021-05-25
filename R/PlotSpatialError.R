@@ -2,7 +2,7 @@ source('./R/TidyRaster.R')
 source('./crdm/R/PlotTheme.R')
 
 
-parse_data <- function(d, mon='*') {
+parse_annual_data <- function(d, mon='*', lead_time=2) {
   
   d %>%
     list.files(full.names = T) %>%
@@ -12,13 +12,13 @@ parse_data <- function(d, mon='*') {
       variable <- basename(x) %>%
         stringr::str_split('_') %>%
         unlist() %>%
-        tail(1) %>%
+        magrittr::extract(2) %>%
         stringr::str_replace('.tif', '')
       
       x %>%
         tidy_raster(stack = FALSE, band = lead_time) %>%
         dplyr::mutate(holdout = variable)
-    }) %>% 
+    }) %>%
     dplyr::bind_rows() %>% 
     tidyr::pivot_wider(names_from = holdout, values_from = val) %>% 
     tidyr::pivot_longer(
@@ -27,6 +27,25 @@ parse_data <- function(d, mon='*') {
       values_to = 'val'
     ) %>% 
     dplyr::mutate(diff = None - val)
+}
+
+parse_monthly_data <- function(d) {
+  
+  d %>%
+    list.files(full.names = T, pattern = '.tif') %>%
+    grep('drought|mei', ., value = TRUE, invert = TRUE) %>%
+    parallel::mclapply(function(x) {
+      
+      x %>%
+        tidy_raster(stack = TRUE) %>%
+        dplyr::mutate(
+           holdout = !!x,
+           holdout = basename(stringr::str_replace(holdout, '.tif', ''))
+        ) %>%
+        tidyr::separate(holdout, c('drop', 'holdout', 'month'), sep = '_') %>%
+        dplyr::select(-drop)
+    }, mc.cores = 12) %>%
+    dplyr::bind_rows() -> a
 }
 
 ann_map_plot <- function(r) {
@@ -51,7 +70,7 @@ ann_map_plot <- function(r) {
 
 ann_map_all <- function(ann_dir, lead_time) {
   
-  dat <- parse_data(ann_dir)
+  dat <- parse_annual_data(ann_dir)
   
   filt <- dplyr::filter(dat, holdout != 'pr')
   ggplot() + 
@@ -64,10 +83,37 @@ ann_map_all <- function(ann_dir, lead_time) {
     
 }
 
-mon_plot <- function(mon_dir, mon) {
+mon_plot <- function(f = './data/plot_data/monthly_holdouts.fst', lead_time=1, 
+                     variable = 'pr') {
   
-  dat <- mon_dir %>%
-    parse_data(mon = '*_05.tif')
+  lt <- glue::glue('lt_{lead_time}')
+  
+  dat <- fst::read_fst(f, columns = c('x', 'y', lt, 'holdout', 'month')) %>%
+    tibble::as_tibble() %>%
+    dplyr::rename(val = !!lt) 
+  
+    
+  
+  out <- dat %>% 
+    dplyr::filter(holdout %in% c(!!variable, 'None')) %>%
+    tidyr::pivot_wider(
+      names_from = holdout, 
+      values_from = val
+    ) %>%
+    dplyr::mutate(diff = None - !!rlang::sym(variable),
+                  month = factor(month.abb[as.numeric(month)], levels = month.abb),
+                  diff = ifelse(diff > 0, 0, diff))
+  
+  colorRampPalette(RColorBrewer::brewer.pal(10, 'Reds')) -> pal
+  ggplot() + 
+    geom_raster(aes(x=x, y=y, fill=diff), out) + 
+    geom_sf(aes(), states, fill=NA) + 
+    facet_wrap(~month) + 
+    plot_theme() + 
+    scale_fill_gradientn(colors = rev(pal(10)), limits = c(-2.5, 0)) + 
+    labs(x='', y='', fill='MSE\n(USDM Categories)', title = 'Increase in Model Error When PPT Removed (4 Week Lead Time)') +
+    theme(axis.text.x = element_text(angle = 45))
+    
 }
 
-ann_map_plot("./data/err_maps/annual/err_pr.tif")
+dat %>% fst::write_fst('./data/err_maps/monthly_holdouts.fst')

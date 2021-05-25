@@ -48,7 +48,7 @@ class LSTMLoader(Dataset):
 
             self.p = np.sum(p.reshape(self.y.shape), axis=1)
 
-            idx = np.random.choice(range(len(self.x)), self.sample, p=self.p, replace=False)
+            idx = np.random.choice(range(len(self.x)), int(len(self.x)/2), p=self.p, replace=True)
             self.x = self.x[idx]
             self.y = self.y[idx]
 

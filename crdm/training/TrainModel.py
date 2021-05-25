@@ -32,7 +32,6 @@ def train_model(setup):
         for idx, item in enumerate(setup['train']):
             x, y = item
             x, y = x.squeeze(), y.squeeze()
-            print(x.shape, y.shape)
             if not batch_first:
                 print('asdf')
                 x = x.transpose(0, 1)

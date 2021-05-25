@@ -12,7 +12,7 @@ import torch
 from tqdm import tqdm
 
 BATCH = 2488
-torch.set_num_threads(2)
+torch.set_num_threads(5)
 
 
 class Mapper(object):

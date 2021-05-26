@@ -77,9 +77,9 @@ if __name__ == '__main__':
 
     }
 
-    for batch in [128, 256, 512]:
+    for hidden in [128, 256, 512]:
 
-        for hidden in [128, 256, 512]:
+        for batch in [128, 256, 512]:
             i = 0
             while os.path.exists('model_{}'.format(i)):
                 i += 1

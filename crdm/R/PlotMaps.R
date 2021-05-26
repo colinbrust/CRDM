@@ -155,14 +155,14 @@ plot_diff <- function(difference, states) {
           plot.margin= grid::unit(c(0, 0, 0, 0), "in")) 
 }
 
-plot_all <- function(day="20170620", holdout="None", 
+plot_all <- function(day="20140527", holdout="None", 
                      pred_dir="./data/models/averaged", 
                      target_dir='./data/tif_targets', states) {
 
   base <- paste0(day, '_preds_', holdout, '.tif')
   
   #   model <- file.path(pred_dir, 'mean', base) %>% 
-  model <- file.path( './data/models/global_norm/model4/preds_87/20170627_preds_None.tif') %>% 
+  model <- file.path( './data/models/search/reg/model_7/20140527_preds_None.tif') %>% 
     clean_maps(states = states) 
   
   targets <- get_targets(target_dir, day, states) 
@@ -180,8 +180,7 @@ plot_all <- function(day="20170620", holdout="None",
       lead_time = as.numeric(stringr::str_replace(lead_time, 'lt_', '')) - 1,
       src = 'Difference',
       day = lubridate::as_date(day)
-    ) %>%) + 
-
+    ) %>% 
     label_model(txt = ' Difference ')
   
   sd <- file.path(pred_dir, 'sd', base) %>%

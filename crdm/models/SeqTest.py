@@ -7,6 +7,7 @@ import torch.nn.functional as F
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 print('Using new test')
 
+
 class RNNEncoder(nn.Module):
     def __init__(self, rnn_num_layers=1, input_feature_len=1, hidden_size=100, bidirectional=False):
         super().__init__()
@@ -54,37 +55,36 @@ class AttentionDecoderCell(nn.Module):
 
 
 class Seq2Seq(nn.Module):
-    def __init__(self, rnn_num_layers=1, input_feature_len=1, sequence_len=168, hidden_size=100, output_size=12, categorical=False):
+    def __init__(self, rnn_num_layers=1, input_feature_len=1, sequence_len=168, hidden_size=100, output_size=12):
         super().__init__()
 
-        self.enc_linear = nn.Sequential(
-            nn.Linear(input_feature_len, 64),
-            nn.BatchNorm1d(sequence_len),
-            nn.ReLU(),
-            nn.Dropout(0.25),
-            nn.Linear(64, hidden_size),
-            nn.BatchNorm1d(sequence_len),
-            nn.ReLU(),
-            nn.Dropout(0.25)
-        )
+        enc_linear = []
+        sz = input_feature_len
+        while sz < hidden_size:
+            enc_linear.append(nn.Linear(int(sz), int(sz*2)))
+            enc_linear.append(nn.BatchNorm1d(sequence_len))
+            enc_linear.append(nn.ReLU())
+            enc_linear.append(nn.Dropout(0.5))
+            sz *= 2
+
+        self.enc_linear = nn.Sequential(*enc_linear)
 
         self.encoder = RNNEncoder(rnn_num_layers, input_feature_len=hidden_size, hidden_size=hidden_size)
         self.decoder_cell = AttentionDecoderCell(input_feature_len=hidden_size, hidden_size=hidden_size)
         self.output_size = output_size
 
-        self.out = nn.Sequential(
-            nn.Linear(hidden_size, 64),
-            nn.BatchNorm1d(output_size),
-            nn.ReLU(),
-            nn.Dropout(0.25),
-            nn.Linear(64, 32),
-            nn.BatchNorm1d(output_size),
-            nn.ReLU(),
-            nn.Dropout(0.25),
-            nn.Linear(32, 1),
-            nn.ReLU(),
-        )
-        self.categorical = categorical
+        classifier = []
+        sz = hidden_size
+        while sz > 32:
+            classifier.append(nn.Linear(int(sz), int(sz//2)))
+            classifier.append(nn.BatchNorm1d(self.output_size))
+            classifier.append(nn.ReLU())
+            classifier.append(nn.Dropout(0.5))
+            sz /= 2
+
+        classifier.append(nn.Linear(int(sz), 1))
+        classifier.append(nn.ReLU())
+        self.classifier = nn.Sequential(*classifier)
 
     def forward(self, xb):
 
@@ -102,7 +102,5 @@ class Seq2Seq(nn.Module):
 
         outputs = torch.stack(outputs, 1)
         outputs = F.relu(outputs)
-        outputs = self.out(outputs)
-
-        outputs = outputs.permute(0, 2, 1) if self.categorical else F.relu(outputs)
+        outputs = self.classifier(outputs)
         return outputs.squeeze(-1)

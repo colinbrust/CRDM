@@ -3,6 +3,7 @@ from crdm.models.SeqTest import Seq2Seq
 from crdm.loaders.LSTMLoader import LSTMLoader
 from crdm.training.TrainModel import train_model
 from crdm.utils.ModelToMap import Mapper
+from crdm.utils.ImportantVars import ConvergenceError
 import os
 import torch
 from torch import nn
@@ -18,22 +19,21 @@ def train_lstm(setup):
 
     # Make train and test set data loaders and add them to model setup
     train_loader = LSTMLoader(dirname=setup['dirname'], train=True, categorical=setup['categorical'],
-                              n_weeks=setup['n_weeks'], sample=1500, even_sample=setup['even_sample'])
+                              n_weeks=setup['n_weeks'], sample=150000, even_sample=setup['even_sample'])
 
     test_loader = LSTMLoader(dirname=setup['dirname'], train=False, categorical=setup['categorical'],
-                             n_weeks=setup['n_weeks'], sample=1500, even_sample=False)
+                             n_weeks=setup['n_weeks'], sample=150000, even_sample=False)
 
     setup['train'] = DataLoader(dataset=train_loader, batch_size=setup['batch_size'], shuffle=True, drop_last=True)
     setup['test'] = DataLoader(dataset=test_loader, batch_size=setup['batch_size'], shuffle=True, drop_last=True)
 
     setup['batch_first'] = True
-    model = Seq2Seq(1, shps['train_x.dat'][1], setup['n_weeks'], setup['hidden_size'], setup['mx_lead'],
-                    categorical=setup['categorical'])
+    model = Seq2Seq(1, shps['train_x.dat'][1], setup['n_weeks'], setup['hidden_size'], setup['mx_lead'])
 
     criterion = nn.MSELoss()
     lr = 0.002
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, amsgrad=True)
-    scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=2, threshold=0.00001,  verbose=True)
+    scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=3, threshold=0.00001,  verbose=True)
 
     setup['model'] = model
     setup['criterion'] = criterion
@@ -96,6 +96,13 @@ if __name__ == '__main__':
                 pickle.dump(setup, f)
 
             pprint.pprint(setup)
-            model = train_lstm(setup)
+            flag = True
+            while flag:
+                try:
+                    model = train_lstm(setup)
+                    flag = False
+                except ConvergenceError as e:
+                    print(e)
+
             mpr = Mapper(model, setup, args.in_features, args.out_classes, out_dir, shps, True, None, setup['categorical'])
             mpr.get_preds()

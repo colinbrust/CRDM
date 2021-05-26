@@ -1,3 +1,4 @@
+from crdm.utils.ImportantVars import ConvergenceError
 import os
 import pickle
 import torch
@@ -48,6 +49,11 @@ def train_model(setup):
 
             # Store loss info
             train_loss.append(loss.item())
+
+        if epoch == 0 and min(train_loss) > 0.015:
+            raise ConvergenceError("Min error after first epoch is {}\n"
+                                   "Model failed to converge\n"
+                                   "Restarting model.".format(min(train_loss)))
 
         # Switch to evaluation mode
         model.eval()

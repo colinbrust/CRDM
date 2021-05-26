@@ -6,3 +6,7 @@ LENGTH = 176648
 holdouts = dict(zip(WEEKLY_VARS+MONTHLY_VARS, range(len(WEEKLY_VARS+MONTHLY_VARS))))
 holdouts['drought'] = len(holdouts) 
 holdouts['mei'] = len(holdouts) + 1
+
+
+class ConvergenceError(Exception):
+    pass

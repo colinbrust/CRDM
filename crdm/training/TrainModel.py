@@ -35,12 +35,10 @@ def train_model(setup):
             # Zero out the optimizer's gradient buffer
             optimizer.zero_grad()
             # Make prediction with model
-            outputs, out_rev = model(x)
+            outputs = model(x)
 
             # Compute the loss and step the optimizer
             loss = criterion(outputs, y)
-            loss_rev = criterion(out_rev, reversed(y))
-            loss = loss + loss_rev
 
             loss.backward()
             optimizer.step()
@@ -55,7 +53,7 @@ def train_model(setup):
         if epoch == 0 and min(train_loss) > 0.015:
             raise ConvergenceError("Min error after first epoch is {}\n"
                                    "Model failed to converge\n"
-                                   "Restarting model.".format(min(train_loss)))
+                                   "Restarting model.\n".format(min(train_loss)))
 
         # Switch to evaluation mode
         model.eval()

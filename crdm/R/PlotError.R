@@ -165,7 +165,7 @@ plot_all <- function(pth) {
 
 good_ex_fig <- './data/models/global_norm/model4/preds_87/20170627_preds_None.tif'
 
-readr::read_csv('./data/models/search/reg/ensemble_results.csv') %>%
+readr::read_csv('./data/models/big_test/selection_0/ensemble_results.csv') %>%
   tidyr::separate(pred, c('date', 'drop', 'holdout'), sep = '_') %>%
   dplyr::mutate(model = dirname(name)) %>%
   dplyr::group_by(model) %>%

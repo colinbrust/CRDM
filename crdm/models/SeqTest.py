@@ -71,6 +71,7 @@ class Seq2Seq(nn.Module):
 
         self.encoder = RNNEncoder(rnn_num_layers, input_feature_len=hidden_size, hidden_size=hidden_size)
         self.decoder_cell = AttentionDecoderCell(input_feature_len=hidden_size, hidden_size=hidden_size)
+        self.decoder_rev = AttentionDecoderCell(input_feature_len=hidden_size, hidden_size=hidden_size)
         self.output_size = output_size
 
         classifier = []
@@ -84,23 +85,41 @@ class Seq2Seq(nn.Module):
 
         classifier.append(nn.Linear(int(sz), 1))
         classifier.append(nn.ReLU())
+
         self.classifier = nn.Sequential(*classifier)
+        self.class_rev = nn.Sequential(*classifier)
 
     def forward(self, xb):
 
         input_seq = self.enc_linear(xb)
         encoder_output, encoder_hidden = self.encoder(input_seq)
         prev_hidden = encoder_hidden
+        hidden_rev = encoder_hidden
 
         outputs = []
+        out_rev = []
         y_prev = input_seq[:, -1, :]
+        y_rev = input_seq[:, -1, :]
         for i in range(self.output_size):
             rnn_output, prev_hidden = self.decoder_cell(y_prev, prev_hidden)
+            rnn_rev, hidden_rev = self.decoder_rev(y_rev, hidden_rev)
+
             y_prev = rnn_output
+            y_rev = rnn_rev
 
             outputs.append(rnn_output)
+            out_rev.append(rnn_rev)
 
         outputs = torch.stack(outputs, 1)
+        out_rev = torch.stack(out_rev, 1)
+
+        print(outputs.shape)
+        print(out_rev.shape)
+
         outputs = F.relu(outputs)
         outputs = self.classifier(outputs)
-        return outputs.squeeze(-1)
+
+        out_rev = F.relu(out_rev)
+        out_rev = self.class_rev(out_rev)
+
+        return outputs.squeeze(-1), out_rev.squeeze(-1)

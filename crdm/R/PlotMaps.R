@@ -162,31 +162,31 @@ plot_all <- function(day="20170718", holdout="None",
   base <- paste0(day, '_preds_', holdout, '.tif')
   
   #   model <- file.path(pred_dir, 'mean', base) %>% 
-  model <- file.path( './data/models/search/ensemble_0/preds/20170718_preds_None.tif') %>% 
+  model <- file.path('./data/models/big_test/selection_1/model_1/20170718_preds_None.tif') %>% 
     clean_maps(states = states) 
   
   targets <- get_targets(target_dir, day, states) 
   
-  difference <- (targets - model) %>%
-    raster::rasterToPoints() %>%
-    tibble::as_tibble() %>%
-    `names<-`(c('x', 'y', 'lt_2', 'lt_4', 'lt_8', 'lt_12')) %>%
-    tidyr::pivot_longer(
-      dplyr::starts_with('lt'),
-      names_to = 'lead_time',
-      values_to = 'val'
-    ) %>%
-    dplyr::mutate(
-      lead_time = as.numeric(stringr::str_replace(lead_time, 'lt_', '')) - 1,
-      src = 'Difference',
-      day = lubridate::as_date(day)
-    ) %>% 
-    label_model(txt = ' Difference ')
-  
-  sd <- file.path(pred_dir, 'sd', base) %>%
-    get_sd(day, states) %>%
-    label_model(txt = ' Std. Dev. ') %>%
-    dplyr::mutate(src = 'Std. Dev.')
+  # difference <- (targets - model) %>%
+  #   raster::rasterToPoints() %>%
+  #   tibble::as_tibble() %>%
+  #   `names<-`(c('x', 'y', 'lt_2', 'lt_4', 'lt_8', 'lt_12')) %>%
+  #   tidyr::pivot_longer(
+  #     dplyr::starts_with('lt'),
+  #     names_to = 'lead_time',
+  #     values_to = 'val'
+  #   ) %>%
+  #   dplyr::mutate(
+  #     lead_time = as.numeric(stringr::str_replace(lead_time, 'lt_', '')) - 1,
+  #     src = 'Difference',
+  #     day = lubridate::as_date(day)
+  #   ) %>% 
+  #   label_model(txt = ' Difference ')
+  # 
+  # sd <- file.path(pred_dir, 'sd', base) %>%
+  #   get_sd(day, states) %>%
+  #   label_model(txt = ' Std. Dev. ') %>%
+  #   dplyr::mutate(src = 'Std. Dev.')
   
   p1 <- targets %>%
     map_to_tidy(day = day) %>%
@@ -202,6 +202,8 @@ plot_all <- function(day="20170718", holdout="None",
     dplyr::mutate(src = 'Model') %>%
     dplyr::filter(val != 'No Drought') %>%
     plot_data(states = states)
+  
+  p1/p2
   
   p3 <- plot_sd(sd, states) 
   p4 <- plot_diff(difference, states)

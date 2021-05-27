@@ -35,11 +35,13 @@ def train_model(setup):
             # Zero out the optimizer's gradient buffer
             optimizer.zero_grad()
             # Make prediction with model
-            outputs = model(x)
-            outputs = outputs.squeeze()
+            outputs, out_rev = model(x)
 
             # Compute the loss and step the optimizer
             loss = criterion(outputs, y)
+            loss_rev = criterion(out_rev, reversed(y))
+            loss = loss + loss_rev
+
             loss.backward()
             optimizer.step()
             # scheduler.step()

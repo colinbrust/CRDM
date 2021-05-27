@@ -1,6 +1,12 @@
 source('./R/TidyRaster.R')
 source('./crdm/R/PlotTheme.R')
+library(magrittr)
+library(ggplot2)
 
+states <- urbnmapr::get_urbn_map(sf = TRUE) %>%
+  dplyr::filter(state_abbv != 'AK', state_abbv != 'HI') %>%
+  sf::st_transform(6933) %>%
+  sf::st_union()
 
 parse_annual_data <- function(d, mon='*', lead_time=2) {
   
@@ -83,6 +89,8 @@ ann_map_all <- function(ann_dir, lead_time) {
     
 }
 
+states <- sf::st_union(states)
+
 mon_plot <- function(f = './data/plot_data/monthly_holdouts.fst', lead_time=1, 
                      variable = 'pr') {
   
@@ -90,30 +98,153 @@ mon_plot <- function(f = './data/plot_data/monthly_holdouts.fst', lead_time=1,
   
   dat <- fst::read_fst(f, columns = c('x', 'y', lt, 'holdout', 'month')) %>%
     tibble::as_tibble() %>%
-    dplyr::rename(val = !!lt) 
+    dplyr::rename(val = !!lt)
   
-    
   
   out <- dat %>% 
-    dplyr::filter(holdout %in% c(!!variable, 'None')) %>%
+    # dplyr::filter(holdout %in% c(!!variable, 'None')) %>%
     tidyr::pivot_wider(
       names_from = holdout, 
       values_from = val
     ) %>%
     dplyr::mutate(diff = None - !!rlang::sym(variable),
                   month = factor(month.abb[as.numeric(month)], levels = month.abb),
-                  diff = ifelse(diff > 0, 0, diff))
+                  diff = ifelse(diff > 0, 0, diff), 
+                  diff = ifelse(abs(diff - median(diff)) > 2*sd(diff), median(diff) - 2*sd(diff), diff)) %>%
+    dplyr::filter(month %in% c('Jan', 'Mar', 'May', 'Jul', 'Sep', 'Nov'))
   
-  colorRampPalette(RColorBrewer::brewer.pal(10, 'Reds')) -> pal
-  ggplot() + 
+  
+  pal <- colorRampPalette(RColorBrewer::brewer.pal(10, 'Spectral'))
+  
+  var_use <- dplyr::recode(
+    variable,
+    'gpp' = 'GPP',
+    'ET' = 'ET',
+    'pr' = 'PPT',
+    'rmax' = 'RH Max',
+    'rmin' = 'RH Min',
+    'sm-rootzone' = 'SM',
+    'sm-surface' = 'SFSM',
+    'srad' = 'SRAD', 
+    'tmmn' = 'TMIN',
+    'tmmx' = 'TMAX',
+    'vpd' = 'VPD',
+    'vs' = 'WS'
+  )
+  
+  fig <- ggplot() + 
     geom_raster(aes(x=x, y=y, fill=diff), out) + 
-    geom_sf(aes(), states, fill=NA) + 
+    geom_sf(aes(), states, fill=NA, size = 0.5) + 
     facet_wrap(~month) + 
     plot_theme() + 
-    scale_fill_gradientn(colors = rev(pal(10)), limits = c(-2.5, 0)) + 
-    labs(x='', y='', fill='MSE\n(USDM Categories)', title = 'Increase in Model Error When PPT Removed (4 Week Lead Time)') +
+    scale_fill_gradientn(colors = pal(10)) + 
+    labs(x='', y='', fill='MSE\n(USDM Categories)', 
+         title = glue::glue('Increase in Model Error With {var_use} Removed ({lead_time} Week Lead Time)')) +
     theme(axis.text.x = element_text(angle = 45))
-    
+  
+  
+  ggplot2::ggsave(
+    glue::glue('./data/plot_data/figs/monthly/{variable}_{lead_time}.png'),
+    fig, 
+    width = 8,
+    height = 5,
+    units = 'in'
+  )
+  
 }
 
-dat %>% fst::write_fst('./data/err_maps/monthly_holdouts.fst')
+for (v in unique(dat$holdout)[8:13]) {
+  for (l in 1:12) {
+    print(v)
+    print(l)
+    mon_plot(lead_time = l, variable = v)
+  }
+}
+
+mon_plot_v2 <- function(f = './data/plot_data/monthly_holdouts.fst', lead_time=1, 
+                     variable = 'pr') {
+  
+  lt <- glue::glue('lt_{lead_time}')
+  
+  dat <- fst::read_fst(f, columns = c('x', 'y', lt, 'holdout', 'month')) %>%
+    tibble::as_tibble() %>%
+    dplyr::rename(val = !!lt)
+  
+  
+  pal <- colorRampPalette(RColorBrewer::brewer.pal(10, 'Spectral'))
+  
+  out <- dat %>% 
+    # dplyr::filter(holdout %in% c(!!variable, 'None')) %>%
+    tidyr::pivot_wider(
+      names_from = holdout, 
+      values_from = val
+    ) %>%
+    tidyr::pivot_longer(
+      cols = -c(x, y, month, None)
+    ) %>%
+    dplyr::mutate(
+      diff = None - value,
+      diff = ifelse(diff > 0, 0, diff),
+      binned = dplyr::ntile(diff, 10),
+      name = dplyr::recode(
+        name,
+        'gpp' = 'GPP',
+        'ET' = 'ET',
+        'pr' = 'PPT',
+        'rmax' = 'RH Max',
+        'rmin' = 'RH Min',
+        'sm-rootzone' = 'SM',
+        'sm-surface' = 'SFSM',
+        'srad' = 'SRAD', 
+        'tmmn' = 'TMIN',
+        'tmmx' = 'TMAX',
+        'vpd' = 'VPD',
+        'vs' = 'WS'
+      ),
+      month = factor(month.abb[as.numeric(month)], levels = month.abb)
+    ) %>%
+    dplyr::filter(month == 'Jan')
+  
+  ggplot() + 
+    geom_raster(aes(x=x, y=y, fill=binned), out) + 
+    geom_sf(aes(), states, fill=NA, size = 0.5) + 
+    facet_wrap(~name) + 
+    plot_theme() + 
+    scale_fill_gradientn(colors = pal(10)) + 
+    labs(x='', y='', fill='MSE\n(USDM Categories)', 
+         title = glue::glue('Increase in Model Error for Jan ({lead_time} Week Lead Time)')) +
+    theme(axis.text.x = element_text(angle = 45))
+  
+  
+}
+
+ts_plot <- function(f = './data/plot_data/monthly_holdouts.fst', lead_time=1, 
+                        variable = 'pr') {
+  
+  lt <- glue::glue('lt_{lead_time}')
+  
+  dat <- fst::read_fst(f, columns = c('x', 'y', lt, 'holdout', 'month')) %>%
+    tibble::as_tibble() %>%
+    dplyr::rename(val = !!lt) %>%
+    tidyr::pivot_wider(
+      names_from = holdout, 
+      values_from = val
+    ) %>%
+    tidyr::pivot_longer(
+      cols = -c(x, y, month, None)
+    ) %>%
+    dplyr::mutate(
+      diff = None - value,
+      diff = ifelse(diff > 0, 0, diff)
+    )
+  
+  out <- dat %>%
+    dplyr::group_by(month, name) %>%
+    dplyr::summarise(diff = mean(diff)) %>%
+    dplyr::ungroup() %>%
+    dplyr::mutate(month = factor(month.abb[as.numeric(month)], levels = month.abb)) 
+    
+  ggplot(out, aes(x=month, y=diff, color=name)) + 
+      geom_point() + 
+      plot_theme()
+}

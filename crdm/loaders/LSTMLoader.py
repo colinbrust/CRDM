@@ -56,7 +56,7 @@ class LSTMLoader(Dataset):
         return self.sample if self.sample is not None else len(self.x)
 
     def __getitem__(self, idx):
-
+    
         idx = np.random.randint(0, len(self.x), 1) if self.sample else idx
 
         x = self.x[idx].squeeze()

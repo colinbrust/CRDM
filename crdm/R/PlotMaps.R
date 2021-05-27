@@ -155,14 +155,14 @@ plot_diff <- function(difference, states) {
           plot.margin= grid::unit(c(0, 0, 0, 0), "in")) 
 }
 
-plot_all <- function(day="20140527", holdout="None", 
+plot_all <- function(day="20170718", holdout="None", 
                      pred_dir="./data/models/averaged", 
                      target_dir='./data/tif_targets', states) {
 
   base <- paste0(day, '_preds_', holdout, '.tif')
   
   #   model <- file.path(pred_dir, 'mean', base) %>% 
-  model <- file.path( './data/models/search/reg/model_7/20140527_preds_None.tif') %>% 
+  model <- file.path( './data/models/search/ensemble_0/preds/20170718_preds_None.tif') %>% 
     clean_maps(states = states) 
   
   targets <- get_targets(target_dir, day, states) 

@@ -162,7 +162,7 @@ plot_all <- function(day="20170718", holdout="None",
   base <- paste0(day, '_preds_', holdout, '.tif')
   
   #   model <- file.path(pred_dir, 'mean', base) %>% 
-  model <- file.path('./data/models/big_test/selection_1/model_1/20170718_preds_None.tif') %>% 
+  model <- file.path('./data/models/big_test/ensemble_0/preds/20170718_preds_None.tif') %>% 
     clean_maps(states = states) 
   
   targets <- get_targets(target_dir, day, states) 
@@ -205,7 +205,7 @@ plot_all <- function(day="20170718", holdout="None",
   
   p1/p2
   
-  p3 <- plot_sd(sd, states) 
+  p3 <- plot_sd(sd, states) )
   p4 <- plot_diff(difference, states)
   
   (p1)/(p2)/(p3)/(p4)

@@ -54,6 +54,14 @@ parse_monthly_data <- function(d) {
     dplyr::bind_rows() -> a
 }
 
+
+
+
+
+
+
+
+
 ann_map_plot <- function(r) {
   
   dat <- tidy_raster(r, TRUE) %>% 

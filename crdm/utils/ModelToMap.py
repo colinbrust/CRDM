@@ -46,7 +46,7 @@ class Mapper(object):
 
         fill_shp = (BATCH, self.shps['train_x.dat'][-1])
 
-        for target in self.targets:
+        for target in tqdm(self.targets):
             
             name = os.path.join(self.out_dir, os.path.basename(target[0]).replace('USDM.dat',  'preds_{}.tif'.format(self.holdout)))
             if os.path.exists(name):
@@ -65,7 +65,7 @@ class Mapper(object):
             except AssertionError as e:
                 print(e)
                 continue
-            for i in tqdm(range(len(self.indices)-1)):
+            for i in range(len(self.indices)-1):
 
                 idx = list(range(self.indices[i], self.indices[i+1]))
 
@@ -180,5 +180,3 @@ if __name__ == '__main__':
         mapper = Mapper(model, setup, setup['in_features'], setup['out_classes'], out_dir,
                         shps, args.train, None, setup['categorical'])
         mapper.get_preds()
-
-

@@ -107,36 +107,44 @@ def get_all_error(base_dir='./data/models/best/model_00/preds',
 
     train = np.array(train).swapaxes(0, 1).reshape(12, -1)
     train_targ = np.array(train_targ).swapaxes(0, 1).reshape(12, -1)
-    train_base = np.array(train_base).swapaxes(0, 1).reshape(12, -1)
+    # train_base = np.array(train_base).swapaxes(0, 1).reshape(12, -1)
 
     test = np.array(test).swapaxes(0, 1).reshape(12, -1)
     test_targ = np.array(test_targ).swapaxes(0, 1).reshape(12, -1)
-    test_base = np.array(test_base).swapaxes(0, 1).reshape(12, -1)
+    # test_base = np.array(test_base).swapaxes(0, 1).reshape(12, -1)
 
     validation = np.array(validation).swapaxes(0, 1).reshape(12, -1)
     val_targ = np.array(val_targ).swapaxes(0, 1).reshape(12, -1)
-    val_base = np.array(val_base).swapaxes(0, 1).reshape(12, -1)
+    # val_base = np.array(val_base).swapaxes(0, 1).reshape(12, -1)
 
-    # Save out confusion matrices
+    train_mse = []
+    train_cor = []
+
+    test_mse = []
+    test_cor = []
+
+    val_mse = []
+    val_cor = []
+
     for lead_time in range(12):
-        print('Making Confusion Matrices for {} Week Lead Time'.format(lead_time))
-        conf_train = confusion_matrix(train_targ[lead_time], train[lead_time])
-        conf_train_base = confusion_matrix(train_targ[lead_time], train_base[lead_time])
+        train_cor.append(round(np.corrcoef(train[lead_time, :], train_targ[lead_time, :])[0, 1], 4))
+        train_mse.append(round(mean_squared_error(train[lead_time, :], train_targ[lead_time, :]), 4))
 
-        np.savetxt(os.path.join(out_dir, 'conf_{}_train_model.csv'.format(lead_time)), conf_train, delimiter=',')
-        np.savetxt(os.path.join(out_dir, 'conf_{}_train_base.csv'.format(lead_time)), conf_train_base, delimiter=',')
+        test_cor.append(round(np.corrcoef(test[lead_time, :], test_targ[lead_time, :])[0, 1], 4))
+        test_mse.append(round(mean_squared_error(test[lead_time, :], test_targ[lead_time, :]), 4))
 
-        conf_test = confusion_matrix(test_targ[lead_time], test[lead_time])
-        conf_test_base = confusion_matrix(test_targ[lead_time], test_base[lead_time])
+        val_cor.append(round(np.corrcoef(validation[lead_time, :], val_targ[lead_time, :])[0, 1], 4))
+        val_mse.append(round(mean_squared_error(validation[lead_time, :], val_targ[lead_time, :]), 4))
 
-        np.savetxt(os.path.join(out_dir, 'conf_{}_test_model.csv'.format(lead_time)), conf_test, delimiter=',')
-        np.savetxt(os.path.join(out_dir, 'conf_{}_test_base.csv'.format(lead_time)), conf_test_base, delimiter=',')
+    dat = {'train_cor': train_cor,
+           'train_mse': train_mse,
+           'test_cor': test_cor,
+           'test_mse': test_mse,
+           'val_cor': val_cor,
+           'val_mse': val_mse}
 
-        conf_val = confusion_matrix(val_targ[lead_time], validation[lead_time])
-        conf_val_base = confusion_matrix(val_targ[lead_time], val_base[lead_time])
-
-        np.savetxt(os.path.join(out_dir, 'conf_{}_val_model.csv'.format(lead_time)), conf_val, delimiter=',')
-        np.savetxt(os.path.join(out_dir, 'conf_{}_val_base.csv'.format(lead_time)), conf_val_base, delimiter=',')
+    df = pd.DataFrame(dat)
+    df.to_csv(os.path.join(out_dir, 'complete_err.csv'), index=False)
 
 
 def get_model_runs(base_dir, target_dir):

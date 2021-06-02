@@ -34,24 +34,40 @@ def calc_durations(target_dir):
     five_out = np.zeros(LENGTH)
     for pixel in range(fives.shape[-1]):
         print(pixel)
-        five_out[pixel] = np.median(counter(np.diff(fives[:, pixel])))
+        five_out[pixel] = np.nanmedian(counter(np.diff(fives[:, pixel])))
 
     four_out = np.zeros(LENGTH)
     for pixel in range(fours.shape[-1]):
         print(pixel)
-        four_out[pixel] = np.median(counter(np.diff(fours[:, pixel])))
+        four_out[pixel] = np.nanmedian(counter(np.diff(fours[:, pixel])))
 
     one_out = np.zeros(LENGTH)
     for pixel in range(ones.shape[-1]):
         print(pixel)
-        one_out[pixel] = np.median(counter(np.diff(ones[:, pixel]), swap=1))
+        one_out[pixel] = np.nanmedian(counter(np.diff(ones[:, pixel]), swap=-1))
 
 out_counts = []
 for pixel in range(fours.shape[-1]):
     print(pixel)
     out_counts += counter(np.diff(fours[:, pixel]))
 
-a = np.sum(fives, axis=0)
-plt.imshow(a)
+a = np.sum(fours, axis=0)
+plt.imshow(a.reshape(DIMS))
 plt.colorbar()
 plt.close()
+
+five_out = np.nan_to_num(five_out, nan=0)
+four_out = np.nan_to_num(four_out, nan=0)
+one_out = np.nan_to_num(one_out, nan=0)
+
+plt.imshow(five_out.reshape(DIMS))
+plt.title('Max Duration of D4 Drought (Weeks)')
+plt.colorbar()
+
+plt.imshow(four_out.reshape(DIMS))
+plt.title('Max Duration of D3 Drought (Weeks)')
+plt.colorbar()
+
+plt.imshow(one_out.reshape(DIMS))
+plt.title('Max Duration Without D0 Drought (Weeks)')
+plt.colorbar()

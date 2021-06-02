@@ -4,10 +4,7 @@ source('/mnt/e/PycharmProjects/DroughtCast/crdm/R/PlotTheme.R')
 
 
 plot_confusion <- function(data_dir, lead_time, set, rm=TRUE) {
-  print(data_dir)
-  print(lead_time)
-  print(set)
-  print(rm)
+
   lt_use = lead_time - 1
   
   set_use = dplyr::recode(

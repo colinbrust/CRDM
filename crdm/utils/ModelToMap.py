@@ -12,7 +12,7 @@ import torch
 from tqdm import tqdm
 
 BATCH = 2488
-torch.set_num_threads(5)
+torch.set_num_threads(2)
 
 
 class Mapper(object):
@@ -159,7 +159,6 @@ if __name__ == '__main__':
     models = [x.as_posix() for x in Path(model_dir).glob('model*')]
     model_num = max([int(x.split('_')[-1].replace('.p', '')) for x in models])
     model_name = os.path.join(model_dir, 'model_{}.p'.format(model_num))
-    # model_name = os.path.join(model_dir, 'model.p')
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
     model.load_state_dict(torch.load(os.path.join(model_name),
                                      map_location=torch.device(device)))
@@ -173,7 +172,7 @@ if __name__ == '__main__':
     out_dir = os.path.join(model_dir, 'preds')
 
     if args.holdout:
-        for holdout in list(holdouts.keys()):
+        for holdout in [None] + list(holdouts.keys()):
             mapper = Mapper(model, setup, setup['in_features'], setup['out_classes'], out_dir,
                             shps, args.train, holdout, setup['categorical'])
             mapper.get_preds()

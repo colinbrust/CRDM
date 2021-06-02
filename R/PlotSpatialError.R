@@ -91,17 +91,14 @@ ann_map_all <- function(ann_dir, lead_time) {
 
 states <- sf::st_union(states)
 
-mon_plot <- function(f = './data/plot_data/monthly_holdouts.fst', lead_time=1, 
+mon_plot <- function(dat, lead_time=1, 
                      variable = 'pr') {
   
   lt <- glue::glue('lt_{lead_time}')
   
-  dat <- fst::read_fst(f, columns = c('x', 'y', lt, 'holdout', 'month')) %>%
-    tibble::as_tibble() %>%
-    dplyr::rename(val = !!lt)
-  
-  
   out <- dat %>% 
+    dplyr::rename(val = !!lt) %>%
+    dplyr::select(c('x', 'y', 'holdout', 'month', 'val')) %>%
     # dplyr::filter(holdout %in% c(!!variable, 'None')) %>%
     tidyr::pivot_wider(
       names_from = holdout, 
@@ -110,8 +107,7 @@ mon_plot <- function(f = './data/plot_data/monthly_holdouts.fst', lead_time=1,
     dplyr::mutate(diff = None - !!rlang::sym(variable),
                   month = factor(month.abb[as.numeric(month)], levels = month.abb),
                   diff = ifelse(diff > 0, 0, diff), 
-                  diff = ifelse(abs(diff - median(diff)) > 2*sd(diff), median(diff) - 2*sd(diff), diff)) %>%
-    dplyr::filter(month %in% c('Jan', 'Mar', 'May', 'Jul', 'Sep', 'Nov'))
+                  diff = ifelse(abs(diff - median(diff)) > 2*sd(diff), median(diff) - 2*sd(diff), diff)) 
   
   
   pal <- colorRampPalette(RColorBrewer::brewer.pal(10, 'Spectral'))
@@ -144,7 +140,7 @@ mon_plot <- function(f = './data/plot_data/monthly_holdouts.fst', lead_time=1,
   
   
   ggplot2::ggsave(
-    glue::glue('./data/plot_data/figs/monthly/{variable}_{lead_time}.png'),
+    glue::glue('./data/plot_data/figs/monthly_err/{variable}_{lead_time}.png'),
     fig, 
     width = 8,
     height = 5,
@@ -153,11 +149,20 @@ mon_plot <- function(f = './data/plot_data/monthly_holdouts.fst', lead_time=1,
   
 }
 
-for (v in unique(dat$holdout)[8:13]) {
+dat <- fst::read_fst(f) %>% tibble::as_tibble()
+
+
+library(foreach)
+library(doParallel)
+
+cl <- makeCluster(12)
+registerDoParallel(cl)
+foreach(i = 1:length(unique(dat$holdout))) %dopar% {
   for (l in 1:12) {
+    v = unique(dat$holdout)[i]
     print(v)
     print(l)
-    mon_plot(lead_time = l, variable = v)
+    mon_plot(dat, lead_time = l, variable = v)
   }
 }
 
@@ -166,7 +171,7 @@ mon_plot_v2 <- function(f = './data/plot_data/monthly_holdouts.fst', lead_time=1
   
   lt <- glue::glue('lt_{lead_time}')
   
-  dat <- fst::read_fst(f, columns = c('x', 'y', lt, 'holdout', 'month')) %>%
+  dat <- fst::read_fst(f, columns = c('x', 'y', 'holdout', 'month')) %>%
     tibble::as_tibble() %>%
     dplyr::rename(val = !!lt)
   

@@ -36,18 +36,18 @@ map_to_tidy <- function(stack, day) {
     ) %>% 
     dplyr::mutate(
       day = lubridate::as_date(day),
-      val = dplyr::case_when(
-          val <= 2 ~ round(val),
-          TRUE ~ ceiling(val)
-          ),
-      val = dplyr::recode(
-        val,
-        `0` = 'No Drought',
-        `1` = 'D0',
-        `2` = 'D1',
-        `3` = 'D2',
-        `4` = 'D3',
-        `5` = 'D4'),
+      # val = dplyr::case_when(
+      #     # val <= 2 ~ round(val),
+      #     TRUE ~ round(val)
+      #     ),
+      # val = dplyr::recode(
+      #   val,
+      #   `0` = 'No Drought',
+      #   `1` = 'D0',
+      #   `2` = 'D1',
+      #   `3` = 'D2',
+      #   `4` = 'D3',
+      #   `5` = 'D4'),
       lead_time = stringr::str_replace(lead_time, 'lt_', ''),
       lead_time = as.numeric(lead_time) - 1) 
 }
@@ -87,17 +87,20 @@ get_targets <- function(f_dir, day, states) {
 
 plot_data <- function(data, states) {
   
+  colorRampPalette(c('#ffffff','#FFFF00','#FCD37F','#FFAA00','#E60000','#730000')) -> pal
+  
   ggplot() + 
     geom_raster(data = data, mapping = aes(x=x, y=y, fill=val)) + 
     geom_sf(data = states, mapping = aes(), fill=NA, size = 0.5) +
     facet_grid(rows = dplyr::vars(src), cols = dplyr::vars(label), switch = 'y') + 
     plot_theme() + 
-    scale_fill_manual(values = c('No Drought' = NA,
-                                 'D0' = '#FFFF00',
-                                 'D1' = '#FCD37F',
-                                 'D2' = '#FFAA00',
-                                 'D3' = '#E60000',
-                                 'D4' = '#730000')) +
+    scale_fill_gradientn(na.value='grey26', colors = pal(100), limits = c(0, 5)) + 
+    # scale_fill_manual(values = c('No Drought' = NA,
+    #                              'D0' = '#FFFF00',
+    #                              'D1' = '#FCD37F',
+    #                              'D2' = '#FFAA00',
+    #                              'D3' = '#E60000',
+    #                              'D4' = '#730000')) +
     labs(x='', y='', fill='Drought\nCategory') + 
     scale_y_discrete(guide = guide_axis(check.overlap = TRUE)) + 
     theme(axis.text.x = element_text(angle = 45),
@@ -155,15 +158,11 @@ plot_diff <- function(difference, states) {
           plot.margin= grid::unit(c(0, 0, 0, 0), "in")) 
 }
 
-plot_all <- function(day="20170718", holdout="None", 
-                     pred_dir="./data/models/averaged", 
-                     target_dir='./data/tif_targets', states) {
+plot_all <- function(f, target_dir='./data/tif_targets', states) {
 
-  base <- paste0(day, '_preds_', holdout, '.tif')
-  
-  #   model <- file.path(pred_dir, 'mean', base) %>% 
-  model <- file.path('./data/models/big_test/ensemble_0/preds/20170718_preds_None.tif') %>% 
-    clean_maps(states = states) 
+  day <- strip_date(f)
+    
+  model <- clean_maps(f, states = states) 
   
   targets <- get_targets(target_dir, day, states) 
   
@@ -205,9 +204,12 @@ plot_all <- function(day="20170718", holdout="None",
   
   p1/p2
   
-  p3 <- plot_sd(sd, states) )
-  p4 <- plot_diff(difference, states)
-  
-  (p1)/(p2)/(p3)/(p4)
+  # p3 <- plot_sd(sd, states) 
+  # p4 <- plot_diff(difference, states)
+  # 
+  # (p1)/(p2)/(p3)/(p4)
   
 }
+
+
+# lead time on x axis

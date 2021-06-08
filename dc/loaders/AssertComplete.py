@@ -1,9 +1,9 @@
 from dc.utils.ImportantVars import MONTHLY_VARS, WEEKLY_VARS
 
 
-def assert_complete(dates, features):
+def assert_complete(dates, features, weekly=True):
 
-    VARIABLES = WEEKLY_VARS + MONTHLY_VARS
+    VARIABLES = WEEKLY_VARS if weekly else MONTHLY_VARS
     for v in VARIABLES:
         filt = [x for x in features if v in x]
 

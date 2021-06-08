@@ -28,7 +28,11 @@ var/
 .installed.cfg
 *.egg
 *.DS_Store
+<<<<<<< HEAD
 .Rproj.user/*
 .Rproj.user
 /scratch/
 /docs/
+=======
+.Rproj.user
+>>>>>>> master

@@ -1,5 +1,3 @@
-from . import models
+from . import classification
 from . import loaders
 from . import utils
-from . import training
-

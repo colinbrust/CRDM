@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="CRDM", # Replace with your own username
+    name="DroughtCast",
     version="0.1",
     author="Colin Brust",
     author_email="colin.brust@gmail.com",

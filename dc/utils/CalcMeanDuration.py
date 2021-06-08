@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 from numba import njit
-from crdm.utils.ImportantVars import DIMS, LENGTH
+from dc.utils.ImportantVars import DIMS, LENGTH
 import numpy as np
 from pathlib import Path
 

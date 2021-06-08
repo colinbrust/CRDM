@@ -1,10 +1,10 @@
 import argparse
 import os
 import numpy as np
-from crdm.models.SeqTest import Seq2Seq as seqFc
-from crdm.models.SeqVanilla import Seq2Seq as vanilla
-from crdm.loaders.AggregatePixels import PremakeTrainingPixels
-from crdm.utils.ImportantVars import DIMS, LENGTH, holdouts
+from dc.models.Seq2Seq import Seq2Seq as seqFc
+from dc.models.SeqVanilla import Seq2Seq as vanilla
+from dc.loaders.AggregatePixels import PremakeTrainingPixels
+from dc.utils.ImportantVars import DIMS, LENGTH, holdouts
 import pickle
 from pathlib import Path
 import rasterio as rio

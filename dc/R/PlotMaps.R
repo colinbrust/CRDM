@@ -36,23 +36,23 @@ map_to_tidy <- function(stack, day) {
     ) %>% 
     dplyr::mutate(
       day = lubridate::as_date(day),
-      # val = dplyr::case_when(
-      #     # val <= 2 ~ round(val),
-      #     TRUE ~ round(val)
-      #     ),
-      # val = dplyr::recode(
-      #   val,
-      #   `0` = 'No Drought',
-      #   `1` = 'D0',
-      #   `2` = 'D1',
-      #   `3` = 'D2',
-      #   `4` = 'D3',
-      #   `5` = 'D4'),
+      val = dplyr::case_when(
+          val <= 3 ~ round(val),
+          TRUE ~ ceiling(val)
+          ),
+      val = dplyr::recode(
+        val,
+        `0` = 'No Drought',
+        `1` = 'D0',
+        `2` = 'D1',
+        `3` = 'D2',
+        `4` = 'D3',
+        `5` = 'D4'),
       lead_time = stringr::str_replace(lead_time, 'lt_', ''),
       lead_time = as.numeric(lead_time) - 1) 
 }
 
-label_model <- function(data, txt=' Drought ') {
+label_model <- function(data, txt=' Forecast ') {
   
   lab <- txt
   
@@ -94,13 +94,13 @@ plot_data <- function(data, states) {
     geom_sf(data = states, mapping = aes(), fill=NA, size = 0.5) +
     facet_grid(rows = dplyr::vars(src), cols = dplyr::vars(label), switch = 'y') + 
     plot_theme() + 
-    scale_fill_gradientn(na.value='grey26', colors = pal(100), limits = c(0, 5)) + 
-    # scale_fill_manual(values = c('No Drought' = NA,
-    #                              'D0' = '#FFFF00',
-    #                              'D1' = '#FCD37F',
-    #                              'D2' = '#FFAA00',
-    #                              'D3' = '#E60000',
-    #                              'D4' = '#730000')) +
+    # scale_fill_gradientn(na.value='grey26', colors = pal(100), limits = c(0, 5)) + 
+    scale_fill_manual(values = c('No Drought' = NA,
+                                 'D0' = '#FFFF00',
+                                 'D1' = '#FCD37F',
+                                 'D2' = '#FFAA00',
+                                 'D3' = '#E60000',
+                                 'D4' = '#730000')) +
     labs(x='', y='', fill='Drought\nCategory') + 
     scale_y_discrete(guide = guide_axis(check.overlap = TRUE)) + 
     theme(axis.text.x = element_text(angle = 45),
@@ -112,6 +112,7 @@ get_sd <- function(f, day, states) {
   
   f %>% 
     clean_maps(states = states) %>%
+    raster::mask(states) %>% 
     raster::rasterToPoints() %>%
     tibble::as_tibble() %>%
     `names<-`(c('x', 'y', 'lt_2', 'lt_4', 'lt_8', 'lt_12')) %>%
@@ -166,22 +167,6 @@ plot_all <- function(f, target_dir='./data/tif_targets', states) {
   
   targets <- get_targets(target_dir, day, states) 
   
-  # difference <- (targets - model) %>%
-  #   raster::rasterToPoints() %>%
-  #   tibble::as_tibble() %>%
-  #   `names<-`(c('x', 'y', 'lt_2', 'lt_4', 'lt_8', 'lt_12')) %>%
-  #   tidyr::pivot_longer(
-  #     dplyr::starts_with('lt'),
-  #     names_to = 'lead_time',
-  #     values_to = 'val'
-  #   ) %>%
-  #   dplyr::mutate(
-  #     lead_time = as.numeric(stringr::str_replace(lead_time, 'lt_', '')) - 1,
-  #     src = 'Difference',
-  #     day = lubridate::as_date(day)
-  #   ) %>% 
-  #   label_model(txt = ' Difference ')
-  # 
   # sd <- file.path(pred_dir, 'sd', base) %>%
   #   get_sd(day, states) %>%
   #   label_model(txt = ' Std. Dev. ') %>%
@@ -197,7 +182,7 @@ plot_all <- function(f, target_dir='./data/tif_targets', states) {
   
   p2 <- model %>%
     map_to_tidy(day = day) %>%
-    label_model(txt = ' Drought ') %>%
+    label_model(txt = ' Forecast ') %>%
     dplyr::mutate(src = 'Model') %>%
     dplyr::filter(val != 'No Drought') %>%
     plot_data(states = states)
@@ -211,5 +196,54 @@ plot_all <- function(f, target_dir='./data/tif_targets', states) {
   
 }
 
+plot_flash <- function(f, target_dir='./data/tif_targets', states) {
+  
+  flash_states <- states %>%
+    dplyr::filter(state_abbv %in% c('MT', 'WY', 'SD', 'ND'))
+  
+  day <- strip_date(f)
+  
+  model <- clean_maps(f, states = flash_states) 
+  
+  max <- file.path(dirname(dirname(f)), 'max') %>%
+    list.files(pattern = day, full.names = T) %>%
+    clean_maps(states = flash_states)
+  
+  targets <- get_targets(target_dir, day, flash_states) 
+  
+  sd <- file.path(dirname(dirname(f)), 'sd') %>%
+    list.files(pattern = day, full.names = T) %>%
+    get_sd(day, flash_states) %>%
+    label_model(txt = ' Std. Dev. ') %>%
+    dplyr::mutate(src = 'Std. Dev.')
+  
+  p1 <- targets %>%
+    map_to_tidy(day = day) %>%
+    label_targets() %>%
+    dplyr::mutate(src = 'Target') %>%
+    dplyr::filter(val != 'No Drought') %>%
+    plot_data(states = flash_states) 
+  
+  
+  p2 <- model %>%
+    map_to_tidy(day = day) %>%
+    label_model(txt = ' Forecast ') %>%
+    dplyr::mutate(src = 'Model') %>%
+    dplyr::filter(val != 'No Drought') %>%
+    plot_data(states = flash_states)
+  
+  p3 <- plot_sd(sd, flash_states) 
+  
+  p4 <- max %>%
+    map_to_tidy(day = day) %>%
+    label_model(txt = ' Ensemble Max ') %>%
+    dplyr::mutate(src = 'Ens. Max') %>%
+    dplyr::filter(val != 'No Drought') %>%
+    plot_data(states = flash_states)
+  
+  p1/p2/p4/p3
+  
+  
+}
 
 # lead time on x axis

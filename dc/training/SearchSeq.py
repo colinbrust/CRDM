@@ -1,28 +1,28 @@
 import argparse
-from crdm.models.SeqTest import Seq2Seq
-from crdm.training.TrainModel import train_model
-from crdm.loaders.LSTMLoader import LSTMLoader
-from crdm.utils.ModelToMap import Mapper
-from crdm.utils.ImportantVars import ConvergenceError
+from dc.models.Seq2Seq import Seq2Seq
+from dc.loaders.LSTMLoader import LSTMLoader
+from dc.training.TrainModel import train_model
+from dc.utils.ModelToMap import Mapper
+from dc.utils.ImportantVars import ConvergenceError
 import os
 import torch
 from torch import nn
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader
 import pickle
+import pprint
 
 
 def train_lstm(setup):
 
-    with open(os.path.join(setup['dirname'], 'shps.p'), 'rb') as f:
-        shps = pickle.load(f)
+    shps = setup['shps']
 
     # Make train and test set data loaders and add them to model setup
     train_loader = LSTMLoader(dirname=setup['dirname'], train=True, categorical=setup['categorical'],
-                              n_weeks=setup['n_weeks'], sample=None, even_sample=True)
+                              n_weeks=setup['n_weeks'], sample=150000, even_sample=setup['even_sample'])
 
     test_loader = LSTMLoader(dirname=setup['dirname'], train=False, categorical=setup['categorical'],
-                             n_weeks=setup['n_weeks'], sample=None, even_sample=False)
+                             n_weeks=setup['n_weeks'], sample=150000, even_sample=False)
 
     setup['train'] = DataLoader(dataset=train_loader, batch_size=setup['batch_size'], shuffle=True, drop_last=True)
     setup['test'] = DataLoader(dataset=test_loader, batch_size=setup['batch_size'], shuffle=True, drop_last=True)
@@ -52,47 +52,57 @@ if __name__ == '__main__':
     parser.add_argument('-dn', '--dirname', type=str, default=None,
                         help='Directory with training data to use. If left blank, training data will be created.')
 
+    parser.add_argument('--es', dest='even_sample', action='store_true', help='Sample training data classes evenly.')
+    parser.add_argument('--no-es', dest='even_sample', action='store_false', help='Sample training data normally')
     args = parser.parse_args()
 
-    # These are the best performing hyperparameters.
+    with open(os.path.join(args.dirname, 'shps.p'), 'rb') as f:
+        shps = pickle.load(f)
+
     setup = {
         'in_features': args.in_features,
         'out_classes': args.out_classes,
         'epochs': args.epochs,
-        'batch_size': 128,
-        'hidden_size': 128,
         'n_weeks': 30,
         'mx_lead': 12,
         'size': 1024,
         'lead_time': None,
-        'early_stop': 20,
+        'early_stop': 10,
         'categorical': False,
         'pix_mask': '/mnt/e/PycharmProjects/DroughtCast/data/pix_mask.dat',
         'model_type': 'vanilla',
-        'dirname': args.dirname
+        'dirname': args.dirname,
+        'even_sample': args.even_sample,
+        'shps': shps
+
     }
-    
-    with open(os.path.join(setup['dirname'], 'shps.p'), 'rb') as f:
-        shps = pickle.load(f)
-    
-    for ensemble in range(5):
-    
-        i = 0
 
-        while os.path.exists('ensemble_{}'.format(i)):
-            i += 1
+    for hidden in [128, 256, 512]:
 
-        out_dir = 'ensemble_{}'.format(i)
-        os.mkdir(out_dir)
-        setup['out_dir'] = out_dir
+        for batch in [128, 256, 512]:
+            i = 0
+            while os.path.exists('model_{}'.format(i)):
+                i += 1
 
-        flag = True
-        while flag:
-            try:
-                model = train_lstm(setup)
-                flag = False
-            except ConvergenceError as e:
-                print(e)
+            out_dir = 'model_{}'.format(i)
+            os.mkdir(out_dir)
+            setup['out_dir'] = out_dir
 
-        mpr = Mapper(model, setup, args.in_features, args.out_classes, out_dir, shps, True, None, setup['categorical'])
-        mpr.get_preds()
+            setup['index'] = i
+            setup['batch_size'] = batch
+            setup['hidden_size'] = hidden
+
+            with open(os.path.join(setup['out_dir'], 'metadata.p'), 'wb') as f:
+                pickle.dump(setup, f)
+
+            pprint.pprint(setup)
+            flag = True
+            while flag:
+                try:
+                    model = train_lstm(setup)
+                    flag = False
+                except ConvergenceError as e:
+                    print(e)
+
+            mpr = Mapper(model, setup, args.in_features, args.out_classes, out_dir, shps, True, None, setup['categorical'])
+            mpr.get_preds()

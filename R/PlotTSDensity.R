@@ -56,12 +56,12 @@ plot_ts_density <- function(f = './data/plot_data/bin_counts.csv') {
       mapping = aes(x=day, y=pct, fill=category), 
       stat='identity',
       width = 7.5) +
-    # geom_rect(
-    #   data = dateRanges,
-    #   mapping = aes(xmin = from, xmax = to, ymin = 0, ymax = 1),
-    #   alpha = 0.4,
-    #   show.legend = T
-    # ) +
+    geom_rect(
+      data = dateRanges,
+      mapping = aes(xmin = from, xmax = to, ymin = 0, ymax = 1),
+      alpha = 0.4,
+      show.legend = T
+    ) +
     scale_fill_manual(values = c('No Drought' = NA,
                                  'D0' = '#FFFF00',
                                  'D1' = '#FCD37F',
@@ -75,8 +75,8 @@ plot_ts_density <- function(f = './data/plot_data/bin_counts.csv') {
     scale_y_continuous(labels = scales::percent_format()) +
     scale_color_manual()
     # scale_fill_manual(
-    #   'Holdout Data', 
-    #   values = 'grey', 
+    #   'Holdout Data',
+    #   values = 'grey',
     #   guide = guide_legend(override.aes = list(alpha = 1)))
     
 }

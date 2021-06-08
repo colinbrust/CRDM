@@ -1,4 +1,4 @@
-from crdm.utils.ImportantVars import MONTHLY_VARS, WEEKLY_VARS
+from dc.utils.ImportantVars import MONTHLY_VARS, WEEKLY_VARS
 
 
 def assert_complete(dates, features):

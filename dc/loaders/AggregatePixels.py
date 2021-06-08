@@ -1,6 +1,6 @@
 import numpy as np
-from crdm.loaders.Aggregate import Aggregate
-from crdm.utils.ImportantVars import WEEKLY_VARS, MONTHLY_VARS, LENGTH
+from dc.loaders.Aggregate import Aggregate
+from dc.utils.ImportantVars import WEEKLY_VARS, MONTHLY_VARS, LENGTH
 from typing import List
 
 
@@ -9,7 +9,7 @@ from typing import List
 # Have a dense layer after the end of the LSTM that incorporates the constant information that doesn't change with time
 class PremakeTrainingPixels(Aggregate):
 
-    def make_pixel_stack(self, indices):
+    def make_pixel_stack(self, indices) -> np.array:
         out = []
 
         vs = WEEKLY_VARS + MONTHLY_VARS

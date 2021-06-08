@@ -1,8 +1,8 @@
 import pandas as pd
-from crdm.loaders.AggregatePixels import PremakeTrainingPixels
-from crdm.utils.MakeModelDir import make_model_dir
-from crdm.utils.ImportantVars import DIMS, LENGTH
-from crdm.utils.Stack import Stack
+from dc.loaders.AggregatePixels import PremakeTrainingPixels
+from dc.utils.MakeModelDir import make_model_dir
+from dc.utils.ImportantVars import DIMS, LENGTH
+from dc.utils.Stack import Stack
 import os
 import numpy as np
 from pathlib import Path

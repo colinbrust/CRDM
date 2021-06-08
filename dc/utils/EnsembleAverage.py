@@ -1,4 +1,4 @@
-from crdm.utils.ImportantVars import DIMS
+from dc.utils.ImportantVars import DIMS
 import numpy as np
 import os
 from pathlib import Path
@@ -7,6 +7,10 @@ from scipy.stats import mode
 
 
 def save_arrays(out_dir, data, name, dtype):
+
+    if not os.path.exists(out_dir):
+        print('{} does not exist. Creating directory.'.format(out_dir))
+        os.mkdir(out_dir)
 
     out_dst = rio.open(
         os.path.join(out_dir, name),
@@ -38,11 +42,11 @@ def average_estimates(pth, out_dir, holdout='None'):
             arr.append(preds)
             raster.close()
 
-        # save_arrays(os.path.join(out_dir, 'mean'), np.mean(arr, axis=0), day, 'float32')
-        # save_arrays(os.path.join(out_dir, 'min'), np.min(arr, axis=0), day, 'float32')
-        # save_arrays(os.path.join(out_dir, 'max'), np.max(arr, axis=0), day, 'float32')
-        # save_arrays(os.path.join(out_dir, 'sd'), np.std(arr, axis=0), day, 'float32')
-        save_arrays(os.path.join(out_dir, 'median'), np.median(np.round(arr), axis=0), day, 'float32')
+        save_arrays(os.path.join(out_dir, 'mean'), np.mean(arr, axis=0), day, 'float32')
+        save_arrays(os.path.join(out_dir, 'min'), np.min(arr, axis=0), day, 'float32')
+        save_arrays(os.path.join(out_dir, 'max'), np.max(arr, axis=0), day, 'float32')
+        save_arrays(os.path.join(out_dir, 'sd'), np.std(arr, axis=0), day, 'float32')
+        save_arrays(os.path.join(out_dir, 'median'), np.median(arr, axis=0), day, 'float32')
 
 
 

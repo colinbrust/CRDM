@@ -1,5 +1,5 @@
 from abc import ABC
-from crdm.loaders.AssertComplete import assert_complete
+from dc.loaders.AssertComplete import assert_complete
 import datetime as dt
 import dateutil.relativedelta as rd
 import os
@@ -14,10 +14,10 @@ class Aggregate(ABC):
     """
     def __init__(self, targets: List[str], in_features: str, n_weeks: int = 25, sample_size: int = 2048) -> None:
         """
-        :param target: Path to target flash drought image :param in_features: Path to directory containing 'monthly',
-        'constant' and 'annual' subdirectories each containing features :param lead_time: How many months in advance
-        we should make the drought prediction. :param n_months: How many months we should use as context to make the
-        prediction. :param kwargs: If using the 'AggregatePixels' class, you must include 'size' as an arg. 'size' is
+        :param targets: List of paths to memmap formatted drought images.
+        :param in_features: Path to directory containing all model inputs features.
+        :param n_weeks: How many weeks in advance we should make the drought prediction.
+        :param kwargs: If using the 'AggregatePixels' class, you must include 'size' as an arg. 'size' is
         the number of samples to include for train/test. Notice both train and test size will be 1/2 of the size
         specified by 'size'.
         """

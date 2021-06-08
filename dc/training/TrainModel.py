@@ -1,4 +1,4 @@
-from crdm.utils.ImportantVars import ConvergenceError
+from dc.utils.ImportantVars import ConvergenceError
 import os
 import pickle
 import torch

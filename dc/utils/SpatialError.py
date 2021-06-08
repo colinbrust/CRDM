@@ -1,4 +1,4 @@
-from crdm.utils.ImportantVars import DIMS
+from dc.utils.ImportantVars import DIMS
 import datetime as dt
 from dateutil import relativedelta as rd
 import numpy as np

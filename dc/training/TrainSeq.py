@@ -1,21 +1,17 @@
 import argparse
-from crdm.models.SeqTest import Seq2Seq
-from crdm.models.SeqLuong import Seq2Seq as luong
-from crdm.models.SeqVanilla import Seq2Seq as vanilla
-from crdm.training.MakeTrainingData import make_training_data
-from crdm.training.TrainModel import train_model
-from crdm.loaders.LSTMLoader import LSTMLoader
-import numpy as np
+from dc.models.Seq2Seq import Seq2Seq
+from dc.training.MakeTrainingData import make_training_data
+from dc.training.TrainModel import train_model
+from dc.loaders.LSTMLoader import LSTMLoader
 import os
 import torch
 from torch import nn
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader
 import pickle
-from sklearn.utils.class_weight import compute_class_weight
 
 
-def train_lstm(setup):
+def train_seq(setup):
 
     with open(os.path.join(setup['dirname'], 'shps.p'), 'rb') as f:
         shps = pickle.load(f)
@@ -26,40 +22,21 @@ def train_lstm(setup):
     setup['train'] = DataLoader(dataset=train_loader, batch_size=setup['batch_size'], shuffle=True, drop_last=True)
     setup['test'] = DataLoader(dataset=test_loader, batch_size=setup['batch_size'], shuffle=True, drop_last=True)
 
-    if setup['model'] == 'luong':
-        print('Using Luong attention.')
-        setup['batch_first'] = False
-        model = luong(shps['train_x.dat'][1], setup['hidden_size'], setup['mx_lead'], False, setup['batch_size'])
-    elif setup['model'] == 'vanilla':
-        print('Using vanilla model.')
-        setup['batch_first'] = True
-        model = vanilla(1, shps['train_x.dat'][1], setup['hidden_size'], setup['mx_lead'], setup['categorical'])
-    else:
-        print('Using simple attention.')
-        setup['batch_first'] = True
-        model = Seq2Seq(1, shps['train_x.dat'][1], shps['train_x.dat'][-1],
-                        setup['hidden_size'], setup['mx_lead'], categorical=setup['categorical'])
+    setup['batch_first'] = True
+    model = Seq2Seq(1, shps['train_x.dat'][1], setup['n_weeks'], setup['hidden_size'], setup['mx_lead'])
 
-    if setup['categorical']:
-        y = np.memmap(os.path.join(setup['dirname'], 'train_y.dat'), dtype='float32')
-        y = y*5
-        y = y.astype(np.int8)
-        class_weights = compute_class_weight('balanced', np.unique(y), y)
-        print('Class Weights: {}'.format(class_weights))
-        weights = torch.Tensor(class_weights).type(
-            torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor)
-
-    criterion = nn.CrossEntropyLoss(weight=weights) if setup['categorical'] else nn.MSELoss()
+    criterion = nn.MSELoss()
     lr = 0.002
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, amsgrad=True)
-    scheduler = StepLR(optimizer, step_size=5, gamma=0.5, verbose=True)
+    scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=3, threshold=0.00001,  verbose=True)
 
     setup['model'] = model
     setup['criterion'] = criterion
     setup['optimizer'] = optimizer
     setup['scheduler'] = scheduler
 
-    train_model(setup)
+    model = train_model(setup)
+    return model
 
 
 if __name__ == '__main__':
@@ -80,9 +57,6 @@ if __name__ == '__main__':
     parser.add_argument('-dn', '--dirname', type=str, default=None,
                         help='Directory with training data to use. If left blank, training data will be created.')
 
-    parser.add_argument('--cat', dest='categorical', action='store_true', help='Treat targets as categorical')
-    parser.add_argument('--no-cat', dest='categorical', action='store_false',
-                        help="Treat targets as continuous")
     parser.set_defaults(search=False)
 
     args = parser.parse_args()
@@ -119,5 +93,6 @@ if __name__ == '__main__':
 
     with open(os.path.join(setup['dirname'], 'metadata_{}_{}.p'.format(setup['index'], setup['model_type'])), 'wb') as f:
         pickle.dump(setup, f)
-    train_lstm(setup)
+
+    train_seq(setup)
 

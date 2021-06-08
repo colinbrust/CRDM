@@ -2,12 +2,8 @@ library(ggplot2)
 library(magrittr)
 source('./crdm/R/PlotTheme.R')
 
-new_crs = '+proj=aea +lat_1=20 +lat_2=60 +lat_0=40 +lon_0=-96 +x_0=0 +y_0=0 +datum=NAD83 +units=m +no_defs'
-
-
 states <- urbnmapr::get_urbn_map(sf = TRUE) %>%
-  dplyr::filter(state_abbv %in% c('MT', 'ND', 'SD', 'WY')) %>%
-  sf::st_transform(crs = new_crs)
+  dplyr::filter(state_abbv %in% c('MT', 'ND', 'SD', 'WY'))
 
 strip_date <- function(f) {
   

@@ -4,14 +4,14 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="CRDM", # Replace with your own username
+    name="DroughtCast",
     version="0.1",
     author="Colin Brust",
     author_email="colin.brust@gmail.com",
-    description="Predicts U.S. Drought Monitor using SMAP soil moisture and Gridmet Meteorology.",
+    description="Machine Learning Forecast of the USDM",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/colinbrust/CRDM",
+    url="https://github.com/colinbrust/DroughtCAst",
     packages=setuptools.find_packages(),
     # classifiers=[
     #     "Programming Language :: Python :: 3",

@@ -77,9 +77,8 @@ if __name__ == '__main__':
 
     }
 
-    for hidden in [128, 256, 512]:
-
-        for batch in [128, 256, 512]:
+    for hidden in [128, 256, 512, 1024]:
+        for batch in [128, 256, 512, 1024]:
             i = 0
             while os.path.exists('model_{}'.format(i)):
                 i += 1
@@ -96,6 +95,8 @@ if __name__ == '__main__':
                 pickle.dump(setup, f)
 
             pprint.pprint(setup)
+
+            # If model doesn't start to converge after one epoch, restart and train model again.
             flag = True
             while flag:
                 try:

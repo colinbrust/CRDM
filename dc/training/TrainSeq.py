@@ -6,7 +6,7 @@ from dc.loaders.LSTMLoader import LSTMLoader
 import os
 import torch
 from torch import nn
-from torch.optim.lr_scheduler import StepLR
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader
 import pickle
 

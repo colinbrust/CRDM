@@ -1,24 +1,38 @@
 import argparse
 import os
 import numpy as np
-from dc.models.Seq2Seq import Seq2Seq as seqFc
-from dc.models.SeqVanilla import Seq2Seq as vanilla
+from dc.models.Seq2Seq import Seq2Seq
 from dc.loaders.AggregatePixels import PremakeTrainingPixels
 from dc.utils.ImportantVars import DIMS, LENGTH, holdouts
 import pickle
 from pathlib import Path
 import rasterio as rio
 import torch
+from torch import nn
 from tqdm import tqdm
+from typing import List, Dict
 
+# LENGTH should be divisible by BATCH
 BATCH = 2488
+# This number can be set to as many threads as are available on your machine.
 torch.set_num_threads(2)
 
 
 class Mapper(object):
 
-    def __init__(self, model, metadata, features, classes, out_dir, shps, test=True, holdout=None, categorical=False):
-        print(holdout)
+    def __init__(self, model: nn.Module, metadata: Dict, features: str, classes: str, out_dir: str, shps: Dict[int],
+                 test: bool = True, holdout: str = None):
+        """
+        :param model: Pretrained PyTorch model.
+        :param metadata: Dict containing metadata used to train model
+        :param features: Path to directory containing input features
+        :param classes: Path to directory containing target classes
+        :param out_dir: Path to directory that images will be saved in
+        :param shps: Dictionary containing the array dimensions of train/test datasets
+        :param test: Whether or not to create images for the test set
+        :param holdout: Variable to holdout when create images. Defaults to None.
+        """
+
         self.model = model
         self.features = features
         self.classes = classes
@@ -28,27 +42,29 @@ class Mapper(object):
         self.shps = shps
         self.dtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
         self.holdout = holdout
-        self.categorical = categorical
 
         if not os.path.exists(out_dir):
             print('{} does not exist. Creating directory.'.format(out_dir))
             os.makedirs(out_dir)
 
+        # Get list of target images
         targets = sorted([str(x) for x in Path(classes).glob('*.dat')])
         targets = [targets[i:i + metadata['mx_lead']] for i in range(len(targets))]
         targets = list(filter(lambda x: len(x) == metadata['mx_lead'], targets))
-        targets = [x for x in targets if ('/201706' in x[0] or '/201707' in x[0] or '/200705' in x[0] or '/201405' in x[0])] if test else targets
+        targets = [x for x in targets if ('/201706' in x[0] or '/201707' in x[0] or '/200705' in x[0] or '/201405' in x[
+            0])] if test else targets
 
         self.targets = targets
-        self.indices = list(range(0, LENGTH+1, BATCH))
+        self.indices = list(range(0, LENGTH + 1, BATCH))
 
     def get_preds(self):
 
         fill_shp = (BATCH, self.shps['train_x.dat'][-1])
 
         for target in tqdm(self.targets):
-            
-            name = os.path.join(self.out_dir, os.path.basename(target[0]).replace('USDM.dat',  'preds_{}.tif'.format(self.holdout)))
+
+            name = os.path.join(self.out_dir,
+                                os.path.basename(target[0]).replace('USDM.dat', 'preds_{}.tif'.format(self.holdout)))
             if os.path.exists(name):
                 print('{} exists, skipping this image.'.format(name))
                 continue
@@ -57,40 +73,44 @@ class Mapper(object):
 
             x_out = []
             try:
+
+                # Create array of input features
                 agg = PremakeTrainingPixels(in_features=self.features, targets=target,
                                             n_weeks=self.metadata['n_weeks'])
 
                 x_full, _ = agg.premake_features(list(range(self.indices[0], self.indices[-1])))
 
+            # Throw error if not all input features are available.
             except AssertionError as e:
                 print(e)
                 continue
-            for i in range(len(self.indices)-1):
 
-                idx = list(range(self.indices[i], self.indices[i+1]))
+            # Iterate over batches to create image.
+            for i in range(len(self.indices) - 1):
 
+                idx = list(range(self.indices[i], self.indices[i + 1]))
                 x = x_full[:, :, idx]
 
                 # Batch, Seq, Feature
                 x = x.swapaxes(0, 2)
+
                 # Replace variable with a random value if specified in init.
                 if self.holdout is not None:
                     x[:, :, holdouts[self.holdout]] = np.random.uniform(-1, 1, fill_shp)
                 x = self.dtype(x)
 
+                # Run model and get outputs
                 outputs = self.model(x)
-
                 outputs = outputs.detach().cpu().numpy()
-                outputs = np.argmax(outputs, 1) if self.categorical else outputs
-
                 x_out.append(outputs)
 
+            # Stack and rescale
             x = np.concatenate(x_out, axis=0)
             x = x.swapaxes(0, 1).reshape(self.metadata['mx_lead'], *DIMS)
-            x = x if self.categorical else x * 5
+            x = x * 5
             self.save_arrays(x, target)
 
-    def save_arrays(self, data, target):
+    def save_arrays(self, data: np.array, target: List[str]):
 
         suffix = 'preds_{}.tif'.format(self.holdout)
         dt = 'float32'
@@ -131,7 +151,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     shps = pickle.load(open(os.path.join(args.model_dir, 'shps.p'), 'rb'))
+
     if args.opt:
+
+        # Optimized hyperparameters
         setup = {
             'in_features': args.features,
             'out_classes': args.targets,
@@ -140,21 +163,15 @@ if __name__ == '__main__':
             'n_weeks': 30,
             'mx_lead': 12,
             'size': 1024,
-            'categorical': False,
             'model_type': 'test'
         }
     else:
         setup = pickle.load(open(os.path.join(args.model_dir, 'metadata_{}.p'.format(args.num)), 'rb'))
 
-    if setup['model_type'] == 'vanilla':
-        print('Using vanilla model.')
-        setup['batch_first'] = True
-        model = vanilla(1, shps['train_x.dat'][1], setup['hidden_size'], setup['mx_lead'], setup['categorical'])
-    else:
-        print('Using simple attention.')
-        setup['batch_first'] = True
-        model = seqFc(1, shps['train_x.dat'][1], setup['n_weeks'], setup['hidden_size'], setup['mx_lead'], setup['categorical'])
+    setup['batch_first'] = True
+    model = Seq2Seq(1, shps['train_x.dat'][1], setup['n_weeks'], setup['hidden_size'], setup['mx_lead'])
 
+    # Find the highest number model that was saved out (model with the smallest loss) and use it for evaluation.
     model_dir = args.model_dir
     models = [x.as_posix() for x in Path(model_dir).glob('model*')]
     model_num = max([int(x.split('_')[-1].replace('.p', '')) for x in models])
@@ -172,11 +189,13 @@ if __name__ == '__main__':
     out_dir = os.path.join(model_dir, 'preds')
 
     if args.holdout:
+        # Hold out every important input used to train model.
         for holdout in [None] + list(holdouts.keys()):
             mapper = Mapper(model, setup, setup['in_features'], setup['out_classes'], out_dir,
-                            shps, args.train, holdout, setup['categorical'])
+                            shps, args.train, holdout)
             mapper.get_preds()
     else:
+        # Only run vanilla model.
         mapper = Mapper(model, setup, setup['in_features'], setup['out_classes'], out_dir,
-                        shps, args.train, None, setup['categorical'])
+                        shps, args.train, None)
         mapper.get_preds()

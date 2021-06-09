@@ -10,12 +10,19 @@ import pickle
 import verde as vd
 
 
-def make_training_data(in_features, out_classes, **kwargs):
+def make_training_data(in_features: str, out_classes: str, **kwargs):
 
+    """
+    :param in_features: Path to directory containing input features.
+    :param out_classes: Path to directory containing output classes.
+    :param kwargs: Additional metadata to include in the making of the training data.
+    :return: Path of directory that is created with new training data in it.
+    """
     assert 'n_weeks' in kwargs
     assert 'mx_lead' in kwargs
     assert 'size' in kwargs
 
+    # Get a list of USDM target images
     targets = sorted([str(x) for x in Path(out_classes).glob('*.dat')])
     targets = [targets[i:i+kwargs['mx_lead']] for i in range(len(targets))]
     targets = list(filter(lambda x: len(x) == kwargs['mx_lead'], targets))
@@ -26,20 +33,19 @@ def make_training_data(in_features, out_classes, **kwargs):
         for x in range(DIMS[1]):
             df.append({'x': x, 'y': y, 'val': 0})
 
+    # This function from the verde package spatially splits training and test data.
     df = pd.DataFrame(df)
     train_locs, test_locs = vd.train_test_split(coordinates=(df.y, df.x), data=df.val, spacing=9, test_size=0.25)
     train, test = train_locs[0], test_locs[0]
 
+    # Reformat train/test data so that we get a list of train/test indices.
     chk = np.zeros(DIMS)
-
     for i, _ in enumerate(train[0]):
         chk[train[0][i], train[1][i]] = 1
-
     train_locs = list(np.where(chk.ravel() == 1)[0])
     test_locs = list(np.where(chk.ravel() == 0)[0])
 
     dirname = make_model_dir()
-    print(dirname)
 
     locs = {'train': train_locs,
             'test': test_locs}
@@ -55,8 +61,9 @@ def make_training_data(in_features, out_classes, **kwargs):
     for target in targets:
         try:
             print(target[0])
+
+            # Use a stack to make sure we don't have overlapping timeseries of pixels.
             tmp = PremakeTrainingPixels(target, in_features, kwargs['n_weeks'], kwargs['size'])
-            # indices = tmp.sample_evenly()
             indices = stk.sample()
             stk.push(indices)
             tmp_w, tmp_t = tmp.premake_features(indices=list(set(indices).intersection(set(train_locs))))
@@ -70,6 +77,7 @@ def make_training_data(in_features, out_classes, **kwargs):
         except AssertionError as e:
             print(e)
 
+    # Concatenate all sampled data.
     train_x, train_y = np.concatenate(train_x, axis=-1), np.concatenate(train_y, axis=-1)
     test_x, test_y = np.concatenate(test_x, axis=-1), np.concatenate(test_y, axis=-1)
 
@@ -84,6 +92,7 @@ def make_training_data(in_features, out_classes, **kwargs):
             'test_x.dat': test_x.shape,
             'test_y.dat': test_y.shape}
 
+    # Save out training data and associated metadata.
     with open(os.path.join(dirname, 'shps.p'), 'wb') as f:
         pickle.dump(shps, f)
 

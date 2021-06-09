@@ -2,12 +2,14 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 
-# credit to https://discuss.pytorch.org/t/seq2seq-model-with-attention-for-time-series-forecasting/80463/10
+# Some methods borrowed from
+# https://discuss.pytorch.org/t/seq2seq-model-with-attention-for-time-series-forecasting/80463/10
 
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
-
+# Encoder that 
 class RNNEncoder(nn.Module):
+    
     def __init__(self, num_layers=1, input_size=1, hidden_size=100, bidirectional=False):
         super().__init__()
         self.hidden_size = hidden_size
@@ -35,7 +37,8 @@ class RNNEncoder(nn.Module):
         return gru_out, hidden.squeeze(0)
 
 
-class AttentionDecoderCell(nn.Module):
+class DecoderCell(nn.Module):
+
     def __init__(self, input_size, hidden_size):
         super().__init__()
 
@@ -57,6 +60,7 @@ class Seq2Seq(nn.Module):
     def __init__(self, num_layers=1, input_size=1, n_weeks=168, hidden_size=100, lead_time=12):
         super().__init__()
 
+        # Add some linear layers before data are passed into encoder/decoder framework
         enc_linear = []
         sz = input_size
         while sz < hidden_size:
@@ -69,9 +73,10 @@ class Seq2Seq(nn.Module):
         self.enc_linear = nn.Sequential(*enc_linear)
 
         self.encoder = RNNEncoder(num_layers, input_size=hidden_size, hidden_size=hidden_size)
-        self.decoder_cell = AttentionDecoderCell(input_size=hidden_size, hidden_size=hidden_size)
+        self.decoder_cell = DecoderCell(input_size=hidden_size, hidden_size=hidden_size)
         self.lead_time = lead_time
 
+        # Add some linear layers before making the prediction.
         classifier = []
         sz = hidden_size
         while sz > 32:

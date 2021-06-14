@@ -73,8 +73,8 @@ if __name__ == '__main__':
         'model_type': 'vanilla',
         'dirname': args.dirname,
         'even_sample': args.even_sample,
-        'shps': shps
-
+        'shps': shps,
+        'iter_print': 100
     }
 
     for hidden in [128, 256, 512, 1024]:

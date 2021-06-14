@@ -75,7 +75,8 @@ if __name__ == '__main__':
         'categorical': args.categorical,
         'model_type': 'seq',
         'pix_mask': '/mnt/e/PycharmProjects/DroughtCast/data/pix_mask.dat',
-        'model': 'vanilla'
+        'model': 'vanilla',
+        'iter_print': 100
     }
 
     if args.dirname is None:

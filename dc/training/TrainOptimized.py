@@ -31,7 +31,8 @@ if __name__ == '__main__':
         'categorical': False,
         'pix_mask': '/mnt/e/PycharmProjects/DroughtCast/data/pix_mask.dat',
         'model_type': 'vanilla',
-        'dirname': args.dirname
+        'dirname': args.dirname,
+        'iter_print': 100
     }
     
     with open(os.path.join(setup['dirname'], 'shps.p'), 'rb') as f:

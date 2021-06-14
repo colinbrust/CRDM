@@ -44,7 +44,7 @@ def train_model(setup):
             optimizer.step()
             # scheduler.step()
             # lrs.append(scheduler.get_last_lr()[0])
-            if idx % 100 == 0:
+            if idx % setup['iter_print'] == 0:
                 print('Epoch: {}, Train Loss: {}'.format(epoch, loss.item()))
 
             # Store loss info
@@ -66,7 +66,7 @@ def train_model(setup):
 
             loss = criterion(outputs, y)
 
-            if idx % 100 == 0:
+            if idx % setup['iter_print'] == 0:
                 print('Epoch: {}, Test Loss: {}'.format(epoch, loss.item()))
 
             # Save loss info

@@ -1,5 +1,6 @@
 import datetime as dt
 from dateutil.relativedelta import relativedelta
+from dc.utils.ImportantVars import LENGTH
 import numpy as np
 from pathlib import Path
 import rasterio as rio
@@ -14,6 +15,7 @@ class RegressorLoader(Dataset):
         self.ens_path = Path(ens_path)
         self.target_path = Path(target_path)
         self.days = self.get_days()
+        self.all_files = self.ens_path.rglob('*None.tif')
 
         test_years = ['2007', '2014', '2017']
         self.days = [x for x in self.days if x[:4] not in test_years] if train else [x for x in self.days if x[:4] in test_years]
@@ -21,16 +23,16 @@ class RegressorLoader(Dataset):
         self.mx_lead = mx_lead
 
         self.options = [(x, y) for x in self.days for y in range(mx_lead)]
-
+    
     def make_ensemble(self, day, lead_time):
 
-        f_list = [str(x) for x in self.ens_path.rglob(day+'*None.tif')]
-        arrs = np.array([rio.open(x).read([lead_time]) for x in f_list])
+        f_list = [str(x) for x in self.all_files if day in str(x)]
+        arrs = np.array([rio.open(x).read([lead_time+1]) for x in f_list])
 
         return arrs
 
     def get_days(self):
-        files = [x for x in self.ens_path.joinpath('ensemble_1/preds').glob('*None.tif')]
+        files = [x for x in self.ens_path.joinpath('ensemble_01/preds').glob('*None.tif')]
         days = list(sorted(set([x.name[:8] for x in files])))
 
         return days
@@ -47,7 +49,9 @@ class RegressorLoader(Dataset):
     def __getitem__(self, idx):
 
         day, lead_time = self.options[idx]
+        
         x = self.make_ensemble(day, lead_time)
+        x = x.squeeze().reshape(10, LENGTH)
         y = self.get_target(day, lead_time)
 
-        return x.copy(), y.copy()
+        return x.copy(), y.copy(), lead_time

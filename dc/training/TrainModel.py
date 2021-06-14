@@ -29,13 +29,19 @@ def train_model(setup):
 
         # Loop over each subset of data
         for idx, item in enumerate(setup['train']):
-            x, y = item
+ 
+            if setup['model_type'] == 'regressor':
+                 x, y, lead_time = item
+            else:
+                 x, y = item
+
             x, y = x.squeeze(), y.squeeze()
+
 
             # Zero out the optimizer's gradient buffer
             optimizer.zero_grad()
             # Make prediction with model
-            outputs = model(x)
+            outputs = model(x, lead_time) if setup['model_type'] == 'regressor' else model(x)
 
             # Compute the loss and step the optimizer
             loss = criterion(outputs, y)
@@ -59,9 +65,12 @@ def train_model(setup):
         model.eval()
 
         for idx, item in enumerate(setup['test']):
-            x, y = item
-
-            outputs = model(x)
+            if setup['model_type'] == 'regressor':
+                 x, y, lead_time = item
+            else:
+                 x, y = item
+	    
+            outputs = model(x, lead_time) if setup['model_type'] == 'regressor' else model(x)
             outputs = outputs.squeeze()
 
             loss = criterion(outputs, y)

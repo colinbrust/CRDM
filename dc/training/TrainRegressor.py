@@ -10,8 +10,8 @@ from torch.utils.data import DataLoader
 
 def train_regressor(setup):
 
-    train_loader = RegressorLoader(ens_path=setup['ens_path'], target_path=setup['target_path'], train=True)
-    test_loader = RegressorLoader(ens_path=setup['ens_path'], target_path=setup['target_path'], train=False)
+    train_loader = RegressorLoader(ens_path=setup['ensemble_path'], target_path=setup['target_path'], train=True)
+    test_loader = RegressorLoader(ens_path=setup['ensemble_path'], target_path=setup['target_path'], train=False)
 
     setup['train'] = DataLoader(dataset=train_loader, batch_size=setup['batch_size'], shuffle=True, drop_last=True)
     setup['test'] = DataLoader(dataset=test_loader, batch_size=setup['batch_size'], shuffle=True, drop_last=True)

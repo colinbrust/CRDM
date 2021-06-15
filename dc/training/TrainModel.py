@@ -67,7 +67,7 @@ def train_model(setup):
                 x, y, lead_time = item
             else:
                 x, y = item
-
+            
             outputs = model(x, lead_time) if setup['model_type'] == 'regressor' else model(x)
             outputs = outputs.squeeze()
 

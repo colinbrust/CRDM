@@ -10,7 +10,7 @@ import rasterio as rio
 import torch
 from torch import nn
 from tqdm import tqdm
-from typing import List, Dict
+from typing import List, Dict, Any
 
 # LENGTH should be divisible by BATCH
 BATCH = 2488
@@ -20,8 +20,8 @@ torch.set_num_threads(2)
 
 class Mapper(object):
 
-    def __init__(self, model: nn.Module, metadata: Dict, features: str, classes: str, out_dir: str, shps: Dict[int],
-                 test: bool = True, holdout: str = None):
+    def __init__(self, model: nn.Module, metadata: Dict[str, Any], features: str, classes: str, out_dir: str,
+                 shps: Dict[str, int], test: bool = True, holdout: str = None):
         """
         :param model: Pretrained PyTorch model.
         :param metadata: Dict containing metadata used to train model

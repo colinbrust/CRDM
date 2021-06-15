@@ -5,7 +5,6 @@ import torch
 
 
 def train_model(setup):
-
     model = setup['model']
     optimizer = setup['optimizer']
     criterion = setup['criterion']
@@ -29,14 +28,13 @@ def train_model(setup):
 
         # Loop over each subset of data
         for idx, item in enumerate(setup['train']):
- 
+
             if setup['model_type'] == 'regressor':
-                 x, y, lead_time = item
+                x, y, lead_time = item
             else:
-                 x, y = item
+                x, y = item
 
             x, y = x.squeeze(), y.squeeze()
-
 
             # Zero out the optimizer's gradient buffer
             optimizer.zero_grad()
@@ -66,10 +64,10 @@ def train_model(setup):
 
         for idx, item in enumerate(setup['test']):
             if setup['model_type'] == 'regressor':
-                 x, y, lead_time = item
+                x, y, lead_time = item
             else:
-                 x, y = item
-	    
+                x, y = item
+
             outputs = model(x, lead_time) if setup['model_type'] == 'regressor' else model(x)
             outputs = outputs.squeeze()
 
@@ -83,8 +81,8 @@ def train_model(setup):
             test_loss.append(loss.item())
 
         # Save out train and test set loss.
-        err_out[epoch] = {'train': sum(train_loss)/len(train_loss),
-                          'test': sum(test_loss)/len(test_loss)}
+        err_out[epoch] = {'train': sum(train_loss) / len(train_loss),
+                          'test': sum(test_loss) / len(test_loss)}
 
         with open(os.path.join(setup['out_dir'], 'err.p'), 'wb') as f:
             pickle.dump(err_out, f)

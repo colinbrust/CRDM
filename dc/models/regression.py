@@ -13,15 +13,12 @@ class Regressor(nn.Module):
     def __init__(self, num_ensemble=10, num_pixels=LENGTH, mx_lead=12):
         super().__init__()    
     
-        self.A = nn.Parameter(torch.randn((1, num_ensemble, num_pixels, mx_lead), requires_grad=True))
-        self.b = nn.Parameter(torch.randn((1, num_pixels, mx_lead), requires_grad=True))
+        self.A = nn.Parameter(torch.ones((LENGTH, num_ensemble, mx_lead), requires_grad=True) * 0.1)
 
     def forward(self, x, lead_time):
         
         A = self.A[:, :, lead_time]
-        b = self.b[:, lead_time]
-        print(A.shape)
-        print(x.shape)
-        return A.mm(x) + b
+
+        return A.unsqueeze(1).bmm(x.unsqueeze(-1)).squeeze()
 
 

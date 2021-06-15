@@ -1,20 +1,16 @@
 import argparse
 from dc.loaders.RegressorLoader import RegressorLoader
 from dc.models.regression import Regressor
-from dc.training.TrainModel import train_model
+import numpy as np
 import torch
 from torch import nn
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from torch.utils.data import DataLoader
 
 
 def train_regressor(setup):
 
     train_loader = RegressorLoader(ens_path=setup['ensemble_path'], target_path=setup['target_path'], train=True)
     test_loader = RegressorLoader(ens_path=setup['ensemble_path'], target_path=setup['target_path'], train=False)
-
-    setup['train'] = DataLoader(dataset=train_loader, batch_size=setup['batch_size'], shuffle=True, drop_last=True)
-    setup['test'] = DataLoader(dataset=test_loader, batch_size=setup['batch_size'], shuffle=True, drop_last=True)
 
     model = Regressor(num_ensemble=10, mx_lead=12)
 
@@ -30,8 +26,14 @@ def train_regressor(setup):
     setup['optimizer'] = optimizer
     setup['scheduler'] = scheduler
 
-    model = train_model(setup)
-    return model
+    for t in range(100):
+        x, y, lead_time = test[np.random.randint(len(test))]
+        optimizer.zero_grad()
+        y_pred = model(torch.Tensor(x), lead_time)
+        loss = criterion(y_pred, torch.Tensor(y))
+        loss.backward()
+        optimizer.step()
+        print(loss.item())
 
 
 if __name__ == '__main__':

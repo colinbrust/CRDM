@@ -53,11 +53,12 @@ def calc_ts_bins(pred_dir: str, target_dir: str, mask: str = './data/pix_mask.da
         print(dates[day])
 
         for lead_time in [2, 4, 8, 12]:
-            tmp_pred = preds[day, lead_time, ...].copy()
+            tmp_pred = preds[day, lead_time-1, ...].copy()
             tmp_pred = np.where(tmp_pred <= 3, np.round(tmp_pred), np.ceil(tmp_pred))
+            tmp_pred = np.clip(tmp_pred, 0, 5)
             tmp_pred = tmp_pred.astype(np.int)
             np.putmask(tmp_pred, mask, 6)
-            tmp_targ = targets[day, lead_time, ...].copy()
+            tmp_targ = targets[day, lead_time-1, ...].copy()
             np.putmask(tmp_targ, mask, 6)
 
             pred = np.bincount(tmp_pred.ravel())

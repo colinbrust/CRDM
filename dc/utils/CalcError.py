@@ -1,4 +1,4 @@
-from dc.utils.ImportantVars import DIMS, LENGTH
+from dc.utils.ImportantVars import DIMS, LENGTH, holdouts
 import datetime as dt
 import dateutil.relativedelta as rd
 from functools import lru_cache
@@ -20,7 +20,7 @@ def strip_date(f: str) -> str:
     """
     return os.path.basename(f).split('_')[0]
 
-
+@lru_cache(maxsize=1000)
 def get_target_dates(date: dt.date, lead_range: int) -> List[str]:
     """
     Get list of dates for target images.
@@ -28,7 +28,7 @@ def get_target_dates(date: dt.date, lead_range: int) -> List[str]:
     :param lead_range: Number of weeks in the future to stack USDM images.
     :return: List of dates of USDM images to use.
     """
-    dates = [str(date + rd.relativedelta(weeks=x)) for x in range(1, lead_range + 1)]
+    dates = [str(date + rd.relativedelta(weeks=x)) for x in range(lead_range)]
     dates = [x.replace('-', '') for x in dates]
     return list(sorted(dates))
 
@@ -52,7 +52,7 @@ def get_targets(count: int, f: str, target_dir: str) -> np.array:
     return np.array([np.memmap(x, shape=DIMS, dtype='int8') for x in targets])
 
 
-def save_arrays(out_path: str, data: np.array):
+def save_arrays(out_path: str, data: np.array, count: int):
 
     """
     Save np array as geotiff
@@ -67,7 +67,7 @@ def save_arrays(out_path: str, data: np.array):
         driver='GTiff',
         height=DIMS[0],
         width=DIMS[1],
-        count=1,
+        count=count,
         dtype='float32',
         transform=rio.Affine(9000.0, 0.0, -12048530.45, 0.0, -9000.0, 5568540.83),
         crs='+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs'
@@ -87,7 +87,7 @@ def get_spatial_error(base_dir: str = '/mnt/anx_lagr4/drought/models/all_results
     pred_val = []
     targ_val = []
 
-    for f in f_list:
+    for f in f_list[:-1]:
         print(f)
         target = get_targets(12, f, target_dir).reshape(12, LENGTH)
         tmp = rio.open(f).read(list(range(1, 13)))
@@ -131,27 +131,24 @@ def get_spatial_error(base_dir: str = '/mnt/anx_lagr4/drought/models/all_results
     save_arrays('./data/plot_data/figs/r_val.tif', np.array(r_arr_val).reshape(DIMS)[np.newaxis])
 
 
-def get_all_error(base_dir='/mnt/anx_lagr4/drought/models/all_results/median',
+def get_all_error(base_dir='/anx_lagr4/drought/models/all_results/median',
                   target_dir='./data/targets',
-                  locs='/mnt/anx_lagr4/drought/models/locs.p',
-                  out_dir='./data/plot_data/tables'):
+                  locs='/anx_lagr4/drought/models/locs.p',
+                  out_dir='./plot_data/tables'):
 
     f_list = [x.as_posix() for x in Path(base_dir).glob('*None.tif')]
     locs = pickle.load(open(locs, 'rb'))
 
     train = []
     train_targ = []
-    train_base = []
 
     test = []
     test_targ = []
-    test_base = []
 
     validation = []
     val_targ = []
-    val_base = []
 
-    for f in sorted(f_list):
+    for f in sorted(f_list)[:-1]:
         try:
             date = strip_date(f)
             print(date)
@@ -160,13 +157,10 @@ def get_all_error(base_dir='/mnt/anx_lagr4/drought/models/all_results/median',
             pred = rio.open(f).read(list(range(1, 13)))
             pred = np.where(pred <= 3, np.round(pred), np.ceil(pred)).astype(np.int8).reshape(12, LENGTH)
             pred = np.clip(pred, 0, 5)
-            baseline = next(Path(target_dir).glob(date+'*')).as_posix()
-            baseline = np.array([np.memmap(baseline, dtype=np.int8)] * 12)
 
             if date[:4] in ['2007', '2014', '2017']:
                 validation.append(pred)
                 val_targ.append(targets)
-                val_base.append(baseline)
             else:
                 train.append(pred[:, locs['train']])
                 test.append(pred[:, locs['test']])
@@ -174,33 +168,30 @@ def get_all_error(base_dir='/mnt/anx_lagr4/drought/models/all_results/median',
                 train_targ.append(targets[:, locs['train']])
                 test_targ.append(targets[:, locs['test']])
 
-                train_base.append(baseline[:, locs['train']])
-                test_base.append(baseline[:, locs['test']])
-
         except ValueError as e:
             print(e)
             continue
 
     train = np.array(train).swapaxes(0, 1).reshape(12, -1)
     train_targ = np.array(train_targ).swapaxes(0, 1).reshape(12, -1)
-    # train_base = np.array(train_base).swapaxes(0, 1).reshape(12, -1)
 
     test = np.array(test).swapaxes(0, 1).reshape(12, -1)
     test_targ = np.array(test_targ).swapaxes(0, 1).reshape(12, -1)
-    # test_base = np.array(test_base).swapaxes(0, 1).reshape(12, -1)
 
     validation = np.array(validation).swapaxes(0, 1).reshape(12, -1)
     val_targ = np.array(val_targ).swapaxes(0, 1).reshape(12, -1)
-    # val_base = np.array(val_base).swapaxes(0, 1).reshape(12, -1)
 
     train_mse = []
     train_cor = []
 
+
     test_mse = []
     test_cor = []
 
+
     val_mse = []
     val_cor = []
+
 
     for lead_time in range(12):
         train_cor.append(round(np.corrcoef(train[lead_time, :], train_targ[lead_time, :])[0, 1], 4))
@@ -221,3 +212,33 @@ def get_all_error(base_dir='/mnt/anx_lagr4/drought/models/all_results/median',
 
     df = pd.DataFrame(dat)
     df.to_csv(os.path.join(out_dir, 'complete_err.csv'), index=False)
+
+def get_holdout_error(base_dir, target_dir, out_dir):
+
+    holdouts = list(holdouts.keys()) + ['None']
+    holdouts = holdouts[1:]
+
+    for holdout in holdouts:
+        f_list = [x.as_posix() for x in Path(base_dir).glob('*{}.tif'.format(holdout))]
+        pred_arr = []
+        for f in f_list:
+            print(f)
+            tmp = rio.open(f).read(list(range(1, 13)))
+            tmp = np.where(tmp <= 3, np.round(tmp), np.ceil(tmp))
+
+            pred = tmp.astype(np.int8).reshape(12, LENGTH)
+            pred = np.clip(pred, 0, 5)
+            pred_arr.append(pred)
+
+        preds = np.array(pred_arr)
+
+        targ_arr = []
+        for f in f_list:
+            print(f)
+            targs = get_targets(12, f, target_dir).reshape(12, LENGTH)
+            targ_arr.append(targs)
+
+        targs = np.array(targ_arr)
+
+        out = np.mean(((targs - preds) ** 2), axis=0).reshape(12, *DIMS)
+        save_arrays(os.path.join(out_dir, '{}_err.tif'.format(holdout)), out, 12)

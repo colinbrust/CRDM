@@ -69,7 +69,6 @@ class Seq2Seq(nn.Module):
             enc_linear.append(nn.BatchNorm1d(n_weeks))
             enc_linear.append(nn.ReLU())
             enc_linear.append(nn.Dropout(0.5))
-
             sz = sz_2
             sz_2 *= 2
 

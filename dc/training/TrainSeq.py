@@ -72,9 +72,9 @@ if __name__ == '__main__':
         'size': args.size,
         'lead_time': args.lead_time,
         'early_stop': 10,
-        'categorical': args.categorical,
+        'categorical': False,
         'model_type': 'seq',
-        'pix_mask': '/mnt/e/PycharmProjects/DroughtCast/data/pix_mask.dat',
+        'pix_mask': '~/data/in_features/pix_mask.dat',
         'model': 'vanilla',
         'iter_print': 100
     }
@@ -94,6 +94,7 @@ if __name__ == '__main__':
 
     with open(os.path.join(setup['dirname'], 'metadata_{}_{}.p'.format(setup['index'], setup['model_type'])), 'wb') as f:
         pickle.dump(setup, f)
-
+    
+    setup['out_dir'] = setup['dirname']
     train_seq(setup)
 

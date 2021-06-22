@@ -63,12 +63,15 @@ class Seq2Seq(nn.Module):
         # Add some linear layers before data are passed into encoder/decoder framework
         enc_linear = []
         sz = input_size
+        sz_2 = 64
         while sz < hidden_size:
-            enc_linear.append(nn.Linear(int(sz), int(sz*2)))
+            enc_linear.append(nn.Linear(int(sz), int(sz_2)))
             enc_linear.append(nn.BatchNorm1d(n_weeks))
             enc_linear.append(nn.ReLU())
             enc_linear.append(nn.Dropout(0.5))
-            sz *= 2
+
+            sz = sz_2
+            sz_2 *= 2
 
         self.enc_linear = nn.Sequential(*enc_linear)
 

@@ -54,16 +54,9 @@ def average_estimates(pth: str, out_dir: str, holdout: str = 'None'):
             arr.append(preds)
             raster.close()
 
+        save_arrays(os.path.join(out_dir, 'iqr'), np.subtract(*np.percentile(arr, [75, 25], axis=0)), day, 'float32')
         save_arrays(os.path.join(out_dir, 'mean'), np.mean(arr, axis=0), day, 'float32')
         save_arrays(os.path.join(out_dir, 'min'), np.min(arr, axis=0), day, 'float32')
         save_arrays(os.path.join(out_dir, 'max'), np.max(arr, axis=0), day, 'float32')
         save_arrays(os.path.join(out_dir, 'sd'), np.std(arr, axis=0), day, 'float32')
         save_arrays(os.path.join(out_dir, 'median'), np.median(arr, axis=0), day, 'float32')
-
-
-
-
-
-
-
-

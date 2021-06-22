@@ -5,9 +5,12 @@ from functools import lru_cache
 import numpy as np
 import os
 from pathlib import Path
+import pandas as pd
+import pickle
 import rasterio as rio
 from sklearn.metrics import mean_squared_error
 from tqdm import tqdm
+from typing import List
 
 
 def strip_date(f: str) -> str:
@@ -30,7 +33,6 @@ def get_target_dates(date: dt.date, lead_range: int) -> List[str]:
     return list(sorted(dates))
 
 
-@lru_cache(maxsize=1000)
 def get_targets(count: int, f: str, target_dir: str) -> np.array:
     """
     Stack USDM images into a timeseries.
@@ -75,7 +77,7 @@ def save_arrays(out_path: str, data: np.array):
     out_dst.close()
 
 
-def get_spatial_error(base_dir: str = './data/models/preds', target_dir: str = './data/out_classes/memmap'):
+def get_spatial_error(base_dir: str = '/mnt/anx_lagr4/drought/models/all_results/median', target_dir: str = './data/targets'):
 
     f_list = list(sorted([x.as_posix() for x in Path(base_dir).glob('*None.tif')]))
 
@@ -88,7 +90,10 @@ def get_spatial_error(base_dir: str = './data/models/preds', target_dir: str = '
     for f in f_list:
         print(f)
         target = get_targets(12, f, target_dir).reshape(12, LENGTH)
-        pred = np.round(rio.open(f).read(list(range(1, 13)))).astype(np.int8).reshape(12, LENGTH)
+        tmp = rio.open(f).read(list(range(1, 13)))
+        tmp = np.where(tmp <= 3, np.round(tmp), np.ceil(tmp))
+
+        pred = tmp.astype(np.int8).reshape(12, LENGTH)
         pred = np.clip(pred, 0, 5)
 
         if strip_date(f)[:4] in ['2007', '2014', '2017']:
@@ -125,3 +130,94 @@ def get_spatial_error(base_dir: str = './data/models/preds', target_dir: str = '
     save_arrays('./data/plot_data/figs/mse_val.tif', np.array(mse_arr_val).reshape(DIMS)[np.newaxis])
     save_arrays('./data/plot_data/figs/r_val.tif', np.array(r_arr_val).reshape(DIMS)[np.newaxis])
 
+
+def get_all_error(base_dir='/mnt/anx_lagr4/drought/models/all_results/median',
+                  target_dir='./data/targets',
+                  locs='/mnt/anx_lagr4/drought/models/locs.p',
+                  out_dir='./data/plot_data/tables'):
+
+    f_list = [x.as_posix() for x in Path(base_dir).glob('*None.tif')]
+    locs = pickle.load(open(locs, 'rb'))
+
+    train = []
+    train_targ = []
+    train_base = []
+
+    test = []
+    test_targ = []
+    test_base = []
+
+    validation = []
+    val_targ = []
+    val_base = []
+
+    for f in sorted(f_list):
+        try:
+            date = strip_date(f)
+            print(date)
+
+            targets = get_targets(12, f, target_dir).reshape(12, LENGTH)
+            pred = rio.open(f).read(list(range(1, 13)))
+            pred = np.where(pred <= 3, np.round(pred), np.ceil(pred)).astype(np.int8).reshape(12, LENGTH)
+            pred = np.clip(pred, 0, 5)
+            baseline = next(Path(target_dir).glob(date+'*')).as_posix()
+            baseline = np.array([np.memmap(baseline, dtype=np.int8)] * 12)
+
+            if date[:4] in ['2007', '2014', '2017']:
+                validation.append(pred)
+                val_targ.append(targets)
+                val_base.append(baseline)
+            else:
+                train.append(pred[:, locs['train']])
+                test.append(pred[:, locs['test']])
+
+                train_targ.append(targets[:, locs['train']])
+                test_targ.append(targets[:, locs['test']])
+
+                train_base.append(baseline[:, locs['train']])
+                test_base.append(baseline[:, locs['test']])
+
+        except ValueError as e:
+            print(e)
+            continue
+
+    train = np.array(train).swapaxes(0, 1).reshape(12, -1)
+    train_targ = np.array(train_targ).swapaxes(0, 1).reshape(12, -1)
+    # train_base = np.array(train_base).swapaxes(0, 1).reshape(12, -1)
+
+    test = np.array(test).swapaxes(0, 1).reshape(12, -1)
+    test_targ = np.array(test_targ).swapaxes(0, 1).reshape(12, -1)
+    # test_base = np.array(test_base).swapaxes(0, 1).reshape(12, -1)
+
+    validation = np.array(validation).swapaxes(0, 1).reshape(12, -1)
+    val_targ = np.array(val_targ).swapaxes(0, 1).reshape(12, -1)
+    # val_base = np.array(val_base).swapaxes(0, 1).reshape(12, -1)
+
+    train_mse = []
+    train_cor = []
+
+    test_mse = []
+    test_cor = []
+
+    val_mse = []
+    val_cor = []
+
+    for lead_time in range(12):
+        train_cor.append(round(np.corrcoef(train[lead_time, :], train_targ[lead_time, :])[0, 1], 4))
+        train_mse.append(round(mean_squared_error(train[lead_time, :], train_targ[lead_time, :]), 4))
+
+        test_cor.append(round(np.corrcoef(test[lead_time, :], test_targ[lead_time, :])[0, 1], 4))
+        test_mse.append(round(mean_squared_error(test[lead_time, :], test_targ[lead_time, :]), 4))
+
+        val_cor.append(round(np.corrcoef(validation[lead_time, :], val_targ[lead_time, :])[0, 1], 4))
+        val_mse.append(round(mean_squared_error(validation[lead_time, :], val_targ[lead_time, :]), 4))
+
+    dat = {'train_cor': train_cor,
+           'train_mse': train_mse,
+           'test_cor': test_cor,
+           'test_mse': test_mse,
+           'val_cor': val_cor,
+           'val_mse': val_mse}
+
+    df = pd.DataFrame(dat)
+    df.to_csv(os.path.join(out_dir, 'complete_err.csv'), index=False)

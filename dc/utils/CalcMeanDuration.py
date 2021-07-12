@@ -4,6 +4,9 @@ from dc.utils.ImportantVars import DIMS, LENGTH
 import numpy as np
 from pathlib import Path
 from typing import List, Dict
+import fiona
+import rasterio
+from rasterio.mask import mask
 
 
 @njit
@@ -28,7 +31,7 @@ def counter(l: np.array, swap: int = 1) -> List[int]:
     return out
 
 
-def calc_durations(target_dir: str) -> Dict[np.array]:
+def calc_durations(target_dir: str) -> Dict[str, np.array]:
     """
     Calculate mean duration of drought in various categories.
     :param target_dir: Path to directory containing memmaps of USDM images.
@@ -61,6 +64,35 @@ def calc_durations(target_dir: str) -> Dict[np.array]:
             'fours': four_out,
             'ones': one_out}
 
+def calc_percentages(target_dir: str, template_tif: str, year: int, category: int) -> np.array:
+    """
+    Calculate mean duration of drought in various categories.
+    :param target_dir: Path to directory containing memmaps of USDM images.
+    :return: Dictionary containing durations of category 3, 4 drought and time without a category 0 drought.
+    """
+    f_list = sorted([x.as_posix() for x in Path(target_dir).glob('*.dat')])
+
+
+    idx = [idx for idx, x in enumerate(f_list) if '/{}'.format(year) in x]
+
+    targets = np.array([np.memmap(x, dtype='int8') for x in f_list])
+    targs_year = targets[idx]
+
+    template = rasterio.open(template_tif)
+
+    targs_all = np.where(targets == category, 1, 0)
+    total = np.sum(targs_all, axis=0).reshape(DIMS)
+
+    tmp = np.sum(np.where(targs_year == category, 1, 0), axis=0).reshape(DIMS)
+    percent = np.divide(tmp, total)
+
+    with rasterio.open('./data/plot_data/total_cat_{}.tif'.format(category), 'w', **template.profile) as dst:
+        dst.write(total[np.newaxis].astype(np.float32))
+
+
+
+def calc_target_dir: str
+
 # out_counts = []
 # for pixel in range(fours.shape[-1]):
 #     print(pixel)
@@ -85,4 +117,4 @@ def calc_durations(target_dir: str) -> Dict[np.array]:
 #
 # plt.imshow(one_out.reshape(DIMS))
 # plt.title('Max Duration Without D0 Drought (Weeks)')
-# plt.colorbar()
+# plt.colorbar()"

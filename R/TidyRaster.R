@@ -1,10 +1,8 @@
 library(magrittr)
 
-states <- urbnmapr::get_urbn_map(sf = TRUE) %>%
-  dplyr::filter(state_abbv != 'AK', state_abbv != 'HI') %>%
-  sf::st_transform(6933) 
 
-tidy_raster <- function(r, stack = TRUE, band = 1) {
+tidy_raster <- function(r, stack = TRUE, band = 1, states) {
+  
   print(r)
   
   if (stack) {

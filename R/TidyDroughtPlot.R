@@ -1,18 +1,28 @@
+library(ggplot2)
+library(magrittr)
+library(patchwork)
+source('./R/PlotTheme.R')
+
+
 tidy_drought_plot <- function(f) {
+  print(f)
   
   states <- urbnmapr::get_urbn_map(sf = TRUE) %>%
     dplyr::filter(state_abbv != 'AK', state_abbv != 'HI') %>%
-    sf::st_transform(6933) 
+    sf::st_transform(6933) %>%
+    dplyr::filter(state_abbv %in% c('TN', 'NC', 'SC', 'GA', 'AL', 'MS', 'FL'))
   
   dat <- f %>%
     raster::raster() %>%
+    raster::mask(states) %>%
     raster::rasterToPoints() %>%
     `colnames<-`(c('x', 'y', 'val')) %>%
     tibble::as_tibble() %>%
     dplyr::mutate(val = factor(val))
     
+  out_name = stringr::str_replace(basename(f), '.tif', '.png')
   
-  ggplot() + 
+  out <- ggplot() + 
     geom_raster(data = dat, mapping = aes(x=x, y=y, fill=val)) + 
     geom_sf(data = states, mapping = aes(), fill=NA, size = 0.5) +
     plot_theme() + 
@@ -22,32 +32,25 @@ tidy_drought_plot <- function(f) {
                                  `3` = '#FFAA00',
                                  `4` = '#E60000',
                                  `5` = '#730000')) +
-    labs(x='', y='', fill='Drought\nCategory') + 
+    labs(x='', y='', fill='Drought\nCategory', title=out_name) + 
     scale_y_discrete(guide = guide_axis(check.overlap = TRUE)) 
+
+  ggsave(glue::glue('./data/plot_data/animations/{out_name}'), height=3,
+         width=5, unit = 'in', dpi=320)
 }
 
 
-colorRampPalette(c('#ffffff','#FFFF00','#FCD37F','#FFAA00','#E60000','#730000')) -> pal
+library(foreach)
+library(doParallel)
 
-dat <- tidy_raster('./data/models/big_test/ensemble_0/preds/20170725_preds_None.tif', T) %>%
-  tidyr::pivot_longer(dplyr::starts_with('lt')) %>% 
-  dplyr::filter(name %in% c('lt_2', 'lt_4', 'lt_8', 'lt_12')) 
+cl <- makeCluster(9) #not to overload your computer
+registerDoParallel(cl)
 
-library(ggplot2)
+f_list <- list.files('./data/out_classes/tif', full.names = T, pattern = '2007') 
 
-ggplot() + 
-  geom_raster(aes(x=x, y=y, fill=value), data = dat) + 
-  geom_sf(aes(), data = states, fill=NA) + 
-  scale_fill_gradientn(na.value='grey26', colors = pal(100), limits = c(0, 5)) + 
-  facet_wrap(~name) +
-  plot_theme() +
-  labs(x='', y='')
-  
-dat %>%
-  dplyr::mutate(
-    test = dplyr::case_when(
-      value <= 2 ~ round(value),
-      TRUE ~ ceiling(value)
-    )
-  ) -> dat2
+foreach(i=1:length(f_list), .packages=c('magrittr', 'glue', 'ggplot2', 'dplyr', 'sf', 'raster', 'urbnmapr')) %dopar% {
+  tidy_drought_plot(f_list[i])
+}
+#stop cluster
+stopCluster(cl)
 

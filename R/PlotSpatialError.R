@@ -1,5 +1,5 @@
 source('./R/TidyRaster.R')
-source('./crdm/R/PlotTheme.R')
+source('./R/PlotTheme.R')
 library(magrittr)
 library(patchwork)
 library(ggplot2)
@@ -87,7 +87,7 @@ mon_plot <- function(dat, lead_time=1,
   
 }
 
-plot_spatial_error <- function(f_dir = './data/plot_data/figs/spatial_err') {
+plot_spatial_error <- function(f_dir = './data/plot_data/figs') {
   out <- list.files(f_dir, full.names = T) %>%
     lapply(function(x) {
       n <- stringr::str_replace(basename(x), '.tif', '')
@@ -112,7 +112,7 @@ plot_spatial_error <- function(f_dir = './data/plot_data/figs/spatial_err') {
         )
     )
   
-  pal <- colorRampPalette(RColorBrewer::brewer.pal(10, 'Spectral'))
+  pal <- colorRampPalette(RColorBrewer::brewer.pal(10, 'YlOrRd'))
   
   p1 <- ggplot() +
     geom_raster(aes(x=x, y=y, fill=val), data = dplyr::filter(out, metric == 'R-Squared')) + 
@@ -130,7 +130,8 @@ plot_spatial_error <- function(f_dir = './data/plot_data/figs/spatial_err') {
     scale_fill_gradientn(colors = rev(pal(100))) +
     labs(x='', y='', fill='')
     
-  p1/p2
+  out <- p1/p2
   
-
+  ggplot2::ggsave('./data/plot_data/final_figures/spatial_err.png', out,
+                  width = 12, height = 8, units = 'in', dpi='retina')
 }

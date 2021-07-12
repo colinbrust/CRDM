@@ -7,9 +7,10 @@ import torch.nn.functional as F
 
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
-# Encoder that 
+
+# Encoder
 class RNNEncoder(nn.Module):
-    
+
     def __init__(self, num_layers=1, input_size=1, hidden_size=100, bidirectional=False):
         super().__init__()
         self.hidden_size = hidden_size
@@ -25,7 +26,6 @@ class RNNEncoder(nn.Module):
         )
 
     def forward(self, input_seq):
-
         ht = torch.zeros(self.num_layers * self.rnn_directions, input_seq.size(0), self.hidden_size, device=device)
 
         gru_out, hidden = self.gru(input_seq, ht)
@@ -50,7 +50,6 @@ class DecoderCell(nn.Module):
         self.out = nn.Linear(hidden_size, input_size)
 
     def forward(self, prev_y, prev_hidden):
-
         rnn_hidden = self.decoder_rnn_cell(prev_y, prev_hidden)
         output = self.out(rnn_hidden)
         return output, rnn_hidden
@@ -82,7 +81,7 @@ class Seq2Seq(nn.Module):
         classifier = []
         sz = hidden_size
         while sz > 32:
-            classifier.append(nn.Linear(int(sz), int(sz//2)))
+            classifier.append(nn.Linear(int(sz), int(sz // 2)))
             classifier.append(nn.BatchNorm1d(self.lead_time))
             classifier.append(nn.ReLU())
             classifier.append(nn.Dropout(0.5))

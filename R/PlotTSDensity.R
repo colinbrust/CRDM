@@ -1,15 +1,15 @@
 library(magrittr)
 library(ggplot2)
-source('./crdm/R/PlotTheme.R')
+source('./R/PlotTheme.R')
 
-plot_ts_density <- function(f = './data/plot_data/bin_counts.csv') {
+plot_ts_density <- function(f = './data/plot_data/bin_counts_median.csv') {
   
   dat <- f %>%
     readr::read_csv() %>%
     dplyr::filter(category != 6) %>%
     dplyr::mutate(day = lubridate::as_date(as.character(day)),
-                  day = day + lubridate::weeks(lt),
-                  lt = lt + 1) %>%
+                  day = day + lubridate::weeks(lt - 1)
+                  ) %>%
     dplyr::filter(lt %in% c(2, 4, 8, 12)) %>%
     tidyr::pivot_wider(names_from = lt, values_from = pred) %>%
     tidyr::pivot_longer(
@@ -50,7 +50,7 @@ plot_ts_density <- function(f = './data/plot_data/bin_counts.csv') {
     to=as.Date(c('2007-12-31', '2014-12-31', '2017-12-31'))
   )
   
-  ggplot() + 
+  out <- ggplot() + 
     geom_bar(
       data = dat, 
       mapping = aes(x=day, y=pct, fill=category), 
@@ -60,7 +60,7 @@ plot_ts_density <- function(f = './data/plot_data/bin_counts.csv') {
       data = dateRanges,
       mapping = aes(xmin = from, xmax = to, ymin = 0, ymax = 1),
       alpha = 0.4,
-      show.legend = T
+      show.legend = F
     ) +
     scale_fill_manual(values = c('No Drought' = NA,
                                  'D0' = '#FFFF00',
@@ -72,11 +72,9 @@ plot_ts_density <- function(f = './data/plot_data/bin_counts.csv') {
     plot_theme() + 
     labs(x='', y='Percent Coverage', fill = 'USDM\nCategory',
          title = 'CONUS Areal Drought Coverage (%)') +
-    scale_y_continuous(labels = scales::percent_format()) +
-    scale_color_manual()
-    # scale_fill_manual(
-    #   'Holdout Data',
-    #   values = 'grey',
-    #   guide = guide_legend(override.aes = list(alpha = 1)))
+    scale_y_continuous(labels = scales::percent_format()) 
+  
+  ggplot2::ggsave('./data/plot_data/final_figures/areal_coverage.png', out, 
+                  width = 7.5, height = 7.5, units = 'in', dpi = 320)
     
 }
